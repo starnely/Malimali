@@ -1,0 +1,51 @@
+/* Critical stock badge */
+.critical {
+  background: #FCEBEB;
+  color: #791F1F;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+.critical:hover {
+  background: #E24B4A;
+  color: #fff;
+}
+
+/* Low stock badge */
+.low {
+  background: #FAEEDA;
+  color: #633806;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+.low:hover {
+  background: #F5A623;
+  color: #fff;
+}
+
+/* In stock badge */
+.inStock {
+  background: #EAF3DE;
+  color: #27500A;
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+.inStock:hover {
+  background: #27500A;
+  color: #fff;
+}
+
+/* === Modal Animations === */
+@keyframes fadeInScale {
+  0% {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeInScale 0.25s ease-out forwards;
+}

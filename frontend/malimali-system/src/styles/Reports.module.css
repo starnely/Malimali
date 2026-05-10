@@ -1,0 +1,46 @@
+.card {
+  @apply bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm transition transform hover:scale-105 hover:shadow-lg;
+}
+
+/* Color themes for cards */
+.card-blue { @apply border-l-4 border-blue-700; }
+.card-green { @apply border-l-4 border-green-700; }
+.card-yellow { @apply border-l-4 border-yellow-600; }
+.card-purple { @apply border-l-4 border-purple-700; }
+.card-indigo { @apply border-l-4 border-indigo-700; }
+.card-red { @apply border-l-4 border-red-700; }
+
+.icon {
+  @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0;
+}
+.icon-blue { @apply bg-blue-50 text-blue-700; }
+.icon-green { @apply bg-green-50 text-green-700; }
+.icon-yellow { @apply bg-yellow-50 text-yellow-600; }
+.icon-purple { @apply bg-purple-50 text-purple-700; }
+.icon-indigo { @apply bg-indigo-50 text-indigo-700; }
+.icon-red { @apply bg-red-50 text-red-700; }
+
+.td {
+  @apply px-4 py-2 text-sm text-gray-700 border-b border-gray-100;
+}
+
+.rowHover {
+  @apply hover:bg-blue-50 transition;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0 }
+  to { transform: translateY(0); opacity: 1 }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+.animate-slideUp {
+  animation: slideUp 0.5s ease-out;
+}

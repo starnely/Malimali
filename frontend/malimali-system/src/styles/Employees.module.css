@@ -1,0 +1,39 @@
+.td {
+  @apply px-4 py-3 text-sm text-gray-700 border-b border-gray-100;
+}
+
+.btnBlue {
+  @apply bg-blue-50 text-blue-700 p-2 rounded-md cursor-pointer;
+}
+
+.btnYellow {
+  @apply bg-yellow-100 text-yellow-700 p-2 rounded-md cursor-pointer;
+}
+
+.btnRed {
+  @apply bg-red-100 text-red-700 p-2 rounded-md cursor-pointer;
+}
+
+/* Row hover highlight + shadow lift */
+.rowHover {
+  @apply hover:bg-blue-50 hover:shadow-md transition;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from { opacity: 0 }
+  to { opacity: 1 }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0 }
+  to { transform: translateY(0); opacity: 1 }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.animate-slideUp {
+  animation: slideUp 0.3s ease-out;
+}

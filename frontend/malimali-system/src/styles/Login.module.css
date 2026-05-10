@@ -1,0 +1,29 @@
+.input {
+  width: 100%;
+  padding: 11px 38px 11px 36px;
+  border: 1px solid #ddd;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #185FA5;
+  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.1);
+}
+
+.loginBtn {
+  width: 100%;
+  padding: 12px;
+  background: #185FA5;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 10px;
+}
+
+.loginBtn:hover {
+  background: #144a83;
+}

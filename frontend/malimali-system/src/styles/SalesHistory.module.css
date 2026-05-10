@@ -1,0 +1,61 @@
+/* === Status Badges === */
+.returned {
+  background: #FCEBEB;
+  color: #A32D2D;
+  transition: all 0.2s ease-in-out;
+}
+.returned:hover {
+  background: #E24B4A;
+  color: #fff;
+}
+
+.partialReturn {
+  background: #FFF4E5;
+  color: #7A4D00;
+  transition: all 0.2s ease-in-out;
+}
+.partialReturn:hover {
+  background: #F5A623;
+  color: #fff;
+}
+
+/* === Payment Method Badges === */
+.paymentMpesa {
+  background: #E6F1FB;
+  color: #0C447C;
+  transition: all 0.2s ease-in-out;
+}
+.paymentMpesa:hover {
+  background: #0C447C;
+  color: #fff;
+}
+
+.paymentCredit {
+  background: #FFF4E5;
+  color: #7A4D00;
+  transition: all 0.2s ease-in-out;
+}
+.paymentCredit:hover {
+  background: #7A4D00;
+  color: #fff;
+}
+
+.paymentSplit {
+  background: #f0f7ff;
+  color: #185FA5;
+  transition: all 0.2s ease-in-out;
+}
+.paymentSplit:hover {
+  background: #185FA5;
+  color: #fff;
+}
+
+.paymentCash {
+  background: #EAF3DE;
+  color: #27500A;
+  transition: all 0.2s ease-in-out;
+}
+.paymentCash:hover {
+  background: #27500A;
+  color: #fff;
+}
