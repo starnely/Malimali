@@ -1,6 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import axios from 'axios'
 import Sidebar from '@/components/Sidebar'
 import TopBar from '@/components/TopBar'
 import Dashboard from '@/pages/Dashboard'
@@ -19,7 +18,7 @@ import SetupWizard from '@/pages/SetupWizard'
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
 import { SocketProvider } from '@/context/SocketContext';
-import Profile from './pages/Profile';
+import Profile from '@/pages/Profile';
 import '@/App.css'
 
 function App() {
@@ -27,7 +26,7 @@ function App() {
   const { 
     isOwner, 
     currentUser, 
-    login, 
+    logout, 
     isSetupComplete 
   } = useApp()
 
@@ -64,7 +63,7 @@ function App() {
           <>
             {isLoggedIn ? (
               <div style={{ display: 'flex' }}>
-                <Sidebar onLogout={() => setIsLoggedIn(false)} />
+                <Sidebar onLogout={logout} />
                 <div style={{
                   marginLeft: isMobile ? '0' : '220px',
                   marginTop: isMobile ? '56px' : '0',

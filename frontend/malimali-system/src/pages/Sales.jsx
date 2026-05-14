@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { MdDelete, MdAddShoppingCart, MdAdd, MdRemove, MdReceipt } from 'react-icons/md'
-import { useSocket } from '../context/SocketContext' // Added socket hook import
+import { useSocket } from '../context/SocketContext'
+import CheckoutModal from './CheckoutModal'
+import Receipt from './Receipt';
 
 export default function Sales() {
   const [products, setProducts] = useState([])
@@ -8,11 +10,14 @@ export default function Sales() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [receipt, setReceipt] = useState(null)
-  const searchInput = useRef(null)
-  
-  const socket = useSocket() // Initialize socket
 
-  // Function to fetch products (reusable for initial load and socket updates)
+  // Add state to control the Checkout Modal
+  const [showCheckoutModal, setShowCheckoutModal] = useState(false)
+
+  const searchInput = useRef(null)
+  const socket = useSocket()
+
+  // Function to fetch products
   const fetchProducts = () => {
     fetch("http://localhost:5000/products")
       .then(res => res.json())
@@ -28,8 +33,6 @@ export default function Sales() {
   // Socket Listener for Real-time Updates
   useEffect(() => {
     if (!socket) return
-
-    // When the backend says products have changed, refresh our list
     socket.on("productsUpdated", () => {
       console.log("External update detected. Refreshing products...")
       fetchProducts()
@@ -40,6 +43,7 @@ export default function Sales() {
     }
   }, [socket])
 
+
   const categories = ['All', ...new Set(products.map(p => p.category))]
 
   const filteredProducts = products
@@ -49,65 +53,72 @@ export default function Sales() {
   const addToCart = (product) => {
     const existing = cart.find(c => c._id === product._id)
     if (existing) {
-      if (existing.qty + 1 > product.stock) return alert('Not enough stock!')
+      if (existing.qty + 1 > product.stock)
+        return alert('Not enough stock!')
       setCart(cart.map(c => c._id === product._id ? { ...c, qty: c.qty + 1 } : c))
     } else {
-      if (product.stock < 1) return alert('Out of stock!')
+      if (product.stock < 1)
+        return alert('Out of stock!')
       setCart([...cart, { ...product, qty: 1 }])
     }
   }
 
   const removeFromCart = (id) => setCart(cart.filter(c => c._id !== id))
-  
+
   const updateQty = (id, qty) => {
     const product = products.find(p => p._id === id)
-    if (!product || qty < 1 || qty > product.stock) return
+    if (!product || qty < 1 || qty > product.stock)
+      return
     setCart(cart.map(c => c._id === id ? { ...c, qty } : c))
   }
 
   const incrementQty = (id) => updateQty(id, cart.find(c => c._id === id).qty + 1)
   const decrementQty = (id) => updateQty(id, cart.find(c => c._id === id).qty - 1)
 
-  const checkout = async () => {
-    if (cart.length === 0) return alert('Cart is empty!')
-    
-    // Get current user info from localStorage for the cashier name
-    const currentUser = JSON.parse(localStorage.getItem("malimali_current_user"))
-    const token = localStorage.getItem("token") // Assuming you store your JWT here
+  const handleCheckoutConfirm = async (paymentData) => {
+    const userData = localStorage.getItem("pos_system_user");
+    const currentUser = userData ? JSON.parse(userData) : null;
+    const token = localStorage.getItem("token");
+
+    const salePayload = {
+      store: currentUser?.store || "Main Branch",
+      items: cart.map(c => ({
+        productId: c._id,
+        qty: c.qty,
+        price: c.sellPrice,
+        name: c.name // Useful for the receipt
+      })),
+      total: paymentData.finalTotal, // The amount after discount
+      cashier: currentUser?.name || "Cashier",
+      paymentInfo: {
+        ...paymentData, // Spreads all the modal data (paymentMethod, discount, customerName, etc.)
+      }
+    };
 
     try {
       const res = await fetch("http://localhost:5000/sales", {
         method: "POST",
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}` // Added Auth header
+          "Authorization": `Bearer ${token}`
         },
-        body: JSON.stringify({
-          items: cart.map(c => ({ productId: c._id, qty: c.qty, price: c.sellPrice })),
-          total: cart.reduce((s, i) => s + i.sellPrice * i.qty, 0),
-          paymentInfo: {
-            paymentMethod: "cash", // default, can be expanded
-            finalTotal: cart.reduce((s, i) => s + i.sellPrice * i.qty, 0)
-          }
-        })
+        body: JSON.stringify(salePayload)
       })
-      
+
       const data = await res.json()
       if (!data.success) throw new Error(data.error)
 
+      // Set Receipt for display
       setReceipt({
-        items: [...cart],
-        total: cart.reduce((s, i) => s + i.sellPrice * i.qty, 0),
-        cashier: currentUser?.name || "Cashier",
+        ...salePayload,
         date: new Date().toLocaleString('en-KE'),
-        saleId: data.sale._id 
+        saleId: data.sale._id
       })
 
-      // We don't necessarily need to fetchProducts() manually here 
-      // because the backend emit will trigger our socket listener!
-      
+      // Clean up cart and reset search
       setCart([])
       setSearch('')
+      setShowCheckoutModal(false) // Close the modal
       searchInput.current?.focus()
     } catch (err) {
       console.error("Error recording sale:", err)
@@ -209,7 +220,7 @@ export default function Sales() {
         <div className="flex justify-between items-center mt-4">
           <div className="text-lg font-bold">Total: KSh {total.toLocaleString()}</div>
           <button
-            onClick={checkout}
+            onClick={() => cart.length > 0 ? setShowCheckoutModal(true) : alert("Cart is empty!")}
             className="flex items-center gap-2 px-4 py-2 bg-blue-800 text-white rounded 
                        hover:bg-blue-900 transition-colors duration-200"
           >
@@ -218,59 +229,24 @@ export default function Sales() {
         </div>
       </div>
 
+      {/* CHECKOUT MODAL */}
+      {showCheckoutModal && (
+        <CheckoutModal
+          total={total}
+          onClose={() => setShowCheckoutModal(false)}
+          onConfirm={handleCheckoutConfirm}
+        />
+      )}
+
       {/* RECEIPT MODAL */}
       {receipt && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded-lg w-[400px] max-h-[80vh] overflow-y-auto shadow-2xl animate-fadeIn">
-            <h2 className="text-center font-semibold mb-3">Malimali POS Receipt</h2>
-            <p className="text-xs text-gray-600">Cashier: {receipt.cashier}</p>
-            <p className="text-xs text-gray-600">Date: {receipt.date}</p>
-            <p className="text-xs text-gray-600">Sale ID: {receipt.saleId}</p>
-            <hr className="my-2" />
-            <table className="w-full text-sm mb-2">
-              <thead>
-                <tr>
-                  {['Item', 'Qty', 'Subtotal'].map(h => (
-                    <th key={h} className="text-left text-xs text-gray-500">{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {receipt.items.map(i => (
-                  <tr key={i._id}>
-                    <td className="text-sm">{i.name}</td>
-                    <td className="text-sm">{i.qty}</td>
-                    <td className="text-sm text-blue-700">
-                      KSh {(i.sellPrice * i.qty).toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <hr className="my-2" />
-            <div className="flex justify-between font-semibold text-sm">
-              <span>Total:</span>
-              <span>KSh {receipt.total.toLocaleString()}</span>
-            </div>
-
-            <div className="flex justify-between mt-4">
-              <button
-                onClick={() => setReceipt(null)}
-                className="px-3 py-1 rounded bg-gray-200 text-gray-700 
-                           hover:bg-gray-300 transition-colors duration-200"
-              >
-                Close
-              </button>
-              <button
-                onClick={() => window.print()}
-                className="px-3 py-1 rounded bg-blue-800 text-white flex items-center gap-1 
-                           hover:bg-blue-900 transition-colors duration-200"
-              >
-                <MdReceipt /> Print
-              </button>
-            </div>
-          </div>
-        </div>
+        <Receipt
+          receipt={receipt}
+          onClose={() => {
+            setReceipt(null);
+            searchInput.current?.focus();
+          }}
+        />
       )}
     </div>
   )

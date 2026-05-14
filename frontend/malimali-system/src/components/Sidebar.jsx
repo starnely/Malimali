@@ -11,6 +11,7 @@ import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/Sidebar.module.css'
 
+// Defined based on your new 3-role architecture
 const ownerLinks = [
     { to: '/', label: 'Dashboard', icon: <MdDashboard /> },
     { to: '/products', label: 'Products', icon: <MdInventory /> },
@@ -19,14 +20,23 @@ const ownerLinks = [
     { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner /> },
     { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
     { to: '/reports', label: 'Reports', icon: <MdBarChart /> },
-    { to: '/employees', label: 'Employees', icon: <MdPerson /> },
+    { to: '/employees', label: 'Staff Management', icon: <MdPerson /> },
     { to: '/daily-archives', label: 'Daily Archives', icon: <MdArchive /> },
 ]
 
-const employeeLinks = [
+const managerLinks = [
+    { to: '/', label: 'Dashboard', icon: <MdDashboard /> },
+    { to: '/products', label: 'Inventory', icon: <MdInventory /> },
+    { to: '/stock-in', label: 'Stock In', icon: <MdQrCodeScanner /> },
+    { to: '/stock-out', label: 'Stock Out', icon: <MdPointOfSale /> },
+    { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner /> },
+    { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
+    { to: '/reports', label: 'Store Reports', icon: <MdBarChart /> },
+]
+const cashierLinks = [
     { to: '/barcodes', label: 'Scan to Sell', icon: <MdDocumentScanner /> },
     { to: '/stock-out', label: 'Record Sale', icon: <MdPointOfSale /> },
-    { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
+    { to: '/sales-history', label: 'My Sales', icon: <MdHistory /> },
 ]
 
 // ── Notification Panel ─────────────────────────────────────────────────
@@ -141,6 +151,15 @@ export default function Sidebar({ onLogout }) {
 
     const backendUrl = "http://localhost:5000";
 
+    // Logic to determine which links to show based on the new role field
+    const getLinks = () => {
+        if (isOwner || currentUser?.role === 'owner') return ownerLinks;
+        if (currentUser?.role === 'manager') return managerLinks;
+        return cashierLinks;
+    }
+
+    const links = getLinks();
+
     useEffect(() => {
         if (socket) {
             socket.on("shiftClosedConfirmation", () => {
@@ -153,11 +172,10 @@ export default function Sidebar({ onLogout }) {
         }
     }, [socket, isOwner, addNotification, fetchArchives, fetchSales]);
 
-    const links = isOwner ? ownerLinks : employeeLinks
     const empName = currentUser?.name || ''
 
     const empTodaySales = sales.filter(s => {
-        const saleDate = s.date; 
+        const saleDate = new Date(s.date).toLocaleDateString('en-CA');
         return saleDate === today && s.cashier === empName && !s.returned;
     })
 
@@ -181,14 +199,14 @@ export default function Sidebar({ onLogout }) {
 
     const sidebarContent = (
         <div className="w-60 h-screen bg-blue-900 p-5 flex flex-col gap-2 shadow-2xl">
-            {/* ✅ DYNAMIC LOGO SECTION */}
+            {/* Logo Section */}
             <div className="mb-4 pb-4 border-b border-white/10">
                 <div className="flex items-center gap-3">
                     {settings?.logo ? (
-                        <img 
-                            src={`${backendUrl}${settings.logo}`} 
-                            alt="Logo" 
-                            className="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow-sm" 
+                        <img
+                            src={`${backendUrl}${settings.logo}`}
+                            alt="Logo"
+                            className="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow-sm"
                         />
                     ) : (
                         <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-white font-black text-xl">
@@ -200,21 +218,24 @@ export default function Sidebar({ onLogout }) {
                             {settings?.companyName || "Mama Liam Retail"}
                         </div>
                         <div className="text-[10px] text-blue-300 font-bold uppercase tracking-tighter">
-                            Active Terminal
+                            {currentUser?.store || "Main Terminal"}
                         </div>
                     </div>
                     {isMobile && <MdClose onClick={() => setIsOpen(false)} className="text-white cursor-pointer text-xl" />}
                 </div>
             </div>
 
-            {/* User card */}
+            {/* User card with dynamic role color */}
             <div className="flex items-center gap-2 p-2 mb-3 bg-white/5 rounded-xl border border-white/5">
-                <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center shadow-inner">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center shadow-inner ${currentUser?.role === 'manager' ? 'bg-purple-600' : 'bg-blue-700'
+                    }`}>
                     <MdPerson className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-white text-[13px] font-semibold truncate">{currentUser?.name}</div>
-                    <div className="text-blue-300 text-[9px] uppercase tracking-widest font-black">{currentUser?.role}</div>
+                    <div className="text-blue-300 text-[9px] uppercase tracking-widest font-black">
+                        {currentUser?.role}
+                    </div>
                 </div>
                 <button onClick={() => setShowNotifications(true)} className="relative p-1.5 hover:bg-white/10 rounded-lg transition duration-200">
                     <MdNotifications className="text-white text-xl" />
@@ -242,8 +263,8 @@ export default function Sidebar({ onLogout }) {
                         onClick={() => isMobile && setIsOpen(false)}
                         className={({ isActive }) =>
                             `px-3 py-2.5 rounded-xl flex items-center gap-3 text-[13px] transition-all duration-200
-                             ${isActive 
-                                ? 'bg-white text-blue-900 font-bold shadow-lg transform scale-[1.02]' 
+                             ${isActive
+                                ? 'bg-white text-blue-900 font-bold shadow-lg transform scale-[1.02]'
                                 : 'text-gray-300 hover:bg-white/10 hover:text-white'}`
                         }
                     >
@@ -253,7 +274,8 @@ export default function Sidebar({ onLogout }) {
                 ))}
             </div>
 
-            {!isOwner && (
+            {/* Shift button - Only for non-owners (Managers and Cashiers) */}
+            {currentUser?.role !== 'owner' && !isOwner && (
                 <button
                     onClick={() => !alreadyClosed && setShowShiftClose(true)}
                     disabled={alreadyClosed}

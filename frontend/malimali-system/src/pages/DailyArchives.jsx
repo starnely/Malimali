@@ -6,7 +6,12 @@ import DebtorPanel from '@/components/panels/DebtorPanel'
 import { buildLiveSummary } from '@/utils/utils'
 
 export default function DailyArchives() {
-  const { sales, products, today } = useApp()
+  // 1. Update useApp to include isOwner and currentUser
+  const { sales, products, today, isOwner, currentUser } = useApp()
+
+  // 2. Define the missing state
+  const [selectedStore, setSelectedStore] = useState(isOwner ? "All" : currentUser.store)
+
   const [expanded, setExpanded] = useState(null)
   const [search, setSearch] = useState('')
   const [debtorPanel, setDebtorPanel] = useState(null)
@@ -17,24 +22,28 @@ export default function DailyArchives() {
   // This is why past dates weren't showing — we were only building today's summary
   // and relying on backend archives for past days which were never saved
   const allSummaries = useMemo(() => {
-    // Get all unique dates from sales array
+    // 1. First, filter sales by the selected store
+    const filteredSalesByStore = sales.filter(s =>
+      selectedStore === "All" || s.store === selectedStore
+    );
+
+    // 2. Get unique dates ONLY from those filtered sales
     const uniqueDates = [...new Set(
-      sales
+      filteredSalesByStore
         .map(s => s.date ? String(s.date).slice(0, 10) : null)
         .filter(Boolean)
-    )]
+    )];
 
-    // Build a summary for each date
+    // 3. Build summaries using the filtered list
     return uniqueDates
       .map(date => {
-        const summary = buildLiveSummary(date, sales, products)
-        if (!summary) return null
-        // Mark today as live, past dates as archived
-        return { ...summary, isLive: date === todayStr }
+        const summary = buildLiveSummary(date, filteredSalesByStore, products);
+        if (!summary) return null;
+        return { ...summary, isLive: date === todayStr };
       })
       .filter(Boolean)
-      .sort((a, b) => b.date.localeCompare(a.date))
-  }, [sales, products, todayStr])
+      .sort((a, b) => b.date.localeCompare(a.date));
+  }, [sales, products, todayStr, selectedStore]);
 
   // Apply date filter
   const filtered = search
@@ -48,10 +57,25 @@ export default function DailyArchives() {
       )}
 
       {/* Header */}
-      <div className="mb-6">
+      <div className="flex justify-between items-center mb-6">
         <h1 className="text-xl font-bold flex items-center gap-2 text-gray-800">
           <MdArchive className="text-blue-700 text-2xl" /> Daily Archives
         </h1>
+
+        {/* Add the Store Switcher here */}
+        {isOwner && (
+          <select
+            value={selectedStore}
+            onChange={(e) => setSelectedStore(e.target.value)}
+            className="p-2 border border-gray-300 rounded-lg text-xs bg-white shadow-sm outline-none"
+          >
+            <option value="All">All Locations</option>
+            <option value="Store One">Store One</option>
+            <option value="Store Two">Store Two</option>
+            <option value="Headquarters">Headquarters</option>
+          </select>
+        )}
+        
         <p className="text-sm text-gray-500">
           Today shows live data · Past dates show archived snapshots from sales history
         </p>

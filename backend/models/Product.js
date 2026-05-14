@@ -11,6 +11,7 @@ const productSchema = new mongoose.Schema(
     category: {
       type: String,
       required: [true, "Category is required"],
+      trim: true,
       // ✅ Fixed: Added "Accessories" to match frontend categories
       enum: {
         values: ["Furniture", "Bedding", "Utensils", "Cleaning", "Accessories", "Other"],

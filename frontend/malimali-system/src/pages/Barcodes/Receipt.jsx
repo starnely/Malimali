@@ -2,7 +2,14 @@ import { MdPrint } from 'react-icons/md';
 import s from '@/styles/Barcodes.module.css';
 
 export default function Receipt({ receipt, onClose }) {
-    const handlePrint = () => window.print()
+    // Standard browser print function
+    const handlePrint = () => window.print();
+
+    // Safety check: if receipt isn't loaded yet, don't crash the app
+    if (!receipt) return null;
+
+    const storeName = receipt.store || "Retail Point of Sale";
+    const cashierName = receipt.cashier || "Staff";
 
     return (
         <div className={s.overlay}>
@@ -10,15 +17,15 @@ export default function Receipt({ receipt, onClose }) {
 
                 {/* ── HEADER ── */}
                 <div className={s.rHeaderCenter}>
-                    <div className={s.rCompany}>Malimali POS</div>
-                    <div className={s.rAddress}>Your Business Address</div>
+                    <div className={s.rCompany}>{storeName}</div>
+                    <div className={s.rAddress}>Business Address Line</div>
                     <div className={s.rAddress}>Tel: +254 XXX XXX XXX</div>
 
                     <div className={s.rMetaSmall}>
-                        Receipt: {receipt.receiptId}
+                        Receipt ID: {receipt.saleId || receipt.receiptId || 'N/A'}
                     </div>
                     <div className={s.rMetaSmall}>
-                        {receipt.date} {receipt.time}
+                        {receipt.date || new Date().toLocaleString()}
                     </div>
                 </div>
 
@@ -32,83 +39,80 @@ export default function Receipt({ receipt, onClose }) {
                 </div>
 
                 {/* ── ITEMS ── */}
-                {receipt.items.map((item, i) => (
+                {(receipt.items || []).map((item, i) => (
                     <div key={i} className={s.rRow}>
                         <span>{item.qty}</span>
 
                         <div className={s.rDesc}>
                             <div>{item.name}</div>
                             <div className={s.rSub}>
-                                @ KSh {Number(item.sellPrice).toLocaleString()}
+                                @ KSh {Number(item.price || item.sellPrice || 0).toLocaleString()}
                             </div>
                         </div>
 
-                        <span>KSh {Number(item.total).toLocaleString()}</span>
+                        <span>
+                            KSh {(Number(item.price || item.sellPrice || 0) * item.qty).toLocaleString()}
+                        </span>
                     </div>
                 ))}
 
                 <div className={s.rDivider} />
 
                 {/* ── SUMMARY ── */}
-                {receipt.discount > 0 && (
+                {receipt.paymentInfo?.discount > 0 && (
                     <div className={s.rSummaryRow}>
                         <span>Discount</span>
-                        <span>- KSh {Number(receipt.discount).toLocaleString()}</span>
+                        <span>- KSh {Number(receipt.paymentInfo.discount).toLocaleString()}</span>
                     </div>
                 )}
 
                 <div className={s.rSummaryRow}>
-                    <span>Total</span>
-                    <span>KSh {Number(receipt.finalTotal).toLocaleString()}</span>
+                    <span className="font-bold">Total</span>
+                    <span className="font-bold">
+                        KSh {Number(receipt.total || receipt.finalTotal || 0).toLocaleString()}
+                    </span>
                 </div>
 
                 <div className={s.rSummaryRow}>
                     <span>Paid via</span>
-                    <span>
-                        {receipt.paymentMethod === 'mpesa' ? 'M-Pesa'
-                            : receipt.paymentMethod === 'cash' ? 'Cash'
-                                : receipt.paymentMethod === 'split' ? 'Split'
-                                    : 'Credit'}
+                    <span className="capitalize">
+                        {receipt.paymentInfo?.paymentMethod || receipt.paymentMethod || 'N/A'}
                     </span>
                 </div>
 
                 {/* ── PAYMENT DETAILS ── */}
-                {receipt.paymentMethod === 'cash' && receipt.change > 0 && (
+                {receipt.paymentInfo?.paymentMethod === 'cash' && receipt.paymentInfo?.change > 0 && (
                     <div className={s.rSummaryRow}>
                         <span>Change</span>
-                        <span>KSh {Number(receipt.change).toLocaleString()}</span>
+                        <span>KSh {Number(receipt.paymentInfo.change).toLocaleString()}</span>
                     </div>
                 )}
 
-                {receipt.paymentMethod === 'mpesa' && receipt.mpesaPhone && (
+                {receipt.paymentInfo?.paymentMethod === 'mpesa' && (
                     <div className={s.rSummaryRow}>
                         <span>M-Pesa No</span>
-                        <span>{receipt.mpesaPhone}</span>
+                        <span>{receipt.paymentInfo.mpesaPhone}</span>
                     </div>
                 )}
 
-                {receipt.paymentMethod === 'split' && (
+                {receipt.paymentInfo?.paymentMethod === 'split' && (
                     <>
                         <div className={s.rSummaryRow}>
-                            <span>Cash</span>
-                            <span>KSh {Number(receipt.cashPart).toLocaleString()}</span>
+                            <span>Cash Part</span>
+                            <span>KSh {Number(receipt.paymentInfo.cashPart).toLocaleString()}</span>
                         </div>
                         <div className={s.rSummaryRow}>
-                            <span>M-Pesa</span>
-                            <span>KSh {Number(receipt.mpesaPart).toLocaleString()}</span>
+                            <span>M-Pesa Part</span>
+                            <span>KSh {Number(receipt.paymentInfo.mpesaPart).toLocaleString()}</span>
                         </div>
-                        {receipt.change > 0 && (
-                            <div className={s.rSummaryRow}>
-                                <span>Change</span>
-                                <span>KSh {Number(receipt.change).toLocaleString()}</span>
-                            </div>
-                        )}
                     </>
                 )}
 
-                {receipt.paymentMethod === 'credit' && (
+                {receipt.paymentInfo?.paymentMethod === 'credit' && (
                     <div className={s.rCreditNote}>
-                        Credit Sale — Amount Owed: KSh {Number(receipt.finalTotal).toLocaleString()}
+                        CREDIT SALE — UNPAID BALANCE
+                        <br />
+                        Customer: {receipt.paymentInfo.customerName || 'Walking Customer'}
                     </div>
                 )}
 
@@ -116,8 +120,8 @@ export default function Receipt({ receipt, onClose }) {
 
                 {/* ── FOOTER ── */}
                 <div className={s.rFooter}>
-                    <div>Served by: {receipt.soldBy}</div>
-                    <div>Thank you!</div>
+                    <div>Served by: {cashierName}</div>
+                    <div>Thank you for your business!</div>
                 </div>
 
                 {/* ── ACTION BUTTONS (HIDDEN IN PRINT) ── */}
@@ -126,7 +130,7 @@ export default function Receipt({ receipt, onClose }) {
                         New Sale
                     </button>
                     <button onClick={handlePrint} className={s.receiptBtnPrimary}>
-                        <MdPrint /> Print
+                        <MdPrint size={18} /> Print Receipt
                     </button>
                 </div>
 

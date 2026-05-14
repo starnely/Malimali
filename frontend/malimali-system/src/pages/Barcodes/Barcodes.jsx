@@ -118,6 +118,8 @@ export default function Barcodes() {
             customerName: paymentDetails.customerName,
             cashPart: paymentDetails.cashPart,
             mpesaPart: paymentDetails.mpesaPart,
+            store: currentUser?.store || "Main Store",
+            cashier: currentUser?.name || "Unknown Cashier"
         };
 
         const result = await recordMultipleSales(cart, paymentInfo);
@@ -139,6 +141,7 @@ export default function Barcodes() {
                 cashPart: paymentDetails.cashPart,
                 mpesaPart: paymentDetails.mpesaPart,
                 soldBy: result.sale.cashier || currentUser?.name || "Cashier",
+                store: result.sale.store || currentUser?.store || "Main Store"
             });
             setCart([]);
             setLastScanned(null);

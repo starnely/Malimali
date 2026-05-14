@@ -8,21 +8,31 @@ const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware");
 
 // ── EMPLOYEE ROUTES (Owner Only) ───────────────────────────────────────
 
-// Register new employee
+// Register new employee (Manager or Cashier)
 router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
   try {
-    const { username, password, name } = req.body;
-    const existingUser = await User.findOne({ username });
+    const { username, password, fullname, email, role, store } = req.body;
+
+    const existingUser = await User.findOne({
+      $or: [{ username }, { email }]
+    });
+
     if (existingUser) {
-      return res.status(400).json({ success: false, message: "Username already exists" });
+      return res.status(400).json({
+        success: false,
+        message: "Username or Email already exists"
+      });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
+
     const employee = new User({
       username,
+      email,
+      fullname, // Saved from UI
       password: hashedPassword,
-      role: "employee",
-      name,
+      role,     // Dynamically set to 'manager' or 'cashier'
+      store,    // Linked to specific store
       active: true
     });
 
@@ -34,10 +44,13 @@ router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
   }
 });
 
-// Get all employees
+// Get all employees (Updated to fetch both managers and cashiers)
 router.get("/employees", authMiddleware, ownerOnly, async (req, res) => {
   try {
-    const employees = await User.find({ role: "employee" });
+    const employees = await User.find({
+      role: { $in: ["manager", "cashier"] }
+    }).sort({ createdAt: -1 });
+
     res.json(employees);
   } catch (err) {
     console.error("Fetch employees error:", err.message);
@@ -48,8 +61,9 @@ router.get("/employees", authMiddleware, ownerOnly, async (req, res) => {
 // Update employee
 router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
   try {
-    const { name, username, password } = req.body;
-    const updateData = { name, username };
+    const { fullname, username, email, password, role, store } = req.body;
+    const updateData = { fullname, username, email, role, store };
+
     if (password) updateData.password = await bcrypt.hash(password, 10);
 
     const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
@@ -102,7 +116,9 @@ router.post("/setup", async (req, res) => {
       username,
       password: hashedPassword,
       role: "owner",
-      name,
+      fullname: name, 
+      email: email,
+      store: "Headquarters", 
       active: true
     });
 
@@ -114,7 +130,7 @@ router.post("/setup", async (req, res) => {
   }
 });
 
-// ── LOGIN ──────────────────────────────────────────────────────────────
+// ── LOGIN (Updated with Store & Role) ──────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
@@ -129,19 +145,28 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
-    // FIX: Included name in the token payload
+    // Payload for the JWT
+    const payload = {
+      id: user._id,
+      role: user.role,
+      name: user.fullname || user.username,
+      store: user.store || "Main Store" // Fallback if store is missing
+    };
+
     const token = jwt.sign(
-      { id: user._id, role: user.role, name: user.name }, 
+      payload,
       process.env.JWT_SECRET || "secretkey",
       { expiresIn: "1d" }
     );
 
+    // This JSON object now perfectly matches your AppContext.jsx
     res.json({
       success: true,
+      token,
       role: user.role,
-      name: user.name,
-      id: user._id,
-      token
+      name: user.fullname || user.username,
+      store: user.store || "Main Store",
+      id: user._id
     });
   } catch (err) {
     console.error("Login error:", err.message);

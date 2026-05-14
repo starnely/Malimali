@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { MdAttachMoney, MdTrendingUp, MdInventory, MdWarning, MdPointOfSale, MdBarChart } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/Reports.module.css'
@@ -6,24 +6,26 @@ import styles from '@/styles/Reports.module.css'
 const categories = ['All', 'Furniture', 'Bedding', 'Utensils', 'Cleaning']
 
 export default function Reports() {
-  const { products, sales, fetchSales } = useApp()
+  const { products, sales: allSales, currentUser, isOwner } = useApp()
   const [category, setCategory] = useState('All')
   const [sortBy, setSortBy] = useState('profit')
+  const [selectedStore, setSelectedStore] = useState(isOwner ? "All" : currentUser.store)
 
-  // ✅ Refresh sales when Reports mounts so data is always current
-  useEffect(() => { fetchSales() }, [])
+  // ── Filter sales by store client-side (no separate fetch needed) ──
+  const sales = (() => {
+    if (isOwner && selectedStore === 'All') return allSales
+    if (isOwner) return allSales.filter(s => s.store === selectedStore)
+    return allSales.filter(s => s.store === currentUser.store)
+  })()
 
   const activeSales = sales.filter(s => !s.returned)
 
-  // ✅ Fixed: was matching by s.name === product.name (wrong — sales don't have .name)
-  // Now correctly aggregates from items[].productId which is populated from backend
   const productPerformance = products.map(product => {
     let qtySold = 0
     let totalRevenue = 0
 
     activeSales.forEach(sale => {
       sale.items?.forEach(item => {
-        // item.productId is populated object from backend: { _id, name, category }
         const itemProductId = item.productId?._id || item.productId
         if (String(itemProductId) === String(product._id)) {
           qtySold += item.qty
@@ -40,18 +42,18 @@ export default function Reports() {
   const filtered = productPerformance
     .filter(p => category === 'All' || p.category === category)
     .sort((a, b) => {
-      if (sortBy === 'profit')   return b.profit - a.profit
-      if (sortBy === 'revenue')  return b.totalRevenue - a.totalRevenue
-      if (sortBy === 'qty')      return b.qtySold - a.qtySold
+      if (sortBy === 'profit') return b.profit - a.profit
+      if (sortBy === 'revenue') return b.totalRevenue - a.totalRevenue
+      if (sortBy === 'qty') return b.qtySold - a.qtySold
       return 0
     })
 
-  const totalRevenue      = activeSales.reduce((s, sale) => s + (sale.total || 0), 0)
-  const totalCost         = productPerformance.reduce((s, p) => s + p.totalCost, 0)
-  const totalProfit       = totalRevenue - totalCost
-  const totalStockValue   = products.reduce((s, p) => s + (p.stock || 0) * (p.buyPrice || 0), 0)
-  const lowStockCount     = products.filter(p => p.stock <= 5).length
-  const profitMargin      = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0
+  const totalRevenue = activeSales.reduce((s, sale) => s + (sale.total || 0), 0)
+  const totalCost = productPerformance.reduce((s, p) => s + p.totalCost, 0)
+  const totalProfit = totalRevenue - totalCost
+  const totalStockValue = products.reduce((s, p) => s + (p.stock || 0) * (p.buyPrice || 0), 0)
+  const lowStockCount = products.filter(p => p.stock <= 5).length
+  const profitMargin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0
 
   const categoryTotals = categories
     .filter(c => c !== 'All')
@@ -60,30 +62,47 @@ export default function Reports() {
       return {
         name: cat,
         revenue: items.reduce((s, p) => s + p.totalRevenue, 0),
-        profit:  items.reduce((s, p) => s + p.profit, 0),
+        profit: items.reduce((s, p) => s + p.profit, 0),
       }
     })
     .sort((a, b) => b.profit - a.profit)
 
   const maxCatProfit = Math.max(...categoryTotals.map(c => c.profit), 1)
-  const maxProfit    = Math.max(...filtered.map(p => p.profit), 1)
+  const maxProfit = Math.max(...filtered.map(p => p.profit), 1)
 
   return (
     <div className="p-6 bg-gray-100 min-h-screen animate-fadeIn">
-      <div className="mb-6">
-        <h1 className="text-xl font-semibold text-gray-800">Reports</h1>
-        <p className="text-sm text-gray-500 mt-1">Full business performance summary</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-xl font-semibold text-gray-800">Business Reports</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isOwner ? `Viewing: ${selectedStore}` : `Performance for ${currentUser.store}`}
+          </p>
+        </div>
+
+        {isOwner && (
+          <select
+            value={selectedStore}
+            onChange={(e) => setSelectedStore(e.target.value)}
+            className="p-2 border border-gray-300 rounded-lg text-xs bg-white shadow-sm outline-none"
+          >
+            <option value="All">All Locations</option>
+            <option value="Store One">Store One</option>
+            <option value="Store Two">Store Two</option>
+            <option value="Headquarters">Headquarters</option>
+          </select>
+        )}
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
         {[
-          { label: 'Total revenue',    value: `KSh ${totalRevenue.toLocaleString()}`,    icon: <MdAttachMoney />, color: 'blue'   },
-          { label: 'Total profit',     value: `KSh ${totalProfit.toLocaleString()}`,     icon: <MdTrendingUp />,  color: 'green'  },
-          { label: 'Profit margin',    value: `${profitMargin}%`,                        icon: <MdBarChart />,    color: 'yellow' },
-          { label: 'Stock value',      value: `KSh ${totalStockValue.toLocaleString()}`, icon: <MdInventory />,   color: 'purple' },
-          { label: 'Total cost',       value: `KSh ${totalCost.toLocaleString()}`,       icon: <MdPointOfSale />, color: 'indigo' },
-          { label: 'Low stock items',  value: lowStockCount,                             icon: <MdWarning />,     color: 'red'    },
+          { label: 'Total revenue', value: `KSh ${totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: 'blue' },
+          { label: 'Total profit', value: `KSh ${totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: 'green' },
+          { label: 'Profit margin', value: `${profitMargin}%`, icon: <MdBarChart />, color: 'yellow' },
+          { label: 'Stock value', value: `KSh ${totalStockValue.toLocaleString()}`, icon: <MdInventory />, color: 'purple' },
+          { label: 'Total cost', value: `KSh ${totalCost.toLocaleString()}`, icon: <MdPointOfSale />, color: 'indigo' },
+          { label: 'Low stock items', value: lowStockCount, icon: <MdWarning />, color: 'red' },
         ].map((card, i) => (
           <div key={i} className={`${styles.card} ${styles[`card-${card.color}`]} animate-slideUp`}>
             <div className={`${styles.icon} ${styles[`icon-${card.color}`]}`}>{card.icon}</div>
@@ -157,7 +176,7 @@ export default function Reports() {
             </thead>
             <tbody>
               {filtered.map((p, i) => {
-                const margin   = p.totalRevenue > 0 ? Math.round((p.profit / p.totalRevenue) * 100) : 0
+                const margin = p.totalRevenue > 0 ? Math.round((p.profit / p.totalRevenue) * 100) : 0
                 const barWidth = Math.max(0, Math.round((p.profit / maxProfit) * 100))
                 return (
                   <tr key={p._id} className={`${i % 2 === 0 ? 'bg-white' : 'bg-gray-50'} ${styles.rowHover} animate-fadeIn`}>

@@ -1,16 +1,16 @@
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { 
-  MdPerson, MdBusiness, MdEmail, 
-  MdPhone, MdLocationOn, MdEdit, MdSave, MdCancel 
+import {
+  MdPerson, MdBusiness, MdEmail,
+  MdPhone, MdLocationOn, MdEdit, MdSave, MdCancel
 } from 'react-icons/md';
 
 export default function Profile() {
   const { currentUser, settings, setSettings } = useApp();
-  
+
   // 1. State for toggling edit mode
   const [isEditing, setIsEditing] = useState(false);
-  
+
   // 2. Local state for form inputs
   const [formData, setFormData] = useState({
     companyName: '',
@@ -36,21 +36,34 @@ export default function Profile() {
   // 4. Save handler to update the database
   const handleSave = async () => {
     try {
+      // Access the token from the currentUser
+      const token = currentUser?.token;
+      if (!token) {
+        alert("Session expired. Please login again.");
+        return;
+      }
+
       const res = await fetch("http://localhost:5000/api/setup/update", {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
         body: JSON.stringify(formData)
       });
 
-      if (res.ok) {
-        const data = await res.json();
+      const data = await res.json();
+
+      if (res.ok && data.success) {
         setSettings(data.settings); // Update global context
         setIsEditing(false);
         alert("Business profile updated successfully!");
+      } else {
+        alert(data.error || "Failed to update profile.");
       }
     } catch (err) {
       console.error("Failed to update settings:", err);
-      alert("Error saving changes.");
+      alert("Network error: Could not reach server.");
     }
   };
 
@@ -58,18 +71,17 @@ export default function Profile() {
     <div className="p-6 max-w-6xl mx-auto animate-fadeIn">
       <div className="flex justify-between items-center mb-6">
         <h1 className="text-2xl font-bold text-gray-800">My Profile</h1>
-        
+
         {/* Toggle Button */}
-        <button 
+        <button
           onClick={() => isEditing ? handleSave() : setIsEditing(true)}
-          className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold transition-all shadow-sm ${
-            isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'
-          }`}
+          className={`flex items-center gap-2 px-5 py-2 rounded-xl font-bold transition-all shadow-sm ${isEditing ? 'bg-green-600 text-white hover:bg-green-700' : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
         >
           {isEditing ? <><MdSave /> Save Changes</> : <><MdEdit /> Edit Business Info</>}
         </button>
       </div>
-      
+
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         {/* Left Side: Personal Info (Read Only) */}
         <div className="bg-white p-8 rounded-2xl shadow-sm border text-center flex flex-col items-center">
@@ -80,7 +92,7 @@ export default function Profile() {
           <p className="text-blue-600 text-xs uppercase font-black tracking-widest mt-1">
             {currentUser?.role || "Staff"}
           </p>
-          
+
           <div className="mt-8 w-full text-left space-y-4 border-t pt-6">
             <div className="flex justify-between items-center">
               <span className="text-gray-400 text-sm">Admin ID:</span>
@@ -112,11 +124,11 @@ export default function Profile() {
           <div className="space-y-5">
             <div>
               <label className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Company Name</label>
-              <input 
+              <input
                 disabled={!isEditing}
                 className="w-full flex items-center gap-3 p-3 bg-gray-50 rounded-xl mt-1 border border-gray-100 text-gray-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-75"
                 value={formData.companyName}
-                onChange={(e) => setFormData({...formData, companyName: e.target.value})}
+                onChange={(e) => setFormData({ ...formData, companyName: e.target.value })}
               />
             </div>
 
@@ -124,11 +136,11 @@ export default function Profile() {
               <label className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Business Email</label>
               <div className="relative mt-1">
                 <MdEmail className="absolute left-3 top-4 text-gray-400" />
-                <input 
+                <input
                   disabled={!isEditing}
                   className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-100 text-gray-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-75"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
             </div>
@@ -137,11 +149,11 @@ export default function Profile() {
               <label className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Phone Number</label>
               <div className="relative mt-1">
                 <MdPhone className="absolute left-3 top-4 text-gray-400" />
-                <input 
+                <input
                   disabled={!isEditing}
                   className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-100 text-gray-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-75"
                   value={formData.phone}
-                  onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 />
               </div>
             </div>
@@ -150,18 +162,18 @@ export default function Profile() {
               <label className="text-[10px] text-gray-400 uppercase font-black tracking-wider">Address</label>
               <div className="relative mt-1">
                 <MdLocationOn className="absolute left-3 top-4 text-gray-400" />
-                <textarea 
+                <textarea
                   disabled={!isEditing}
                   rows="2"
                   className="w-full p-3 pl-10 bg-gray-50 rounded-xl border border-gray-100 text-gray-600 focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-75 resize-none"
                   value={formData.location}
-                  onChange={(e) => setFormData({...formData, location: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 />
               </div>
             </div>
-            
+
             {isEditing && (
-              <button 
+              <button
                 onClick={() => setIsEditing(false)}
                 className="w-full py-2 text-sm text-gray-400 hover:text-gray-600 transition-colors"
               >

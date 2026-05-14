@@ -13,7 +13,7 @@ app.use(express.json());
 
 // ✅ NEW: Serve static files from the uploads folder
 // This allows the frontend to access logos via: http://localhost:5000/uploads/logo/filename.png
-app.use("/uploads", express.static(path.join(__dirname, "public/uploads")));
+app.use(express.static(path.join(__dirname, "public")));
 
 // 2. Initialize Server & Socket.IO
 const PORT = process.env.PORT || 5000;
@@ -30,13 +30,28 @@ app.set("io", io);
 
 // 4. Socket.io Connection Logic
 io.on("connection", (socket) => {
-  socket.on("join-room", (userId) => {
-    socket.join(userId);
+  console.log("A user connected:", socket.id);
+
+  // Allow users to join personal rooms or the owner room
+  socket.on("join-room", (roomName) => {
+    socket.join(roomName);
+    console.log(`Socket ${socket.id} joined room: ${roomName}`);
   });
 
   socket.on("join-owner-room", () => {
     socket.join("owner");
     console.log(`Admin ${socket.id} joined owner room`);
+  });
+
+  socket.on("shift-closed", (data) => {
+    console.log(`Notification: ${data.employeeName} closed shift.`);
+
+    // Send it ONLY to the owner room
+    io.to("owner").emit("adminShiftNotification", {
+      employeeName: data.employeeName,
+      time: data.time || new Date().toLocaleTimeString(),
+      message: "Shift Closed"
+    });
   });
 
   socket.on("join", (room) => {
@@ -51,15 +66,15 @@ io.on("connection", (socket) => {
 
 // 5. Routes
 // ✅ NEW: Setup and Activation Route
-app.use("/api/setup", require("./routes/setup")); 
+app.use("/api/setup", require("./routes/setup"));
 
-app.use("/auth", require("./routes/auth"));
-app.use("/products", require("./routes/products"));
-app.use("/sales", require("./routes/sales"));
-app.use("/returns", require("./routes/returns"));
-app.use("/archives", require("./routes/archives"));
-app.use("/stockin", require("./routes/stockin"));
-app.use("/shifts", require("./routes/shifts"));
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/products", require("./routes/products"));
+app.use("/api/sales", require("./routes/sales"));
+app.use("/api/returns", require("./routes/returns"));
+app.use("/api/archives", require("./routes/archives"));
+app.use("/api/stockin", require("./routes/stockin"));
+app.use("/api/shifts", require("./routes/shifts"));
 
 // 6. DB connection
 mongoose.connect(process.env.MONGO_URI)

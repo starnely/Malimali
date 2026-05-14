@@ -3,6 +3,7 @@ const Return = require("../models/Return");
 const Sale = require("../models/Sale");
 const Product = require("../models/Product");
 const User = require("../models/User");
+const Archive = require("../models/Archive");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -26,11 +27,11 @@ router.get("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ── SUBMIT RETURN (Fixed Notification Logic - Issue 5) ──────────────────
+// ── SUBMIT RETURN ──────────────────────────────────────────────────────
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const { saleId, items, reason, customerName } = req.body;
-    const requestedById = req.user.id; // The ID of the employee logged in
+    const requestedById = req.user.id;
 
     const refundAmount = items.reduce((sum, i) =>
       sum + (i.qty * (i.price || i.sellPrice || 0)), 0);
@@ -53,13 +54,11 @@ router.post("/", authMiddleware, async (req, res) => {
 
     await returnRecord.save();
 
-    // Update sale-level status (Keeping it 'pending' but NOT setting 'returned: true')
     await Sale.findByIdAndUpdate(saleId, {
       returnStatus: "pending",
       returnId: returnRecord._id
     });
 
-    // Mark ONLY specific items as pending
     const sale = await Sale.findById(saleId);
     if (sale) {
       for (const returnItem of items) {
@@ -72,15 +71,12 @@ router.post("/", authMiddleware, async (req, res) => {
       await sale.save();
     }
 
-    // ✅ FIXED NOTIFICATION (Issue 5)
     const requester = await User.findById(requestedById);
     const io = req.app.get("io");
     if (io) {
-      // Send to owner room only
       io.to("owner").emit("newReturnRequest", {
         returnId: returnRecord._id,
         saleId,
-        // Send the EMPLOYEE name, not the owner name
         requesterName: requester?.name || "Employee",
         message: `${requester?.name || "An employee"} wants to return an item`,
         reason,
@@ -96,14 +92,18 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 });
 
-// ── APPROVE RETURN (Fixed Revenue Logic - Issue 1) ──────────────────────
+// ── APPROVE RETURN ──────────────────────────────────────────────────────
 router.patch("/:id/approve", authMiddleware, async (req, res) => {
   try {
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ error: "Unauthorized. Only owners can approve returns." });
+    }
+
     const returnRecord = await Return.findById(req.params.id).populate("items.productId");
     if (!returnRecord) return res.status(404).json({ error: "Return not found" });
     if (returnRecord.status === "approved") return res.status(400).json({ error: "Already approved" });
 
-    // 1. Restore Stock in Products
+    // 1. Restore stock for each returned item
     for (const item of returnRecord.items) {
       await Product.findByIdAndUpdate(
         item.productId._id || item.productId,
@@ -111,55 +111,121 @@ router.patch("/:id/approve", authMiddleware, async (req, res) => {
       );
     }
 
-    // 2. Find the Original Sale
-    const sale = await Sale.findById(returnRecord.saleId);
+    // 2. Update the original sale
+    const sale = await Sale.findById(returnRecord.saleId).populate("items.productId");
     if (sale) {
-      // 3. Update the Sale Items and Totals precisely
       for (const returnItem of returnRecord.items) {
         const saleItem = sale.items.find(si =>
-          String(si.productId?._id || si.productId) === String(returnItem.productId?._id || returnItem.productId)
+          String(si.productId?._id || si.productId) === String(returnItem.productId._id || returnItem.productId)
         );
 
         if (saleItem) {
-          // Subtract the returned quantity from the sale item
-          // If they sold 2 and return 1, the sale now effectively reflects 1 sold
           saleItem.qty -= returnItem.qty;
           saleItem.returnStatus = "approved";
-
-          // If qty becomes 0, we can mark the item as fully returned
           if (saleItem.qty <= 0) {
+            saleItem.qty = 0;
             saleItem.isFullyReturned = true;
           }
         }
       }
 
-      // 4. Recalculate Sale Total and Profit
-      // This ensures your Dashboard and Reports reflect the NEW lower total
-      sale.total -= returnRecord.refundAmount;
+      // Deduct refund from sale total
+      sale.total = Math.max(0, sale.total - returnRecord.refundAmount);
 
-      // Also adjust profit (if your Sale model tracks it)
-      // sale.profit -= (returnItem.sellPrice - item.costPrice) * item.qty;
+      // ── Also reduce paymentInfo.finalTotal so archive recalc picks up correct amount ──
+      if (sale.paymentInfo) {
+        sale.paymentInfo.finalTotal = Math.max(
+          0,
+          (sale.paymentInfo.finalTotal ?? sale.total) - returnRecord.refundAmount
+        );
+      }
+
+      // Mark fully returned if all items are back
+      const allReturned = sale.items.every(si => si.isFullyReturned === true);
+      if (allReturned) sale.returned = true;
 
       sale.returnStatus = "approved";
       await sale.save();
     }
 
-    // 5. Update Return Record status
+    // 3. Mark return as approved
     returnRecord.status = "approved";
     returnRecord.approvedAt = new Date().toISOString();
     await returnRecord.save();
 
-    // 6. REAL-TIME SYNC
+    // 4. ── RECALCULATE ARCHIVE ──────────────────────────────────────────
+    const saleDate = sale?.date;
+    const cashierName = sale?.cashier;
+
+    if (saleDate && cashierName) {
+      // Re-fetch all non-fully-returned sales for that cashier on that date
+      const daySales = await Sale.find({
+        date: saleDate,
+        cashier: cashierName,
+        returned: false
+      });
+
+      // Revenue uses updated finalTotal (already reduced above on the sale)
+      const revenue = daySales.reduce((sum, s) =>
+        sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+
+      const transactions = daySales.length;
+
+      // itemsSold uses current qty (already reduced above on each saleItem)
+      const itemsSold = daySales.reduce((sum, s) =>
+        sum + s.items.reduce((inner, i) => inner + (i.qty || 0), 0), 0);
+
+      // ── Payment breakdown — refund deducted from cash only ──
+      const pureCash = daySales
+        .filter(s => s.paymentInfo?.paymentMethod === "cash")
+        .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+
+      const pureMpesa = daySales
+        .filter(s => s.paymentInfo?.paymentMethod === "mpesa")
+        .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+
+      const splitCashPart = daySales
+        .filter(s => s.paymentInfo?.paymentMethod === "split")
+        .reduce((sum, s) => sum + (s.paymentInfo?.cashPart || 0), 0);
+
+      const splitMpesaPart = daySales
+        .filter(s => s.paymentInfo?.paymentMethod === "split")
+        .reduce((sum, s) => sum + (s.paymentInfo?.mpesaPart || 0), 0);
+
+      const credit = daySales
+        .filter(s => s.paymentInfo?.paymentMethod === "credit")
+        .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+
+      // Deduct refund from cash only — this is what the cashier pays out physically
+      const cashAfterRefund = Math.max(0, (pureCash + splitCashPart) - returnRecord.refundAmount);
+
+      await Archive.findOneAndUpdate(
+        { employeeName: cashierName, date: saleDate },
+        {
+          employeeName: cashierName,
+          date: saleDate,
+          revenue,
+          transactions,
+          itemsSold,
+          paymentBreakdown: {
+            cash: cashAfterRefund,              // ← refund deducted here only
+            mpesa: pureMpesa + splitMpesaPart,  // ← mpesa untouched
+            splitCash: splitCashPart,
+            splitMpesa: splitMpesaPart,
+            credit
+          }
+        },
+        { upsert: true, new: true }
+      );
+    }
+
+    // 5. Real-time sync
     const io = req.app.get("io");
     if (io) {
-      // Notify the Employee who requested it
       io.to(returnRecord.requestedBy.toString()).emit("returnUpdated", {
         status: "approved",
         message: `✅ Return approved — refund KSh ${returnRecord.refundAmount?.toLocaleString()} to customer`
       });
-
-      // SYSTEM-WIDE SYNC: Tell all owners to refresh Dashboard/Reports
-      // This triggers the 'sync_system_data' listener we added to AppContext.jsx
       io.emit("sync_system_data");
     }
 
@@ -173,7 +239,7 @@ router.patch("/:id/approve", authMiddleware, async (req, res) => {
 // ── REJECT RETURN ──────────────────────────────────────────────────────
 router.patch("/:id/reject", authMiddleware, async (req, res) => {
   try {
-    const returnRecord = await Return.findById(req.params.id);
+    const returnRecord = await Return.findById(req.params.id).populate("items.productId");
     if (!returnRecord) return res.status(404).json({ error: "Return not found" });
 
     returnRecord.status = "rejected";

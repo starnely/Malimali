@@ -1,9 +1,8 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { MdClose, MdUndo } from 'react-icons/md'
 
 export default function ReturnModal({ sale, onClose, onSuccess }) {
-  // ✅ Fixed: was "currentUser" — correct key is "malimali_current_user"
-  const currentUser = JSON.parse(localStorage.getItem("malimali_current_user"))
+  const currentUser = JSON.parse(localStorage.getItem("pos_system_user"))
 
   const [selectedItems, setSelectedItems] = useState(
     sale.items.map(i => ({ ...i, returnQty: 0, selected: false }))
@@ -41,11 +40,10 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
     setSubmitError('')
 
     try {
-      const res = await fetch("http://localhost:5000/returns", {
+      const res = await fetch("http://localhost:5000/api/returns", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // ✅ Include auth token — returns route now requires authMiddleware
           Authorization: `Bearer ${currentUser?.token}`
         },
         body: JSON.stringify({
@@ -57,7 +55,6 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
           })),
           reason,
           customerName,
-          // ✅ cashierId no longer needed in body — backend reads from JWT
         })
       })
 
@@ -65,7 +62,9 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
 
       if (res.ok) {
         // ✅ Tell employee: owner has been notified, item is pending
-        onSuccess(`Return request submitted. Owner has been notified — awaiting approval.`)
+        if (onSuccess) {
+          onSuccess(`Return request for KSh ${refundTotal.toLocaleString()} submitted.Waiting for owner approval.`);
+        }
         onClose()
       } else {
         setSubmitError(data.error || "Failed to submit return")
@@ -76,7 +75,14 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
     } finally {
       setSubmitting(false)
     }
-  }
+  };
+
+  useEffect(() => {
+  document.body.style.overflow = 'hidden';
+  return () => {
+    document.body.style.overflow = 'unset';
+  };
+}, []);
 
   return (
     <div className="fixed inset-0 bg-black/55 z-50 flex items-center justify-center p-4">
@@ -103,11 +109,10 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
               <div
                 key={item._id}
                 onClick={() => toggleItem(item._id)}
-                className={`border rounded-lg p-3 mb-2 cursor-pointer transition-colors duration-200 ${
-                  sel?.selected
-                    ? 'border-red-700 bg-red-50 hover:bg-red-100'
-                    : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
-                }`}
+                className={`border rounded-lg p-3 mb-2 cursor-pointer transition-colors duration-200 ${sel?.selected
+                  ? 'border-red-700 bg-red-50 hover:bg-red-100'
+                  : 'border-gray-200 bg-gray-50 hover:bg-gray-100'
+                  }`}
               >
                 <div className="flex justify-between items-center">
                   <div>
@@ -125,8 +130,15 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
                   <div className="mt-2 flex items-center gap-2" onClick={e => e.stopPropagation()}>
                     <label className="text-xs text-gray-600">Return qty:</label>
                     <input
-                      type="number" min="1" max={item.qty}
+                      type="number"
+                      min="1"
+                      max={item.qty}
                       value={sel.returnQty || 0}
+                      // Prevent typing values higher than original qty
+                      onBlur={e => {
+                        const val = Number(e.target.value);
+                        if (val > item.qty) updateReturnQty(item._id, item.qty);
+                      }}
                       onChange={e => updateReturnQty(item._id, Number(e.target.value))}
                       className="w-16 p-1 border border-gray-300 rounded text-center text-sm font-semibold focus:ring-2 focus:ring-red-500"
                     />
@@ -188,11 +200,10 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
             <button
               onClick={handleConfirm}
               disabled={!canConfirm || submitting}
-              className={`flex-1 px-3 py-2 rounded text-sm font-bold flex items-center justify-center gap-2 transition-colors duration-200 ${
-                canConfirm && !submitting
-                  ? 'bg-red-700 text-white hover:bg-red-800'
-                  : 'bg-gray-300 text-white cursor-not-allowed'
-              }`}
+              className={`flex-1 px-3 py-2 rounded text-sm font-bold flex items-center justify-center gap-2 transition-colors duration-200 ${canConfirm && !submitting
+                ? 'bg-red-700 text-white hover:bg-red-800'
+                : 'bg-gray-300 text-white cursor-not-allowed'
+                }`}
             >
               <MdUndo className="text-base" />
               {submitting ? 'Submitting...' : 'Submit Return Request'}

@@ -6,6 +6,7 @@ import EmployeeSalesModal from '@/components/modals/EmployeeSalesModal'
 import DailySummaryModal from '@/components/modals/DailySummaryModal'
 import styles from '@/styles/Dashboard.module.css'
 import Button from '@/components/Button'
+import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
 
 export default function Dashboard() {
   const {
@@ -13,7 +14,7 @@ export default function Dashboard() {
     products, sales, todaySales,
     lowStockProducts, pendingReturns,
     shiftCloses,
-    fetchSales, fetchArchives, fetchProducts,settings
+    fetchSales, fetchArchives, fetchProducts, settings
   } = useApp()
 
   // 1. Unified Sync Function
@@ -62,14 +63,14 @@ export default function Dashboard() {
   const [showDailySummary, setShowDailySummary] = useState(false)
 
   // Current Date string for comparison (YYYY-MM-DD)
-  const today = new Date().toISOString('en-CA').split('T')[0]
+  const today = new Date().toLocaleDateString('en-CA');
 
   // Ensure arrays exist
-  const safeProducts = products ?? []
-  const safeTodaySales = todaySales ?? []
-  const safeLowStock = lowStockProducts ?? []
-  const safeReturns = pendingReturns ?? []
-  const safeShiftCloses = shiftCloses ?? []
+  const safeProducts = useMemo(() => products ?? [], [products]);
+  const safeTodaySales = useMemo(() => todaySales ?? [], [todaySales]);
+  const safeLowStock = useMemo(() => lowStockProducts ?? [], [lowStockProducts]);
+  const safeReturns = useMemo(() => pendingReturns ?? [], [pendingReturns]);
+  const safeShiftCloses = useMemo(() => shiftCloses ?? [], [shiftCloses]);
 
   // 2. Identify Employees who closed TODAY
   const closedTodayNames = useMemo(() => {
@@ -77,7 +78,7 @@ export default function Dashboard() {
       .filter(archive => {
         if (!archive || !archive.date) return false;
         // Convert any date format to YYYY-MM-DD
-        const archiveDate = new Date(archive.date).toISOString().split('T')[0];
+        const archiveDate = new Date(archive.date).toLocaleDateString('en-CA');
         return archiveDate === today;
       })
       .map(a => (a.employeeName || "").toLowerCase().trim());
@@ -93,7 +94,11 @@ export default function Dashboard() {
   const calcProfit = (salesArr) =>
     salesArr.reduce((sum, sale) => {
       if (sale.returned) return sum
+
       return sum + (sale.items?.reduce((s2, item) => {
+        // Only calculate profit for items kept by the customer
+        if (item.returnStatus === 'approved') return s2;
+
         const buy = productMap[String(item.productId?._id || item.productId)] || 0
         if (item.returnStatus === 'approved') return s2
         return s2 + (item.price - buy) * item.qty
@@ -102,13 +107,19 @@ export default function Dashboard() {
 
   const calcRevenue = (salesArr) =>
     salesArr.reduce((sum, s) => {
-      if (s.returned) return sum
-      const returnedValue = s.items?.reduce((rv, item) => {
-        if (item.returnStatus === 'approved') return rv + (item.price || 0) * item.qty
-        return rv
-      }, 0) || 0
-      return sum + (s.total || 0) - returnedValue
-    }, 0)
+      // If the entire sale was voided/returned, skip it entirely
+      if (s.returned) return sum;
+
+      const validItemsValue = s.items?.reduce((rv, item) => {
+        // ONLY count items that are NOT approved returns
+        if (item.returnStatus !== 'approved') {
+          return rv + (item.price || 0) * item.qty;
+        }
+        return rv;
+      }, 0) || 0;
+
+      return sum + validItemsValue;
+    }, 0);
 
   const allSales = sales ?? []
   const allRevenue = calcRevenue(allSales)
@@ -188,10 +199,21 @@ export default function Dashboard() {
           value={safeReturns.length}
           color="gray"
           sub={safeReturns.length > 0 ? 'click to review' : undefined}
-          onClick={() => navigate('/sales-history')}
+          onClick={() => {
+            const element = document.getElementById('returns-section');
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth' });
+            }
+          }}
           clickable={safeReturns.length > 0}
         />
       </div>
+
+      {safeReturns.length > 0 && (
+        <div id="returns-section" className="mb-6 scroll-mt-6">
+          <PendingReturnsPanel pendingReturns={safeReturns} />
+        </div>
+      )}
 
       {/* Sales by Employee Today */}
       <div className={styles.box}>

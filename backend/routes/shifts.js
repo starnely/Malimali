@@ -4,14 +4,27 @@ const { authMiddleware } = require("../middleware/authMiddleware");
 const router = express.Router();
 
 // ── GET TODAY'S SHIFT UPDATES ──────────────────────────────────
-// This route MUST exist to stop the 404 error
 router.get("/today", authMiddleware, async (req, res) => {
   try {
-    const closedShifts = await User.find({ 
+    // We define "Today" based on the start and end of the current UTC day
+    // to keep filtering consistent regardless of server local time.
+    const startOfToday = new Date();
+    startOfToday.setUTCHours(0, 0, 0, 0);
+
+    const endOfToday = new Date();
+    endOfToday.setUTCHours(23, 59, 59, 999);
+
+    const closedShifts = await User.find({
       role: "employee",
-      shiftStatus: "closed"
+      shiftStatus: "closed",
+      // Filter using UTC range for database accuracy
+      updatedAt: { 
+        $gte: startOfToday, 
+        $lte: endOfToday 
+      }
     }).select("name shiftStatus updatedAt");
 
+    // We send raw data; the React frontend will use .toLocaleTimeString('en-KE')
     res.json(closedShifts);
   } catch (err) {
     console.error("Error fetching shifts:", err);
@@ -27,6 +40,9 @@ router.patch("/close", authMiddleware, async (req, res) => {
     }
 
     const employeeId = req.user.id;
+    
+    // findByIdAndUpdate will automatically update the 'updatedAt' field 
+    // if timestamps: true is set in your Mongoose schema.
     const employee = await User.findByIdAndUpdate(
       employeeId,
       { shiftStatus: "closed" },
@@ -39,12 +55,15 @@ router.patch("/close", authMiddleware, async (req, res) => {
         employeeId,
         employeeName: employee.name,
         status: "closed",
-        time: new Date().toLocaleTimeString("en-KE"),
+        // ✅ CRITICAL: Send ISO String. 
+        // This allows the owner's dashboard to format it locally.
+        time: new Date().toISOString(), 
       });
     }
 
     res.json({ success: true, employee });
   } catch (err) {
+    console.error("Error closing shift:", err);
     res.status(500).json({ error: "Failed to close shift" });
   }
 });

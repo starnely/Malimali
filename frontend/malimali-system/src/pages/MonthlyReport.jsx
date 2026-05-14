@@ -5,9 +5,10 @@ import { useApp } from '@/context/AppContext'
 const CATEGORIES = ['All', 'Furniture', 'Bedding', 'Utensils', 'Cleaning', 'Accessories']
 
 export default function MonthlyReport() {
-  const { sales, products } = useApp()
+  const { sales, products, isOwner, currentUser } = useApp();
+  const [selectedStore, setSelectedStore] = useState(isOwner ? "All" : currentUser.store);
   const now = new Date()
-  const [year, setYear]   = useState(now.getFullYear())
+  const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
 
   const monthName = new Date(year, month).toLocaleDateString('en-KE', {
@@ -37,10 +38,14 @@ export default function MonthlyReport() {
     sales.filter(s => {
       if (!s.date) return false
       const d = new Date(s.date)
-      return d.getFullYear() === year && d.getMonth() === month && !s.returned
+      const dateMatch = d.getFullYear() === year && d.getMonth() === month && !s.returned;
+
+      //Only include sales matching the selected store
+      const storeMatch = selectedStore === "All" || s.store === selectedStore;
+      return dateMatch && storeMatch;
     }),
-    [sales, year, month]
-  )
+    [sales, year, month, selectedStore]
+  );
 
   // ── Summary ────────────────────────────────────────────────────────
   const totalRevenue = monthSales.reduce((sum, s) => sum + (s.total || 0), 0)
@@ -59,11 +64,11 @@ export default function MonthlyReport() {
   // ── Daily data ─────────────────────────────────────────────────────
   const daysInMonth = new Date(year, month + 1, 0).getDate()
   const dailyData = useMemo(() => Array.from({ length: daysInMonth }, (_, idx) => {
-    const day     = idx + 1
+    const day = idx + 1
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const daySales = monthSales.filter(s => s.date?.startsWith(dateStr))
-    const revenue  = daySales.reduce((sum, s) => sum + (s.total || 0), 0)
-    const profit   = daySales.reduce((sum, sale) =>
+    const revenue = daySales.reduce((sum, s) => sum + (s.total || 0), 0)
+    const profit = daySales.reduce((sum, sale) =>
       sum + (sale.items?.reduce((s2, item) => {
         const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
         return s2 + (item.price - buy) * item.qty
@@ -81,11 +86,11 @@ export default function MonthlyReport() {
     const m = {}
     monthSales.forEach(sale => {
       sale.items?.forEach(item => {
-        const id   = String(item.productId?._id || item.productId)
+        const id = String(item.productId?._id || item.productId)
         const info = productMap[id]
         const name = info?.name || id
         if (!m[name]) m[name] = { qty: 0, revenue: 0 }
-        m[name].qty     += item.qty
+        m[name].qty += item.qty
         m[name].revenue += item.qty * item.price
       })
     })
@@ -104,9 +109,9 @@ export default function MonthlyReport() {
       const name = s.cashier || 'Unknown'
       if (!m[name]) m[name] = { qty: 0, revenue: 0, count: 0, profit: 0 }
       m[name].revenue += s.total || 0
-      m[name].count   += 1
-      m[name].qty     += s.items?.reduce((q, i) => q + i.qty, 0) || 0
-      m[name].profit  += s.items?.reduce((s2, item) => {
+      m[name].count += 1
+      m[name].qty += s.items?.reduce((q, i) => q + i.qty, 0) || 0
+      m[name].profit += s.items?.reduce((s2, item) => {
         const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
         return s2 + (item.price - buy) * item.qty
       }, 0) || 0
@@ -114,8 +119,8 @@ export default function MonthlyReport() {
     return m
   }, [monthSales, productMap])
 
-  const empPerformance  = Object.entries(empMap).sort((a, b) => b[1].revenue - a[1].revenue)
-  const maxEmpRevenue   = Math.max(...empPerformance.map(e => e[1].revenue), 1)
+  const empPerformance = Object.entries(empMap).sort((a, b) => b[1].revenue - a[1].revenue)
+  const maxEmpRevenue = Math.max(...empPerformance.map(e => e[1].revenue), 1)
 
   return (
     <div style={{ padding: '1.5rem', background: '#f4f6f9', minHeight: '100vh' }}>
@@ -124,9 +129,31 @@ export default function MonthlyReport() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '8px' }}>
         <div>
           <h1 style={{ fontSize: '20px', fontWeight: '600', color: '#333' }}>Monthly Report</h1>
-          <p style={{ fontSize: '13px', color: '#888', marginTop: '2px' }}>Business performance overview</p>
+          <p style={{ fontSize: '13px', color: '#888', marginTop: '2px' }}>{isOwner ? `Viewing: ${selectedStore}` : `Performance for ${currentUser.store}`}</p>
         </div>
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#fff', border: '0.5px solid #ddd', borderRadius: '10px', padding: '6px 12px' }}>
+          {isOwner && (
+            <select
+              value={selectedStore}
+              // This is where you USE the variable to clear the error
+              onChange={(e) => setSelectedStore(e.target.value)}
+              style={{
+                padding: '6px 12px',
+                border: '0.5px solid #ddd',
+                borderRadius: '10px',
+                fontSize: '13px',
+                background: '#fff',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="All">All Locations</option>
+              <option value="Store One">Store One</option>
+              <option value="Store Two">Store Two</option>
+              <option value="Headquarters">Headquarters</option>
+            </select>
+          )}
           <MdChevronLeft onClick={prevMonth} style={{ fontSize: '22px', cursor: 'pointer', color: '#555' }} />
           <span style={{ fontSize: '14px', fontWeight: '500', color: '#333', minWidth: '140px', textAlign: 'center' }}>{monthName}</span>
           <MdChevronRight
@@ -139,10 +166,10 @@ export default function MonthlyReport() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: '12px', marginBottom: '1.5rem' }}>
         {[
-          { label: 'Total revenue',  value: `KSh ${totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: '#185FA5', bg: '#E6F1FB' },
-          { label: 'Total profit',   value: `KSh ${totalProfit.toLocaleString()}`,  icon: <MdTrendingUp />,  color: '#3B6D11', bg: '#EAF3DE' },
-          { label: 'Items sold',     value: totalItems,                              icon: <MdInventory />,   color: '#BA7517', bg: '#FAEEDA' },
-          { label: 'Transactions',   value: monthSales.length,                      icon: <MdPerson />,      color: '#533AB7', bg: '#EEEDFE' },
+          { label: 'Total revenue', value: `KSh ${totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: '#185FA5', bg: '#E6F1FB' },
+          { label: 'Total profit', value: `KSh ${totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: '#3B6D11', bg: '#EAF3DE' },
+          { label: 'Items sold', value: totalItems, icon: <MdInventory />, color: '#BA7517', bg: '#FAEEDA' },
+          { label: 'Transactions', value: monthSales.length, icon: <MdPerson />, color: '#533AB7', bg: '#EEEDFE' },
         ].map((card, i) => (
           <div key={i} style={{ background: '#fff', border: '0.5px solid #e0e0e0', borderLeft: `3px solid ${card.color}`, borderRadius: '12px', padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
             <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: card.bg, color: card.color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>{card.icon}</div>

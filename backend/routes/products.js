@@ -17,16 +17,21 @@ router.get("/", authMiddleware, async (req, res) => {
 // ── Scan product by barcode ─────────────────────────────────────────
 router.get("/scan/:barcode", authMiddleware, async (req, res) => {
   try {
+    // 1. We use .select() to only get the fields needed for the sale
     const product = await Product.findOne({ barcode: req.params.barcode })
+      .select("name sellPrice stock category barcode");
+
     if (!product) {
-      return res.json({ success: false, message: "Product not found" })
+      // 2. Use 404 for "Not Found" so the frontend knows to show a warning
+      return res.status(404).json({ success: false, message: "Item not found in inventory" });
     }
-    res.json({ success: true, product })
+
+    res.json({ success: true, product });
   } catch (err) {
-    console.error("Scan error:", err.message)
-    res.status(500).json({ success: false, message: "Server error" })
+    console.error("Scan error:", err.message);
+    res.status(500).json({ success: false, message: "Scanner communication error" });
   }
-})
+});
 
 // ── Create product ─────────────────────────────────────────────────
 router.post("/", authMiddleware, async (req, res) => {
@@ -72,15 +77,25 @@ router.post("/", authMiddleware, async (req, res) => {
 // ── Update product ─────────────────────────────────────────────────
 router.put("/:id", authMiddleware, async (req, res) => {
   try {
-    const { barcode } = req.body
+    const { name, category, stock, buyPrice, sellPrice, barcode } = req.body;
+
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ success: false, message: "Access denied. Owners only." });
+    }
+
     if (barcode) {
       const exists = await Product.findOne({ barcode, _id: { $ne: req.params.id } })
       if (exists) {
-        return res.status(400).json({ success: false, message: "Barcode already exists" })
+        return res.status(400).json({ success: false, message: "Barcode already exists" });
       }
     }
 
-    const updated = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true })
+    const updated = await Product.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { name, category, stock, buyPrice, sellPrice, barcode },
+      { new: true, runValidators: true }
+    );
     res.json({ success: true, product: updated })
   } catch (err) {
     console.error("Error updating product:", err)
@@ -98,6 +113,9 @@ router.put("/:id", authMiddleware, async (req, res) => {
 // ── Delete product ─────────────────────────────────────────────────
 router.delete("/:id", authMiddleware, async (req, res) => {
   try {
+    if (req.user.role !== 'owner') {
+      return res.status(403).json({ success: false, message: "Access denied. Owners only." });
+    }
     await Product.findByIdAndDelete(req.params.id)
     res.json({ success: true })
   } catch (err) {

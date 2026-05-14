@@ -3,18 +3,18 @@ import { useApp } from '@/context/AppContext'
 import { MdSave, MdStore, MdPayments, MdInventory, MdCloudUpload } from 'react-icons/md'
 
 export default function Settings() {
-  const { settings, setSettings } = useApp()
+  const { settings, updateSettings } = useApp()
 
   // Use || to prevent "uncontrolled input" errors if settings are still loading
   const [form, setForm] = useState(settings || {
     companyName: '',
     currency: 'KSh',
-    paymentMethods: [],
+    paymentMethods: ['cash', 'mpesa'],
     lowStockThreshold: 5,
     receiptPrefix: 'INV',
     logo: ''
   })
-  
+
   const [logoFile, setLogoFile] = useState(null)
   const [preview, setPreview] = useState(settings?.logo || '')
   const [saved, setSaved] = useState(false)
@@ -41,7 +41,7 @@ export default function Settings() {
 
   const togglePayment = (method) => {
     const exists = form.paymentMethods.includes(method)
-    const newMethods = exists 
+    const newMethods = exists
       ? form.paymentMethods.filter(m => m !== method)
       : [...form.paymentMethods, method]
     handleChange('paymentMethods', newMethods)
@@ -49,11 +49,13 @@ export default function Settings() {
 
   const handleSave = async () => {
     // If you have a logo file, you'd usually use FormData here
-    // For now, we call your global setSettings
-    const success = await setSettings({ ...form, logoFile }) 
-    if (success) {
+    // For now, we call your global updateSettings
+    const result = await updateSettings({ ...form, logoFile })
+    if (result.success) {
       setSaved(true)
       setTimeout(() => setSaved(false), 3000)
+    } else {
+      alert("Failed to save settings. Please check your connection.")
     }
   }
 
@@ -94,13 +96,13 @@ export default function Settings() {
           <div>
             <div style={labelStyle}>Business Logo</div>
             <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-               {preview && <img src={preview} style={{ width: '40px', height: '40px', objectFit: 'contain', border: '1px solid #eee' }} />}
-               <label style={{ 
-                 padding: '8px 12px', background: '#f0f0f0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px'
-               }}>
-                 <MdCloudUpload /> Change Logo
-                 <input type="file" hidden onChange={handleLogoChange} accept="image/*" />
-               </label>
+              {preview && <img src={preview} style={{ width: '40px', height: '40px', objectFit: 'contain', border: '1px solid #eee' }} />}
+              <label style={{
+                padding: '8px 12px', background: '#f0f0f0', borderRadius: '6px', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px'
+              }}>
+                <MdCloudUpload /> Change Logo
+                <input type="file" hidden onChange={handleLogoChange} accept="image/*" />
+              </label>
             </div>
           </div>
         </div>

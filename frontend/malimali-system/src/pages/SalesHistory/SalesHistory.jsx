@@ -24,8 +24,6 @@ function getLastSundayMidnight() {
 }
 
 export default function SalesHistory() {
-    const [sales, setSales] = useState([]);
-    const [pendingReturns, setPendingReturns] = useState([]);
     const [search, setSearch] = useState('');
     const [category, setCategory] = useState('All');
     const [dateFrom, setDateFrom] = useState('');
@@ -36,48 +34,62 @@ export default function SalesHistory() {
     const [employeeDateFilter, setEmployeeDateFilter] = useState({});
 
     const socket = useSocket();
-    const { isOwner, currentUser } = useApp();
+    const { isOwner, currentUser, sales, fetchSales, fetchReturns, pendingReturns } = useApp();
 
-    const fetchSales = async () => {
-        try {
-            const user = JSON.parse(localStorage.getItem("malimali_current_user"));
-            const res = await fetch("http://localhost:5000/sales", {
-                headers: { Authorization: `Bearer ${user?.token}` }
-            });
-            const data = await res.json();
-            setSales(Array.isArray(data) ? data : []);
-        } catch (err) {
-            console.error("Error fetching sales:", err);
-            setSales([]);
-        }
-    };
+    // const fetchSales = async () => {
+    // try {
+    // const user = JSON.parse(localStorage.getItem("malimali_current_user"));
+    // const res = await fetch("http://localhost:5000/sales", {
+    // headers: { Authorization: `Bearer ${user?.token}` }
+    // });
+    // const data = await res.json();
+    // setSales(Array.isArray(data) ? data : []);
+    // } catch (err) {
+    // console.error("Error fetching sales:", err);
+    // setSales([]);
+    // }
+    // };
 
-    const fetchReturns = async () => {
-        try {
-            const user = JSON.parse(localStorage.getItem("malimali_current_user"));
-            const res = await fetch("http://localhost:5000/returns?status=pending", {
-                headers: { Authorization: `Bearer ${user?.token}` }
-            });
-            const data = await res.json();
-            setPendingReturns(Array.isArray(data) ? data : []);
-        } catch (err) {
-            setPendingReturns([]);
-        }
-    };
+    // const fetchReturns = async () => {
+    // try {
+    // const user = JSON.parse(localStorage.getItem("malimali_current_user"));
+    // const res = await fetch("http://localhost:5000/returns?status=pending", {
+    // headers: { Authorization: `Bearer ${user?.token}` }
+    // });
+    // const data = await res.json();
+    // setPendingReturns(Array.isArray(data) ? data : []);
+    // } catch (err) {
+    // console.error("Error fetching returns:", err);
+    // setPendingReturns([]);
+    // }
+    // };
 
     useEffect(() => {
         fetchSales();
         fetchReturns();
+
         if (!socket) return;
-        socket.on("returnUpdated", ({ saleId, status }) => {
-            setSales(prev =>
-                prev.map(sale => sale._id === saleId ? { ...sale, returnStatus: status } : sale)
-            );
+
+        // Listener for returns
+        socket.on("returnUpdated", () => {
             fetchReturns();
             fetchSales();
         });
-        return () => { socket.off("returnUpdated"); };
-    }, [socket]);
+
+        // ✅ ADD THIS: Listener for shift closures to refresh the history list
+        socket.on("adminShiftNotification", () => {
+            if (isOwner) {
+                console.log("Refreshing sales history due to shift closure...");
+                fetchSales();
+                fetchReturns();
+            }
+        });
+
+        return () => {
+            socket.off("returnUpdated");
+            socket.off("adminShiftNotification"); // Clean up
+        };
+    }, [socket, isOwner, fetchSales, fetchReturns]); // Added dependencies
 
     // ── Role-based filtering ───────────────────────────────────────────────
     const mySales = isOwner ? sales : sales.filter(s => s.cashier === currentUser?.name);
@@ -97,10 +109,20 @@ export default function SalesHistory() {
         return matchSearch && matchCat && matchFrom && matchTo;
     });
 
-    const totalRevenue = filtered.filter(s => !s.returned).reduce((sum, s) => sum + (s.total || 0), 0);
-    const totalItemsSold = filtered.reduce((sum, s) =>
-        sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0);
+    // ✅ Uses qty=0 as fallback when isFullyReturned is not set on old data
+const totalRevenue = filtered
+    .filter(s => !s.returned)
+    .reduce((sum, s) =>
+        sum + (s.items?.reduce((iSum, i) =>
+            iSum + ((i.isFullyReturned || i.qty === 0) ? 0 : (i.qty * i.price)), 0) || 0)
+    , 0);
 
+const totalItemsSold = filtered
+    .filter(s => !s.returned)
+    .reduce((sum, s) =>
+        sum + (s.items?.reduce((q, i) =>
+            q + ((i.isFullyReturned || i.qty === 0) ? 0 : (i.qty || 0)), 0) || 0)
+    , 0);
 
     // ── Owner: group by cashier ────────────────────────────────────────────
     const groupedByCashier = filtered.reduce((groups, sale) => {
@@ -114,7 +136,7 @@ export default function SalesHistory() {
     const groupedByDate = filtered.reduce((groups, sale) => {
         const d = new Date(sale.date);
         if (isNaN(d)) return groups;
-        const day = d.toISOString().split('T')[0];
+        const day = d.toLocaleDateString('en-CA');
         if (!groups[day]) groups[day] = [];
         groups[day].push(sale);
         return groups;

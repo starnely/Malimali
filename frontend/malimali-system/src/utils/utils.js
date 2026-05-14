@@ -11,13 +11,16 @@ export function todayEAT() {
  * Build a live summary for a given date from the sales array.
  * All field names match the backend Sale model exactly.
  */
-export function buildLiveSummary(date, sales, products = []) {
+export function buildLiveSummary(date, sales, products = [], storeName = "All") {
   const normalize = d => (d ? String(d).slice(0, 10) : null)
   const targetDate = normalize(date)
 
-  const daySales = sales.filter(
-    s => normalize(s.date) === targetDate && !s.returned
-  )
+  const daySales = sales.filter(s => {
+    const dateMatch = normalize(s.date) === targetDate && !s.returned
+    const storeMatch = storeName === "All" || s.store === storeName
+    return dateMatch && storeMatch
+  })
+
   if (daySales.length === 0) return null
 
   let totalRevenue = 0
@@ -26,22 +29,22 @@ export function buildLiveSummary(date, sales, products = []) {
   let cashInDrawer = 0
   let mpesaTotal = 0
   let creditTotal = 0
-
-  // Trackers for counts
   let cashSalesCount = 0
   let mpesaSalesCount = 0
   let creditSalesCount = 0
   let splitSalesCount = 0
 
-  // Tracker for employees
   const employeeMap = {}
 
   daySales.forEach(s => {
-    const saleAmount = s.paymentInfo?.finalTotal ?? s.total ?? 0
+    // ── Use s.total (updated after return) NOT paymentInfo.finalTotal ──
+    const saleAmount = s.total ?? 0
+
     totalRevenue += saleAmount
 
-    // 1. Payment Breakdown Logic
+    // ── Payment breakdown using s.total as source of truth ──
     const method = s.paymentInfo?.paymentMethod
+
     if (method === 'cash') {
       cashInDrawer += saleAmount
       cashSalesCount++
@@ -52,31 +55,47 @@ export function buildLiveSummary(date, sales, products = []) {
       creditTotal += saleAmount
       creditSalesCount++
     } else if (method === 'split') {
-      cashInDrawer += (s.paymentInfo?.cashPart || 0)
-      mpesaTotal += (s.paymentInfo?.mpesaPart || 0)
+      // For split payments, distribute the reduced total proportionally
+      // based on original cash/mpesa ratio
+      const originalCashPart = s.paymentInfo?.cashPart || 0
+      const originalMpesaPart = s.paymentInfo?.mpesaPart || 0
+      const originalTotal = originalCashPart + originalMpesaPart || 1
+
+      // Proportion of how much was cash vs mpesa originally
+      const cashRatio = originalCashPart / originalTotal
+      const mpesaRatio = originalMpesaPart / originalTotal
+
+      cashInDrawer += saleAmount * cashRatio
+      mpesaTotal += saleAmount * mpesaRatio
       splitSalesCount++
     }
 
-    // 2. Profit & COGS Logic
+    // ── Profit & COGS — use current item qty (reduced after return) ──
     let saleProfit = 0
     let saleQty = 0
+
     if (s.items) {
       s.items.forEach(item => {
+        // Skip fully returned items
+        if (item.isFullyReturned) return
+
         const product = products.find(p =>
           String(p._id) === String(item.productId?._id || item.productId)
         )
         const buyPrice = product?.buyPrice || 0
-        const itemCost = buyPrice * item.qty
-        const itemProfit = (item.price - buyPrice) * item.qty
+        const qty = item.qty || 0
+
+        const itemCost = buyPrice * qty
+        const itemProfit = (item.price - buyPrice) * qty
 
         totalCOGS += itemCost
         totalProfit += itemProfit
         saleProfit += itemProfit
-        saleQty += item.qty
+        saleQty += qty
       })
     }
 
-    // 3. Employee Logic
+    // ── Employee tracking ──
     const empName = s.cashier || 'Unknown'
     if (!employeeMap[empName]) {
       employeeMap[empName] = { name: empName, revenue: 0, profit: 0, transactions: 0, itemsSold: 0 }
@@ -87,24 +106,27 @@ export function buildLiveSummary(date, sales, products = []) {
     employeeMap[empName].itemsSold += saleQty
   })
 
+  // Round cash and mpesa to avoid floating point display issues
+  cashInDrawer = Math.round(cashInDrawer)
+  mpesaTotal = Math.round(mpesaTotal)
+
   return {
     date: targetDate,
-    totalRevenue,
-    totalProfit,
-    totalCOGS, // ✅ Added for Profit Breakdown
-    totalItems: daySales.reduce((q, s) => q + (s.items?.reduce((iq, i) => iq + i.qty, 0) || 0), 0),
+    totalRevenue: Math.round(totalRevenue),
+    totalProfit: Math.round(totalProfit),
+    totalCOGS: Math.round(totalCOGS),
+    totalItems: daySales.reduce((q, s) =>
+      q + (s.items?.reduce((iq, i) => iq + (i.isFullyReturned ? 0 : i.qty), 0) || 0), 0),
     totalTransactions: daySales.length,
     paymentBreakdown: {
       cash: cashInDrawer,
       mpesa: mpesaTotal,
-      credit: creditTotal,
+      credit: Math.round(creditTotal),
     },
-    // ✅ Added for Payment Breakdown UI
     cashSalesCount,
     mpesaSalesCount,
     creditSalesCount,
     splitSalesCount,
-    // ✅ Added for "Sales by Person" UI
     perEmployee: Object.values(employeeMap).sort((a, b) => b.revenue - a.revenue),
     isLive: true,
   }

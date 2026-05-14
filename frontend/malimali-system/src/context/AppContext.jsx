@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
-import { io } from 'socket.io-client'
+import { useSocket, useSocketActions } from './SocketContext';
 
 const AppContext = createContext()
 
@@ -14,47 +14,48 @@ function load(key, fallback) {
 
 export function AppProvider({ children }) {
 
-  // ── SETTINGS ──────────────────────────────────────────────────────────
+  // ── GENERIC SETTINGS ──────────────────────────────────────────────────────────
   const [settings, setSettings] = useState(() =>
-    load('malimali_settings', {
-      businessName: 'Malimali POS',
+    load('pos_system_settings', {
+      businessName: 'My POS Shop',
       currency: 'KSh',
       lowStockThreshold: 5,
       paymentMethods: ['cash', 'mpesa', 'split', 'credit'],
       receiptPrefix: 'RCP',
     })
   )
+
   useEffect(() => {
-    localStorage.setItem('malimali_settings', JSON.stringify(settings))
-  }, [settings])
+    if (settings) {
+      localStorage.setItem('pos_system_settings', JSON.stringify(settings));
+      // Update document title to the client's shop name
+      document.title = `${settings.companyName || 'POS'} - Management`;
+    }
+  }, [settings]);
+
 
   // ── CORE STATE ────────────────────────────────────────────────────────
   // Updated to null to trigger the Loading state in App.jsx during initialization
   const [isSetupComplete, setIsSetupComplete] = useState(null)
-  const [currentUser, setCurrentUser] = useState(() => load('malimali_current_user', null))
+  const [currentUser, setCurrentUser] = useState(() => load('pos_system_user', null))
   const [users, setUsers] = useState([])
   const [products, setProducts] = useState([])
   const [sales, setSales] = useState([])
   const [returns, setReturns] = useState([])
   const [stockInLog, setStockInLog] = useState([])
   const [dailyArchives, setDailyArchives] = useState([])
-  const [notifications, setNotifications] = useState(() => load('malimali_notifications', []))
-  const [shiftCloses, setShiftCloses] = useState(() => load('malimali_shift_closes', []))
+  const [notifications, setNotifications] = useState(() => load('pos_system_notifications', []))
+  const [shiftCloses, setShiftCloses] = useState(() => load('pos_system_shift_closes', []));
 
   const tokenRef = useRef(currentUser?.token ?? null)
   tokenRef.current = currentUser?.token ?? null
 
-  // ── CHECK SETUP ───────────────────────────────────────────────────────
-  // ── CHECK SETUP ───────────────────────────────────────────────────────
+  const { refreshSocket } = useSocketActions();
+
+  // ── CHECK SETUP ON LOAD ───────────────────────────────────────────────────────
   useEffect(() => {
     const checkSetup = async () => {
       try {
-        // 1. Try to load settings from LocalStorage first for instant display
-        const savedSettings = localStorage.getItem('pos_settings');
-        if (savedSettings) {
-          setSettings(JSON.parse(savedSettings));
-        }
-
         const res = await fetch("http://localhost:5000/api/setup/status");
 
         if (!res.ok) {
@@ -63,17 +64,21 @@ export function AppProvider({ children }) {
 
         const data = await res.json();
 
-        // 2. Update status
-        setIsSetupComplete(data.isSetup);
+        /// If the backend has settings, we use them!
+        setIsSetupComplete(data.isSetup && data.hasOwner);
 
         // 3. If settings exist, save them to state AND localStorage
-        if (data.settings) {
-          setSettings(data.settings);
-          localStorage.setItem('pos_settings', JSON.stringify(data.settings));
+        if (data.isSetup) {
+          // We need a route to fetch the actual settings details
+          const settingsRes = await fetch("http://localhost:5000/api/setup/details");
+          const settingsData = await settingsRes.json();
+          setSettings(settingsData);
+
+          localStorage.setItem('pos_system_settings', JSON.stringify(settingsData));
         }
 
       } catch (err) {
-        console.error("Error checking setup:", err);
+        console.error("Setup check failed:", err);
         setIsSetupComplete(false);
       }
     };
@@ -86,7 +91,7 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-      const res = await fetch("http://localhost:5000/products", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await fetch("http://localhost:5000/api/products", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
       setProducts(Array.isArray(data) ? data : [])
     } catch (err) { console.error("Error fetching products:", err); setProducts([]) }
@@ -96,7 +101,7 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-      const res = await fetch("http://localhost:5000/sales", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await fetch("http://localhost:5000/api/sales", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
       setSales(Array.isArray(data) ? data : [])
     } catch (err) { console.error("Error fetching sales:", err); setSales([]) }
@@ -106,7 +111,7 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-      const res = await fetch("http://localhost:5000/returns", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await fetch("http://localhost:5000/api/returns", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
       setReturns(Array.isArray(data) ? data : [])
     } catch (err) { console.error("Error fetching returns:", err); setReturns([]) }
@@ -116,7 +121,7 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-      const res = await fetch("http://localhost:5000/stockin", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await fetch("http://localhost:5000/api/stockin", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
       setStockInLog(Array.isArray(data) ? data : [])
     } catch (err) { console.error("Error fetching stock-in:", err); setStockInLog([]) }
@@ -126,7 +131,7 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-      const res = await fetch("http://localhost:5000/auth/employees", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await fetch("http://localhost:5000/api/auth/employees", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
       setUsers(Array.isArray(data) ? data : [])
     } catch (err) { console.error("Error fetching users:", err); setUsers([]) }
@@ -136,11 +141,11 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-      const res = await fetch("http://localhost:5000/archives", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await fetch("http://localhost:5000/api/archives", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
       const archivesArray = Array.isArray(data) ? data : [];
       setDailyArchives(archivesArray)
-      const today = new Date().toISOString().split('T')[0];
+      const today = new Date().toLocaleDateString('en-CA');
       const closesToday = archivesArray.filter(a => a.date === today);
       setShiftCloses(closesToday);
     } catch (err) {
@@ -160,19 +165,27 @@ export function AppProvider({ children }) {
   // ── LOGIN / LOGOUT ────────────────────────────────────────────────────
   const login = async (username, password) => {
     try {
-      const res = await fetch("http://localhost:5000/auth/login", {
+      const res = await fetch("http://localhost:5000/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username, password })
       })
       const data = await res.json()
       if (data.success) {
-        const userData = { token: data.token, role: data.role, name: data.name, id: data.id }
+        const userData = {
+          token: data.token,
+          role: data.role,
+          name: data.name,
+          id: data.id,
+          store: data.store
+        }
         setCurrentUser(userData)
-        localStorage.setItem("malimali_current_user", JSON.stringify(userData))
+        localStorage.setItem("pos_system_user", JSON.stringify(userData))
         tokenRef.current = data.token
+        refreshSocket();
         fetchProducts(data.token); fetchSales(data.token); fetchReturns(data.token)
-        fetchStockIn(data.token); fetchArchives(data.token)
+        fetchStockIn(data.token);
+        fetchArchives(data.token)
         if (data.role === 'owner') fetchUsers(data.token)
         return { success: true, role: data.role }
       }
@@ -185,17 +198,22 @@ export function AppProvider({ children }) {
 
   const logout = () => {
     setCurrentUser(null)
-    localStorage.removeItem("malimali_current_user")
+    localStorage.removeItem("pos_system_user")
+    refreshSocket(); // <--- Add this!
     window.location.href = '/login'
   }
 
   // ── SETUP OWNER ───────────────────────────────────────────────────────
   // ── SETUP OWNER ───────────────────────────────────────────────────────
-  const validatePassword = (password) => /[A-Z]/.test(password) && /[0-9]/.test(password);
+  const validatePassword = (password) => {
+    if (!password) return false;
+    return /[A-Z]/.test(password) && /[0-9]/.test(password);
+  };
 
   const setupOwner = async (formData) => {
-    // 1. Client-side Password Validation
-    const password = formData.get('adminPassword');
+    // ✅ FIXED KEY: Matches 'ownerPassword' from your SetupWizard.jsx
+    const password = formData.get('ownerPassword');
+
     if (!validatePassword(password)) {
       return {
         success: false,
@@ -216,6 +234,12 @@ export function AppProvider({ children }) {
         setIsSetupComplete(true);
         return { success: true };
       } else {
+        if (data.error && data.error.includes("E11000")) {
+          return {
+            success: false,
+            message: "This email is already registered. Please use a different email or log in."
+          };
+        }
         return {
           success: false,
           message: data.error || data.message || "Setup failed"
@@ -230,7 +254,7 @@ export function AppProvider({ children }) {
   // ── STOCK-IN ──────────────────────────────────────────────────────────
   const addStockIn = async (form) => {
     try {
-      const res = await fetch("http://localhost:5000/stockin", {
+      const res = await fetch("http://localhost:5000/api/stockin", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify(form)
@@ -244,38 +268,53 @@ export function AppProvider({ children }) {
   // ── RECORD SALE ───────────────────────────────────────────────────────
   const recordMultipleSales = async (cartItems, paymentInfo = {}) => {
     try {
-      const res = await fetch("http://localhost:5000/sales", {
+      const res = await fetch("http://localhost:5000/api/sales", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenRef.current}`
+        },
         body: JSON.stringify({
-          items: cartItems.map(item => ({ productId: item._id || item.id, qty: item.qty, price: item.sellPrice })),
+          // Include the store context from the current user session
+          store: currentUser?.store || "Main Store",
+          cashier: currentUser?.name || "Unknown",
+          items: cartItems.map(item => ({
+            productId: item._id || item.id,
+            qty: item.qty,
+            price: item.sellPrice
+          })),
           total: cartItems.reduce((sum, i) => sum + i.total, 0),
           paymentInfo: {
             paymentMethod: paymentInfo.paymentMethod,
             mpesaPhone: paymentInfo.mpesaPhone || "",
             customerName: paymentInfo.customerName || "",
-            cashPart: paymentInfo.cashPart || 0,
-            mpesaPart: paymentInfo.mpesaPart || 0,
-            discount: paymentInfo.discount || 0,
-            finalTotal: paymentInfo.finalTotal || cartItems.reduce((s, i) => s + i.total, 0),
-            cashGiven: paymentInfo.cashGiven || 0,
-            change: paymentInfo.change || 0,
+            cashPart: Number(paymentInfo.cashPart) || 0,
+            mpesaPart: Number(paymentInfo.mpesaPart) || 0,
+            discount: Number(paymentInfo.discount) || 0,
+            finalTotal: Number(paymentInfo.finalTotal) || cartItems.reduce((s, i) => s + i.total, 0),
+            cashGiven: Number(paymentInfo.cashGiven) || 0,
+            change: Number(paymentInfo.change) || 0,
           }
         })
-      })
-      const data = await res.json()
-      if (data.success) { fetchSales(); fetchProducts(); return { success: true, ...data } }
-      return { success: false, error: data.error || 'Failed to record sale' }
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        fetchSales();
+        fetchProducts();
+        return { success: true, ...data };
+      }
+      return { success: false, error: data.error || 'Failed to record sale' };
     } catch (err) {
       console.error("Sale Recording Error:", err);
       return { success: false, error: 'Failed to record sale' };
     }
-  }
+  };
 
   // ── RETURNS ───────────────────────────────────────────────────────────
   const processReturn = async (saleId, returnItems, reason, customerName) => {
     try {
-      const res = await fetch("http://localhost:5000/returns", {
+      const res = await fetch("http://localhost:5000/api/returns", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify({ saleId, items: returnItems, reason, customerName })
@@ -288,7 +327,7 @@ export function AppProvider({ children }) {
 
   const approveReturn = async (returnId) => {
     try {
-      await fetch(`http://localhost:5000/returns/${returnId}/approve`, {
+      await fetch(`http://localhost:5000/api/returns/${returnId}/approve`, {
         method: "PATCH", headers: { Authorization: `Bearer ${tokenRef.current}` }
       })
       fetchReturns(); fetchProducts(); fetchSales()
@@ -298,7 +337,7 @@ export function AppProvider({ children }) {
 
   const rejectReturn = async (returnId) => {
     try {
-      await fetch(`http://localhost:5000/returns/${returnId}/reject`, {
+      await fetch(`http://localhost:5000/api/returns/${returnId}/reject`, {
         method: "PATCH", headers: { Authorization: `Bearer ${tokenRef.current}` }
       })
       fetchReturns(); fetchSales()
@@ -309,20 +348,27 @@ export function AppProvider({ children }) {
   // ── USER MANAGEMENT ───────────────────────────────────────────────────
   const addUser = async (form) => {
     try {
-      const res = await fetch("http://localhost:5000/auth/register", {
+      const res = await fetch("http://localhost:5000/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
-        body: JSON.stringify({ ...form, role: "employee" })
-      })
-      const data = await res.json()
-      if (data.success) fetchUsers()
-      return data
-    } catch (err) { console.error("Operation failed:", err); return { success: false }; }
-  }
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenRef.current}`
+        },
+        // Send the full form which should now include 'role' and 'store'
+        body: JSON.stringify(form)
+      });
+      const data = await res.json();
+      if (data.success) fetchUsers();
+      return data;
+    } catch (err) {
+      console.error("Operation failed:", err);
+      return { success: false };
+    }
+  };
 
   const updateUser = async (id, form) => {
     try {
-      const res = await fetch(`http://localhost:5000/auth/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/auth/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify(form)
@@ -335,7 +381,7 @@ export function AppProvider({ children }) {
 
   const deleteUser = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/auth/${id}`, {
+      const res = await fetch(`http://localhost:5000/api/auth/${id}`, {
         method: "DELETE", headers: { Authorization: `Bearer ${tokenRef.current}` }
       })
       const data = await res.json()
@@ -346,7 +392,7 @@ export function AppProvider({ children }) {
 
   const toggleUserStatus = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/auth/${id}/toggle`, {
+      const res = await fetch(`http://localhost:5000/api/auth/${id}/toggle`, {
         method: "PATCH", headers: { Authorization: `Bearer ${tokenRef.current}` }
       })
       const data = await res.json()
@@ -364,7 +410,7 @@ export function AppProvider({ children }) {
       })
       if (newSettings.logoFile) formData.append('logo', newSettings.logoFile)
 
-      const res = await fetch("http://localhost:5000/auth/settings", {
+      const res = await fetch("http://localhost:5000/api/auth/settings", {
         method: "PUT",
         headers: { Authorization: `Bearer ${tokenRef.current}` },
         body: formData
@@ -372,7 +418,7 @@ export function AppProvider({ children }) {
       const data = await res.json()
       if (data.success) {
         setSettings(data.settings)
-        localStorage.setItem('malimali_settings', JSON.stringify(data.settings))
+        localStorage.setItem('pos_system_settings', JSON.stringify(data.settings))
         return { success: true }
       }
       return { success: false }
@@ -385,7 +431,7 @@ export function AppProvider({ children }) {
       id: Date.now() + Math.random(),
       message, type, target,
       read: false,
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toLocaleDateString('en-CA'),
       time: new Date().toLocaleTimeString(),
       createdAt: Date.now(),
     }
@@ -396,17 +442,46 @@ export function AppProvider({ children }) {
   const markAllNotificationsRead = (target) => setNotifications(prev => prev.map(n => (n.target === target || n.target === 'all') ? { ...n, read: true } : n))
   const clearNotifications = (target) => setNotifications(prev => prev.filter(n => n.target !== target && n.target !== 'all'))
 
+  // ── 2. DEFINE SOCKET LISTENER AFTER NOTIFICATIONS ──────────────────────────
+  const socket = useSocket();
+
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on("adminShiftNotification", (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner') return;
+      const name = data.employeeName || "An employee";
+      const time = data.time || new Date().toLocaleTimeString();
+      addNotification(`🔒 ${name} closed shift at ${time}`, "info", "owner");
+      fetchArchives();
+      fetchSales();
+    });
+
+    // ── Triggered after return approval, stock-in, or any backend data change
+    socket.on("sync_system_data", () => {
+      fetchSales();
+      fetchReturns();
+      fetchArchives();
+      fetchProducts();
+    });
+
+    return () => {
+      socket.off("adminShiftNotification");
+      socket.off("sync_system_data");
+    };
+  }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns, fetchProducts]);
+
   // ── SHIFT CLOSE ───────────────────────────────────────────────────────
   const closeShift = async () => {
-    const today = new Date().toISOString().split("T")[0]
-    const time = new Date().toLocaleTimeString()
+    const today = new Date().toLocaleDateString('en-CA')
     const employeeName = currentUser?.name || "Unknown"
 
     const alreadyClosed = shiftCloses.find(s => s.employeeName === employeeName && s.date === today)
     if (alreadyClosed) return { success: false, message: "You have already closed your shift today." }
 
     const empTodaySales = sales.filter(s => {
-      const saleDate = new Date(s.date).toISOString().split("T")[0]
+      const saleDate = new Date(s.date).toLocaleDateString('en-CA')
       return saleDate === today && s.cashier === employeeName && !s.returned
     })
 
@@ -416,17 +491,28 @@ export function AppProvider({ children }) {
       sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0)
 
     try {
-      const res = await fetch("http://localhost:5000/archives", {
+      const res = await fetch("http://localhost:5000/api/archives", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${tokenRef.current}`
+        },
         body: JSON.stringify({ employeeName, date: today, revenue, transactions, itemsSold })
-      })
+      });
+
       const data = await res.json().catch(() => ({}));
 
       if (res.ok && data.success) {
+
+        if (socket) {
+          socket.emit("shift-closed", {
+            employeeName,
+            time: new Date().toLocaleTimeString()
+          });
+        }
+
         fetchArchives();
         setShiftCloses(prev => [{ employeeName, date: today }, ...prev]);
-        addNotification(`🔒 ${employeeName} closed shift at ${time}`, "info", "owner");
         addNotification(`✅ Your shift has been closed.`, "success", employeeName);
         return { success: true };
       }
@@ -438,17 +524,17 @@ export function AppProvider({ children }) {
   }
 
   const hasClosedShiftToday = () => {
-    const today = new Date().toISOString().split("T")[0]
+    const today = new Date().toLocaleDateString('en-CA');
     return shiftCloses.some(s => s.employeeName === currentUser?.name && s.date === today)
   }
 
   // ── MIDNIGHT RESET ────────────────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
-      const today = new Date().toISOString().split('T')[0]
-      const lastReset = localStorage.getItem('malimali_last_reset')
+      const today = new Date().toLocaleDateString('en-CA')
+      const lastReset = localStorage.getItem('pos_system_last_reset')
       if (lastReset !== today) {
-        localStorage.setItem('malimali_last_reset', today)
+        localStorage.setItem('pos_system_last_reset', today)
         setShiftCloses([])
         setNotifications([])
         if (tokenRef.current) fetchSales()
@@ -460,18 +546,21 @@ export function AppProvider({ children }) {
   // ── SYNC ENGINE ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!currentUser?.token) return;
-    const syncData = () => { fetchProducts(); };
+    const syncData = () => { fetchProducts(); fetchSales(); }
     window.addEventListener('focus', syncData);
     const interval = setInterval(syncData, 5 * 60 * 1000);
     return () => {
       window.removeEventListener('focus', syncData);
       clearInterval(interval);
     };
-  }, [currentUser, fetchProducts]);
+  }, [currentUser, fetchProducts, fetchSales]);
 
   // ── DERIVED VALUES ────────────────────────────────────────────────────
-  const today = new Date().toISOString().split('T')[0]
-  const todaySales = sales.filter(s => s.date?.startsWith(today) && !s.returned)
+  const today = new Date().toLocaleDateString('en-CA');
+  const todaySales = sales.filter(s => {
+    const saleDate = new Date(s.date).toLocaleDateString('en-CA')
+    return saleDate === today && !s.returned
+  })
   const totalRevenue = sales.reduce((sum, s) => {
     if (s.returned) return sum
     const returnedValue = s.items?.reduce((rv, item) => {
@@ -490,30 +579,10 @@ export function AppProvider({ children }) {
     (currentUser?.role === 'employee' && (n.target === currentUser?.name || n.target === 'employee'))
   )
   const unreadCount = myNotifications.filter(n => !n.read).length
+  const isOwner = currentUser?.role === 'owner';
+  const isManager = currentUser?.role === 'manager';
+  const isCashier = currentUser?.role === 'cashier' || currentUser?.role === 'employee';
 
-  const [socket, setSocket] = useState(null)
-
-  useEffect(() => {
-    const newSocket = io("http://localhost:5000");
-    setSocket(newSocket);
-    if (currentUser?.role === 'owner') {
-      newSocket.emit("join-owner-room");
-    }
-    return () => newSocket.close();
-  }, [currentUser]);
-
-  useEffect(() => {
-    if (!socket) return;
-    socket.on("adminShiftNotification", (data) => {
-      if (currentUser?.role === 'owner') {
-        const name = data.employeeName || data.cashier || data.name || "An employee";
-        addNotification(`🔒 ${name} has closed their shift.`, "info", "owner");
-        fetchArchives();
-        fetchSales();
-      }
-    });
-    return () => { socket.off("adminShiftNotification"); };
-  }, [socket, currentUser, addNotification, fetchArchives, fetchSales]);
 
   // ── PROVIDER ──────────────────────────────────────────────────────────
   return (
@@ -524,6 +593,9 @@ export function AppProvider({ children }) {
       currentUser, login, logout,
       isOwner: currentUser?.role === 'owner',
       isEmployee: currentUser?.role === 'employee',
+      isManager,
+      isCashier,
+      canAccessReports: isOwner || isManager,
       users, setUsers,
       fetchUsers, addUser, updateUser, deleteUser, toggleUserStatus,
       products, fetchProducts,

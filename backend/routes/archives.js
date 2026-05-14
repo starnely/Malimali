@@ -22,7 +22,9 @@ router.get("/", authMiddleware, async (req, res) => {
 // POST new archive snapshot
 router.post("/", authMiddleware, async (req, res) => {
   try {
-    const date = req.body.date || new Date().toISOString().split("T")[0];
+    // Sync with EAT Date
+    const todayEAT = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const date = req.body.date || todayEAT;
 
     // Check if Sale model is correctly loaded
     if (!Sale) {
@@ -31,10 +33,14 @@ router.post("/", authMiddleware, async (req, res) => {
 
     // 1. Fetch sales for the specific date that haven't been returned
     const daySales = await Sale.find({
-      date,
+      date: date,
       returned: false,
-      cashier: req.user.name
+      cashier: req.user.name // Requires Name in JWT token
     });
+
+    if (daySales.length === 0) {
+       console.log(`No sales found for ${req.user.name} on ${date}`);
+    }
 
     // 2. Calculate Revenue based on what was ACTUALLY paid (finalTotal)
     const revenue = daySales.reduce((sum, s) => {
@@ -103,7 +109,7 @@ router.post("/", authMiddleware, async (req, res) => {
       // This matches the listener we added in Sidebar.jsx
 
       const displayName = req.user?.name || "Unknown Employee";
-      
+
       io.to("owner").emit("adminShiftNotification", {
         employeeName: displayName,
         revenue: revenue,

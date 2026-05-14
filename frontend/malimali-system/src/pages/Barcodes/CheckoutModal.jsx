@@ -41,16 +41,36 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
   }
 
   const handleConfirm = () => {
+    // Basic phone normalization for M-Pesa (converts 07... to 2547...)
+    const normalizePhone = (phone) => {
+      let p = phone.trim().replace(/\D/g, ''); // remove non-digits
+      if (p.startsWith('0')) p = '254' + p.substring(1);
+      if (p.startsWith('7')) p = '254' + p;
+      return p;
+    };
+
     onConfirm({
       paymentMethod,
+      // How much the customer actually handed over / paid via M-Pesa
+      amountPaid: paymentMethod === 'cash' ? cashGivenNum :
+        paymentMethod === 'mpesa' ? finalTotal :
+          paymentMethod === 'split' ? splitTotal : 0,
+
       cashGiven: cashGivenNum,
       change: paymentMethod === 'cash' ? Math.max(0, cashGivenNum - finalTotal)
         : paymentMethod === 'split' ? Math.max(0, splitChange) : 0,
+
       discount: discountAmount, finalTotal,
-      customerName: customerName.trim(),
-      mpesaPhone: paymentMethod === 'mpesa' ? mpesaPhone.trim()
-        : paymentMethod === 'split' ? splitMpesaPhone.trim() : '',
-      cashPart: cashPartNum, mpesaPart: mpesaPartNum,
+
+      isCredit: paymentMethod === 'credit',
+      balanceDue: paymentMethod === 'credit' ? finalTotal : 0,
+
+      customerName: customerName.trim() || "Walk-in Customer",
+
+      mpesaPhone: paymentMethod === 'mpesa' ? normalizePhone(mpesaPhone)
+        : paymentMethod === 'split' ? normalizePhone(splitMpesaPhone) : '',
+      cashPart: cashPartNum,
+      mpesaPart: mpesaPartNum,
     })
   }
 
@@ -101,14 +121,19 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
             <div className={s.discountRow}>
               <select
                 value={discountType}
-                onChange={e => { setDiscountType(e.target.value); setDiscount('') }}
+                onChange={e => {
+                  setDiscountType(e.target.value);
+                  setDiscount('')
+                }}
                 className={s.discountSelect}
               >
                 <option value="fixed">KSh</option>
                 <option value="percent">%</option>
               </select>
               <input
-                type="number" min="0" max={discountType === 'percent' ? 100 : cartTotal}
+                type="number" 
+                min="0" 
+                max={discountType === 'percent' ? 100 : cartTotal}
                 placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
                 value={discount}
                 onChange={e => setDiscount(e.target.value)}

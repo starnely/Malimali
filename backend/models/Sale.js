@@ -1,7 +1,6 @@
 const mongoose = require("mongoose")
 
 // ── EAT timezone helper ────────────────────────────────────────────────
-// East Africa Time is UTC+3 — used for all date/time display
 function nowEAT() {
   return new Date(Date.now() + 3 * 60 * 60 * 1000)
 }
@@ -23,7 +22,6 @@ const saleSchema = new mongoose.Schema(
         },
         qty:   { type: Number, required: true },
         price: { type: Number, required: true },
-        // ✅ Per-item return status — only returned items change
         returnStatus: {
           type: String,
           enum: ["none", "pending", "approved", "rejected"],
@@ -31,7 +29,11 @@ const saleSchema = new mongoose.Schema(
         }
       }
     ],
-    total:    { type: Number, required: true },
+    total:     { type: Number, required: true },
+    
+    // ── MULTI-STORE TRACKING ──
+    store:     { type: String, required: true, index: true }, // 👈 Added: Required for multi-branch reporting
+    
     cashierId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     cashier:   { type: String, default: "Cashier" },
     paymentInfo: {
@@ -45,7 +47,6 @@ const saleSchema = new mongoose.Schema(
       cashGiven:     { type: Number, default: 0 },
       change:        { type: Number, default: 0 }
     },
-    // ✅ EAT date and time
     date: {
       type: String,
       required: true,
@@ -68,6 +69,7 @@ const saleSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
+// Receipt ID Generator
 saleSchema.pre("save", async function () {
   if (!this.receiptId) {
     const timestamp = Date.now().toString().slice(-6)

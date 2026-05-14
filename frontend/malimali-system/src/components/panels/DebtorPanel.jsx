@@ -1,121 +1,121 @@
-import { MdClose, MdPerson, MdWarning } from 'react-icons/md'
+import { MdClose, MdPerson, MdWarning, MdReceipt } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useMemo } from 'react'
 
 export default function DebtorPanel({ date, onClose }) {
-  const { sales } = useApp()
+  const { sales, isOwner, currentUser } = useApp()
 
-  const creditSales = sales.filter(s =>
-    s.date === date && s.paymentMethod === 'credit' && !s.returned
-  )
+  // 1. Filter sales by date, payment status, and store access
+  const creditSales = useMemo(() => {
+    const targetDate = date?.slice(0, 10)
+    return sales.filter(s => {
+      const dateMatch = s.date?.slice(0, 10) === targetDate
+      const hasCredit = s.paymentInfo?.paymentMethod === 'credit' || s.paymentInfo?.paymentMethod === 'split'
+      const storeMatch = isOwner || s.store === currentUser.store
+      return dateMatch && hasCredit && storeMatch && !s.returned
+    })
+  }, [sales, date, isOwner, currentUser])
 
-  const byEmployee = creditSales.reduce((acc, sale) => {
-    const key = sale.soldBy || 'Unknown'
-    if (!acc[key]) acc[key] = []
-    acc[key].push(sale)
-    return acc
-  }, {})
+  // 2. Group by Cashier
+  const byEmployee = useMemo(() => {
+    return creditSales.reduce((acc, sale) => {
+      const key = sale.cashier || 'Unknown Staff'
+      if (!acc[key]) acc[key] = []
+      acc[key].push(sale)
+      return acc
+    }, {})
+  }, [creditSales])
 
-  const totalCredit = creditSales.reduce((sum, s) => sum + s.total, 0)
+  const totalCredit = creditSales.reduce((sum, s) => {
+    const amountOwed = (s.paymentInfo?.creditPart ?? s.paymentInfo?.finalTotal ?? 0);
+    return sum + amountOwed;
+  }, 0);
 
-  const displayDate = new Date(date).toLocaleDateString('en-KE', {
+  const displayDate = new Date(date + 'T00:00:00').toLocaleDateString('en-KE', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   })
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[85vh] flex flex-col overflow-hidden animate-in fade-in zoom-in duration-200">
+
         {/* Header */}
-        <div className="bg-yellow-700 text-white flex justify-between items-center px-5 py-3">
+        <div className="bg-red-700 text-white flex justify-between items-center px-6 py-4">
           <div>
-            <div className="font-bold text-lg">📋 Credit Sales — Debtors</div>
-            <div className="text-xs opacity-75">{displayDate}</div>
+            <div className="font-black text-xl tracking-tight">Debt Tracking</div>
+            <div className="text-xs font-medium text-red-100 uppercase tracking-widest">{displayDate}</div>
           </div>
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <div className="text-xs opacity-75">Total owed</div>
-              <div className="text-xl font-bold">KSh {totalCredit.toLocaleString()}</div>
+              <div className="text-[10px] uppercase font-bold text-red-200">Total Owed</div>
+              <div className="text-2xl font-black italic">KSh {totalCredit.toLocaleString()}</div>
             </div>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center hover:bg-white/30 transition-colors"
+              className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all active:scale-90"
             >
-              <MdClose />
+              <MdClose size={24} />
             </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="overflow-y-auto flex-1 p-5">
+        <div className="overflow-y-auto flex-1 p-6 space-y-6">
           {creditSales.length === 0 ? (
-            <div className="text-center text-gray-400 py-12">
-              <div className="text-3xl mb-2">✅</div>
-              <div className="font-medium">No credit sales on this date</div>
+            <div className="text-center py-16">
+              <div className="text-5xl mb-4">✨</div>
+              <div className="font-bold text-gray-800 text-lg">No Debtors Found</div>
+              <p className="text-sm text-gray-400">All sales for this day were fully paid.</p>
             </div>
           ) : (
             Object.entries(byEmployee).map(([employeeName, empSales]) => {
-              const empTotal = empSales.reduce((sum, s) => sum + s.total, 0)
-              const byCustomer = empSales.reduce((acc, sale) => {
-                const customer = sale.customerName || 'Unknown customer'
-                if (!acc[customer]) acc[customer] = []
-                acc[customer].push(sale)
-                return acc
-              }, {})
+              const empTotalDebt = empSales.reduce((sum, s) => {
+                // Provide a safe fallback for every addition
+                const debtValue = (s.paymentInfo?.creditPart ?? s.paymentInfo?.finalTotal ?? 0);
+                return sum + debtValue;
+              }, 0);
 
               return (
-                <div key={employeeName} className="border rounded-lg mb-4 overflow-hidden">
-                  <div className="bg-gray-50 px-4 py-2 flex justify-between items-center border-b">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 rounded-full bg-blue-800 flex items-center justify-center">
-                        <MdPerson className="text-white text-sm" />
+                <div key={employeeName} className="border border-gray-100 rounded-xl overflow-hidden shadow-sm">
+                  {/* Cashier Bar */}
+                  <div className="bg-gray-50 px-4 py-3 flex justify-between items-center border-b border-gray-100">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center text-white font-bold text-xs">
+                        {employeeName[0]}
                       </div>
                       <div>
-                        <div className="font-semibold text-sm">{employeeName}</div>
-                        <div className="text-xs text-gray-500">
-                          {empSales.length} credit sale{empSales.length !== 1 ? 's' : ''}
-                        </div>
+                        <div className="font-bold text-gray-800 text-sm">{employeeName}</div>
+                        <div className="text-[10px] text-gray-400 font-bold uppercase">{empSales.length} Credit Tickets</div>
                       </div>
                     </div>
-                    <div className="font-bold text-yellow-700">KSh {empTotal.toLocaleString()}</div>
+                    <div className="text-sm font-black text-red-600">KSh {empTotalDebt.toLocaleString()}</div>
                   </div>
 
-                  <div className="p-3">
-                    {Object.entries(byCustomer).map(([customerName, customerSales], ci, arr) => {
-                      const customerTotal = customerSales.reduce((sum, s) => sum + s.total, 0)
-                      return (
-                        <div key={customerName} className={`${ci < arr.length - 1 ? 'border-b pb-3 mb-3' : ''}`}>
-                          <div className="flex justify-between items-center mb-2">
-                            <div className="flex items-center gap-2">
-                              <span>👤</span>
-                              <span className="font-medium text-sm">{customerName}</span>
-                              {customerName === 'Unknown customer' && (
-                                <span className="text-xs bg-yellow-100 text-yellow-700 px-2 rounded">
-                                  No name recorded
-                                </span>
-                              )}
-                            </div>
-                            <span className="font-bold text-red-700 text-sm">
-                              KSh {customerTotal.toLocaleString()}
-                            </span>
+                  {/* Sales Detail */}
+                  <div className="p-2 space-y-2">
+                    {empSales.map((sale) => (
+                      <div key={sale._id} className="bg-white border border-gray-50 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="text-gray-400"><MdReceipt size={14} /></span>
+                            <span className="font-bold text-xs text-gray-700">{sale.paymentInfo?.customerName || 'Walk-in (No Name)'}</span>
                           </div>
+                          <span className="text-xs font-black text-red-700 bg-red-50 px-2 py-0.5 rounded">
+                            KSh {(sale.paymentInfo?.creditPart ?? sale.paymentInfo?.finalTotal ?? 0).toLocaleString()}
+                          </span>
+                        </div>
 
-                          {customerSales.map(sale => (
-                            <div key={sale.id} className="flex justify-between items-center bg-gray-50 rounded px-3 py-2 mb-1">
-                              <div>
-                                <div className="text-sm font-medium">{sale.name}</div>
-                                <div className="text-xs text-gray-500">
-                                  {sale.qty} × KSh {Number(sale.sellPrice).toLocaleString()}
-                                  {sale.receiptId && <span className="ml-2 text-blue-700">{sale.receiptId}</span>}
-                                  <span className="ml-2">{sale.time}</span>
-                                </div>
-                              </div>
-                              <div className="text-sm font-bold text-blue-700">
-                                KSh {sale.total.toLocaleString()}
-                              </div>
+                        {/* List items in the sale */}
+                        <div className="pl-6 space-y-1">
+                          {sale.items?.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-[11px] text-gray-500">
+                              <span>{item.name} (x{item.qty})</span>
+                              <span className="font-medium text-gray-400">@ KSh {item.price.toLocaleString()}</span>
                             </div>
                           ))}
                         </div>
-                      )
-                    })}
+                      </div>
+                    ))}
                   </div>
                 </div>
               )
@@ -123,12 +123,16 @@ export default function DebtorPanel({ date, onClose }) {
           )}
 
           {creditSales.length > 0 && (
-            <div className="bg-yellow-50 border border-yellow-400 rounded-lg p-3 flex items-start gap-2 mt-3">
-              <MdWarning className="text-yellow-500 text-lg" />
-              <p className="text-xs text-yellow-800">
-                These customers have not paid yet. Total owed: <strong>KSh {totalCredit.toLocaleString()}</strong>.  
-                Follow up with the respective cashier to collect payment.
-              </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+              <div className="p-2 bg-yellow-400 rounded-lg text-white">
+                <MdWarning size={20} />
+              </div>
+              <div>
+                <p className="text-xs text-yellow-900 leading-relaxed">
+                  <strong>Risk Alert:</strong> These amounts are currently not in your drawer or M-Pesa.
+                  Ensure <strong>{Object.keys(byEmployee).join(', ')}</strong> provides documentation for these credit arrangements.
+                </p>
+              </div>
             </div>
           )}
         </div>

@@ -8,7 +8,7 @@ const SetupWizard = () => {
     const [loading, setLoading] = useState(false);
     const [formData, setFormData] = useState({
         companyName: '', phone: '', email: '', location: '', logo: null,
-        adminName: '', adminEmail: '', adminPassword: '', activationCode: ''
+        ownerName: '', ownerEmail: '', ownerPassword: '', activationCode: ''
     });
 
     const handleChange = (e) => {
@@ -21,14 +21,24 @@ const SetupWizard = () => {
         setLoading(true);
 
         const data = new FormData();
-        Object.keys(formData).forEach(key => data.append(key, formData[key]));
+        // Use the EXACT keys your 'clean' setup.js is looking for:
+        data.append('companyName', formData.companyName);
+        data.append('phone', formData.phone);
+        data.append('email', formData.email);
+        data.append('location', formData.location);
+        data.append('logo', formData.logo); // This is the file
+        data.append('ownerName', formData.ownerName);
+        data.append('ownerEmail', formData.ownerEmail);
+        data.append('ownerPassword', formData.ownerPassword);
+        data.append('activationCode', formData.activationCode);
 
         const result = await setupOwner(data);
+
         if (result.success) {
             alert("Configuration Success! Welcome to your new POS.");
             window.location.href = '/login';
         } else {
-            alert("Setup failed: " + result.message);
+            alert("Setup failed: " + (result.error || result.message));
         }
         setLoading(false);
     };
@@ -64,9 +74,27 @@ const SetupWizard = () => {
                         <div className="space-y-4 animate-fadeIn">
                             <h2 className="text-2xl font-bold text-gray-800">Administrator</h2>
                             <p className="text-sm text-gray-500">Create the primary owner account.</p>
-                            <input name="adminName" placeholder="Full Name" onChange={handleChange} className={inputClass} required />
-                            <input name="adminEmail" type="email" placeholder="Login Email" onChange={handleChange} className={inputClass} required />
-                            <input name="adminPassword" type="password" placeholder="Secure Password" onChange={handleChange} className={inputClass} required />
+
+                            <input
+                                name="ownerName"
+                                placeholder="Full Name"
+                                onChange={handleChange}
+                                className={inputClass} required />
+
+                            <input
+                                name="ownerEmail"
+                                type="email"
+                                placeholder="Login Email"
+                                onChange={handleChange}
+                                className={inputClass} required />
+
+                            <input
+                                name="ownerPassword"
+                                type="password"
+                                placeholder="Secure Password"
+                                onChange={handleChange}
+                                className={inputClass} required />
+
                             <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold p-3 rounded-xl shadow-lg transition">Next Step</button>
                         </div>
                     )}

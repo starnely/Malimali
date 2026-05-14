@@ -1,7 +1,7 @@
-import { MdArchive, MdExpandMore, MdExpandLess, MdAttachMoney, MdTrendingUp, MdPointOfSale, MdInventory, MdRefresh } from 'react-icons/md'
+import { MdArchive, MdExpandMore, MdExpandLess, MdAttachMoney, MdTrendingUp, MdPointOfSale, MdInventory, MdRefresh, MdStore } from 'react-icons/md'
 
 export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebtors }) {
-  // ✅ Guard: paymentBreakdown may be missing on old stored archives
+  // ✅ Access the breakdown safely
   const pb = archive.paymentBreakdown || {}
 
   return (
@@ -19,29 +19,34 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
           </div>
           <div>
             <div className="font-semibold text-gray-800 flex items-center gap-2">
-              {/* ✅ Fix: append T00:00:00 to prevent timezone date shift */}
               {new Date(archive.date + 'T00:00:00').toLocaleDateString('en-KE', {
                 weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
               })}
               {archive.isLive && (
-                <span className="text-xs px-2 py-0.5 rounded bg-green-100 text-green-700 font-semibold">LIVE</span>
+                <span className="text-[10px] px-2 py-0.5 rounded bg-green-100 text-green-700 font-bold uppercase tracking-wider">LIVE</span>
               )}
             </div>
-            <div className="text-xs text-gray-500">
-              {archive.totalTransactions} transactions · {archive.totalItems} items sold
-              {!archive.isLive && archive.archivedAt && ` · Archived at ${archive.archivedAt}`}
+            <div className="text-xs text-gray-500 flex items-center gap-2">
+              <span>{archive.totalTransactions} transactions · {archive.totalItems} items sold</span>
+              {/* Optional: Show store name if available */}
+              {archive.store && (
+                <span className="flex items-center gap-1 bg-gray-100 px-1.5 py-0.5 rounded text-gray-600">
+                  <MdStore size={12} /> {archive.store}
+                </span>
+              )}
             </div>
           </div>
         </div>
+
         <div className="flex items-center gap-6">
-          <div className="text-right">
-            <div className="text-xs text-gray-400">Revenue</div>
+          <div className="text-right hidden sm:block">
+            <div className="text-[10px] uppercase text-gray-400 font-bold">Revenue</div>
             <div className="text-lg font-bold text-blue-700">
               KSh {(archive.totalRevenue || 0).toLocaleString()}
             </div>
           </div>
           <div className="text-right">
-            <div className="text-xs text-gray-400">Profit</div>
+            <div className="text-[10px] uppercase text-gray-400 font-bold">Profit</div>
             <div className="text-lg font-bold text-green-700">
               KSh {(archive.totalProfit || 0).toLocaleString()}
             </div>
@@ -50,50 +55,54 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
         </div>
       </div>
 
-      {/* Expanded */}
+      {/* Expanded Content */}
       {isExpanded && (
-        <div className="border-t border-gray-200 p-4">
-          {/* Summary cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="border-t border-gray-100 p-4 bg-white">
+          {/* Summary Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
             {[
-              { label: 'Total Revenue',  value: `KSh ${(archive.totalRevenue || 0).toLocaleString()}`,  color: 'text-blue-700',   icon: <MdAttachMoney /> },
-              { label: 'Total Profit',   value: `KSh ${(archive.totalProfit || 0).toLocaleString()}`,   color: 'text-green-700',  icon: <MdTrendingUp /> },
-              { label: 'Transactions',   value: archive.totalTransactions || 0,                          color: 'text-yellow-700', icon: <MdPointOfSale /> },
-              { label: 'Items Sold',     value: archive.totalItems || 0,                                 color: 'text-purple-700', icon: <MdInventory /> },
+              { label: 'Total Revenue',  value: `KSh ${(archive.totalRevenue || 0).toLocaleString()}`,  color: '#1d4ed8', icon: <MdAttachMoney /> },
+              { label: 'Total Profit',   value: `KSh ${(archive.totalProfit || 0).toLocaleString()}`,   color: '#15803d', icon: <MdTrendingUp /> },
+              { label: 'Transactions',   value: archive.totalTransactions || 0,                         color: '#a16207', icon: <MdPointOfSale /> },
+              { label: 'Items Sold',     value: archive.totalItems || 0,                                color: '#7e22ce', icon: <MdInventory /> },
             ].map((card, i) => (
-              <div key={i} className="bg-gray-50 rounded-lg p-3 border-l-4" style={{ borderColor: card.color.replace('text-', '') }}>
-                <div className="text-xs text-gray-500 flex items-center gap-1 mb-1">{card.icon} {card.label}</div>
-                <div className={`text-base font-bold ${card.color}`}>{card.value}</div>
+              <div key={i} className="bg-gray-50 rounded-xl p-3 border-l-4" style={{ borderLeftColor: card.color }}>
+                <div className="text-[10px] uppercase font-bold text-gray-400 flex items-center gap-1 mb-1">
+                  {card.icon} {card.label}
+                </div>
+                <div className="text-base font-black text-gray-800">{card.value}</div>
               </div>
             ))}
           </div>
 
-          {/* Payment breakdown */}
-          <div className="flex flex-wrap gap-3 mb-4">
-            <div className="bg-green-100 rounded-lg p-3 text-center flex-1">
-              <div className="text-xs text-green-700 mb-1">💵 Cash in Drawer</div>
-              <div className="text-lg font-bold text-green-800">
-                KSh {((pb.cash || 0) + (pb.splitCash || 0)).toLocaleString()}
+          {/* Payment Breakdown - Cleaned Up */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="bg-green-50 border border-green-100 rounded-xl p-4">
+              <div className="text-[10px] uppercase font-bold text-green-600 mb-1">💵 Cash in Drawer</div>
+              <div className="text-xl font-black text-green-800">
+                KSh {(pb.cash || 0).toLocaleString()}
               </div>
             </div>
-            <div className="bg-blue-100 rounded-lg p-3 text-center flex-1">
-              <div className="text-xs text-blue-700 mb-1">📱 M-Pesa Total</div>
-              <div className="text-lg font-bold text-blue-800">
-                KSh {((pb.mpesa || 0) + (pb.splitMpesa || 0)).toLocaleString()}
+
+            <div className="bg-blue-50 border border-blue-100 rounded-xl p-4">
+              <div className="text-[10px] uppercase font-bold text-blue-600 mb-1">📱 M-Pesa Total</div>
+              <div className="text-xl font-black text-blue-800">
+                KSh {(pb.mpesa || 0).toLocaleString()}
               </div>
             </div>
+
             <button
               onClick={(e) => { e.stopPropagation(); onViewDebtors() }}
-              className={`rounded-lg p-3 text-center flex-1 transition-colors duration-200 ${
+              className={`rounded-xl p-4 text-left transition-all hover:scale-[1.02] active:scale-95 ${
                 pb.credit > 0
-                  ? 'bg-yellow-100 border border-yellow-400 hover:bg-yellow-200'
-                  : 'bg-gray-50 border border-gray-200'
+                  ? 'bg-red-50 border border-red-200 shadow-sm'
+                  : 'bg-gray-50 border border-gray-100 opacity-60'
               }`}
             >
-              <div className={`text-xs mb-1 ${pb.credit > 0 ? 'text-yellow-700' : 'text-gray-400'}`}>
-                📋 Credit {pb.credit > 0 ? '(tap to view)' : ''}
+              <div className={`text-[10px] uppercase font-bold mb-1 ${pb.credit > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                📋 Unpaid Credit {pb.credit > 0 ? '→ View' : ''}
               </div>
-              <div className={`text-lg font-bold ${pb.credit > 0 ? 'text-red-700' : 'text-gray-400'}`}>
+              <div className={`text-xl font-black ${pb.credit > 0 ? 'text-red-700' : 'text-gray-400'}`}>
                 KSh {(pb.credit || 0).toLocaleString()}
               </div>
             </button>

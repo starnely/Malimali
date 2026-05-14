@@ -40,8 +40,9 @@ router.post("/", authMiddleware, async (req, res) => {
         returnStatus: "none"
       })),
       total,
+      store: user.store || "Main Store", //which store made the sale
       cashierId: user._id,
-      cashier: user.name || user.username || "Cashier",
+      cashier: user.fullname || user.username,
       paymentInfo: {
         paymentMethod: paymentInfo?.paymentMethod || "cash",
         mpesaPhone: paymentInfo?.mpesaPhone || "",
@@ -53,8 +54,7 @@ router.post("/", authMiddleware, async (req, res) => {
         cashGiven: paymentInfo?.cashGiven || 0,
         change: paymentInfo?.change || 0,
       },
-      date: new Date().toISOString().split('T')[0], 
-      time: new Date().toLocaleTimeString("en-KE"),
+      date: getEATDate(),
       returnStatus: "none"
     });
 
@@ -63,15 +63,13 @@ router.post("/", authMiddleware, async (req, res) => {
     // ── SOCKET BROADCASTING ──
     const io = req.app.get("io");
     if (io) {
-      // Broadcast to specific "owner" room for dashboard updates/notifications
-      io.to("owner").emit("newSale", { 
-        cashier: user.name, 
-        total: paymentInfo?.finalTotal || total 
+      // Notify owner of the sale and which store it came from
+      io.to("owner").emit("newSale", {
+        cashier: user.fullname,
+        store: user.store,
+        total: sale.paymentInfo.finalTotal
       });
-
-      // Broadcast to EVERYONE (including the cashier who just sold) 
-      // so all tabs sync their product stock levels
-      io.emit("productsUpdated"); 
+      io.emit("productsUpdated");
     }
 
     res.json({ success: true, sale });
@@ -84,24 +82,32 @@ router.post("/", authMiddleware, async (req, res) => {
 // ── GET SALES ──────────────────────
 router.get("/", authMiddleware, async (req, res) => {
   try {
-    const user = req.user;
-    let query = user.role === "owner" ? {} : { cashierId: user.id };
+    const user = await User.findById(req.user.id);
+    let query = {};
+
+    // 👈 NEW: Filter logic
+    if (user.role !== "owner") {
+      // Managers and Cashiers only see their store's sales
+      query.store = user.store;
+    } else if (req.query.store && req.query.store !== "All") {
+      // Owner can filter by a specific store via query param
+      query.store = req.query.store;
+    }
 
     const rawSales = await Sale.find(query)
-      .populate("cashierId", "username name")
+      .populate("cashierId", "username fullname")
       .populate("items.productId", "name category")
       .sort({ createdAt: -1 });
 
     const sales = rawSales.map(sale => {
       const saleObj = sale.toObject();
-
       const returnedAmount = sale.items.reduce((sum, item) => {
         return item.returnStatus === "approved" ? sum + (item.qty * item.price) : sum;
       }, 0);
 
       saleObj.netTotal = (sale.paymentInfo?.finalTotal || sale.total) - returnedAmount;
       saleObj.isPartiallyReturned = sale.items.some(i => i.returnStatus === "approved");
-      
+
       return saleObj;
     });
 

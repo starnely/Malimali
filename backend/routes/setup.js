@@ -5,24 +5,30 @@ const path = require('path');
 const Setting = require('../models/Setting');
 const User = require('../models/User');
 const bcrypt = require('bcryptjs');
+const { authMiddleware, ownerOnly } = require('../middleware/authMiddleware');
 
 // 1. Configure Multer for Logo Storage
 const storage = multer.diskStorage({
-  destination: './public/uploads/logo/',
+  destination: 'public/uploads/logo/',
   filename: (req, file, cb) => {
     cb(null, 'client-logo-' + Date.now() + path.extname(file.originalname));
   }
 });
 const upload = multer({ storage });
 
-// 2. Initial Check: Is the system already set up?
+// 2. Status Check
 router.get('/status', async (req, res) => {
-  const settings = await Setting.findOne();
-  const adminExists = await User.findOne({ role: 'admin' });
-  res.json({
-    isSetup: !!settings,
-    hasAdmin: !!adminExists
-  });
+  try {
+    const settings = await Setting.findOne();
+    const ownerExists = await User.findOne({ role: 'owner' });
+    res.json({
+      isSetup: !!settings,
+      hasOwner: !!ownerExists,
+      isActivated: !!settings
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // 3. Complete Onboarding (Company + Admin + License Check)
@@ -30,9 +36,13 @@ router.post('/initialize', upload.single('logo'), async (req, res) => {
   try {
     const {
       companyName, phone, email, location,
-      adminName, adminEmail, adminPassword,
+      ownerName, ownerEmail, ownerPassword,
       activationCode
     } = req.body;
+
+    if (!ownerPassword || ownerPassword.length < 6) {
+      return res.status(400).json({ message: "Failed password: Too short or missing" });
+    }
 
     // ── THE LICENSE CHECK ──
     // This is your "Master Key". You give this to customers after they pay.
@@ -58,23 +68,24 @@ router.post('/initialize', upload.single('logo'), async (req, res) => {
       email,
       location,
       logo: req.file ? `/uploads/logo/${req.file.filename}` : '',
-      setupCompleted: true
+      isActivated: true
     });
     await newSettings.save();
 
-    // Create Admin User
-    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    // Create Owner User
+    const hashedPassword = await bcrypt.hash(ownerPassword, 10);
 
-    const newAdmin = new User({
-      name: adminName,
-      username: adminEmail, // 👈 Satisfies 'required: true'
-      email: adminEmail,    // Keep this if you have an email field, otherwise remove
+    const newOwner = new User({
+      fullname: ownerName,
+      username: ownerEmail, 
+      email: ownerEmail,  
       password: hashedPassword,
-      role: 'owner',        // 👈 Matches your enum: ["owner", "employee"]
-      shiftStatus: 'open'   // 👈 Matches your new shift tracking field
+      role: 'owner', 
+      store: 'Headquarters', 
+      shiftStatus: 'closed'
     });
 
-    await newAdmin.save();
+    await newOwner.save();
 
     res.status(201).json({ success: true, message: "System initialized successfully" });
   } catch (err) {
@@ -83,16 +94,37 @@ router.post('/initialize', upload.single('logo'), async (req, res) => {
   }
 });
 
-router.put("/update", async (req, res) => {
+// 4. Update Settings (Used by the Settings Page)
+// Added protection so only the Owner can change shop details
+router.put("/update", authMiddleware, ownerOnly, async (req, res) => {
   try {
     const { companyName, email, phone, location } = req.body;
-    // Find the first settings document and update it
+
+    // {} finds the first/only document in the settings collection
     const updatedSettings = await Setting.findOneAndUpdate(
-      {}, 
+      {},
       { companyName, email, phone, location },
       { new: true }
     );
+
+    if (!updatedSettings) {
+      return res.status(404).json({ success: false, message: "Settings not found" });
+    }
+
     res.json({ success: true, settings: updatedSettings });
+  } catch (err) {
+    console.error("Update settings error:", err.message);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+router.get('/details', async (req, res) => {
+  try {
+    const settings = await Setting.findOne();
+    if (!settings) {
+      return res.status(404).json({ message: "No settings found" });
+    }
+    res.json(settings);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
