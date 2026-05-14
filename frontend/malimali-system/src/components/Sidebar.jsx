@@ -130,7 +130,8 @@ export default function Sidebar({ onLogout }) {
     const {
         currentUser, isOwner, unreadCount, sales,
         today, closeShift, hasClosedShiftToday, socket,
-        addNotification, fetchArchives, fetchSales
+        addNotification, fetchArchives, fetchSales,
+        settings // ✅ Dynamic Settings
     } = useApp()
 
     const [isOpen, setIsOpen] = useState(false)
@@ -138,15 +139,14 @@ export default function Sidebar({ onLogout }) {
     const [showShiftClose, setShowShiftClose] = useState(false)
     const [shiftCloseSuccess, setShiftCloseSuccess] = useState(false)
 
-    // ✅ FIXED: Listen for the backend confirmation via socket for real-time notification
+    const backendUrl = "http://localhost:5000";
+
     useEffect(() => {
         if (socket) {
-            // 1. Employee perspective: Confirm their shift was locked
             socket.on("shiftClosedConfirmation", () => {
                 setShiftCloseSuccess(true);
                 setTimeout(() => setShiftCloseSuccess(false), 5000);
             });
-
             return () => {
                 socket.off("shiftClosedConfirmation");
             };
@@ -156,7 +156,6 @@ export default function Sidebar({ onLogout }) {
     const links = isOwner ? ownerLinks : employeeLinks
     const empName = currentUser?.name || ''
 
-    // ✅ FIXED: Exclude returned sales to ensure revenue matches Dashboard
     const empTodaySales = sales.filter(s => {
         const saleDate = s.date; 
         return saleDate === today && s.cashier === empName && !s.returned;
@@ -166,10 +165,8 @@ export default function Sidebar({ onLogout }) {
         transactions: empTodaySales.length,
         itemsSold: empTodaySales.reduce((sum, s) =>
             sum + (s.items?.reduce((q, i) => {
-                // Do not count items that were individually returned
                 return i.returnStatus === 'approved' ? q : q + i.qty;
             }, 0) || 0), 0),
-        // Use netTotal (which accounts for partial returns)
         revenue: empTodaySales.reduce((sum, s) => sum + (s.netTotal || s.total || 0), 0),
     }
 
@@ -183,101 +180,117 @@ export default function Sidebar({ onLogout }) {
     }
 
     const sidebarContent = (
-        <div className="w-56 h-screen bg-blue-800 p-5 flex flex-col gap-2">
-            {/* Header */}
-            <div className="text-white text-lg font-semibold mb-2 pb-4 border-b border-white/20 flex justify-between items-center">
-                Malimali POS
-                {isMobile && <MdClose onClick={() => setIsOpen(false)} className="cursor-pointer text-xl" />}
+        <div className="w-60 h-screen bg-blue-900 p-5 flex flex-col gap-2 shadow-2xl">
+            {/* ✅ DYNAMIC LOGO SECTION */}
+            <div className="mb-4 pb-4 border-b border-white/10">
+                <div className="flex items-center gap-3">
+                    {settings?.logo ? (
+                        <img 
+                            src={`${backendUrl}${settings.logo}`} 
+                            alt="Logo" 
+                            className="w-10 h-10 object-contain bg-white rounded-lg p-1 shadow-sm" 
+                        />
+                    ) : (
+                        <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center text-white font-black text-xl">
+                            {settings?.companyName?.charAt(0) || 'P'}
+                        </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                        <div className="text-white text-sm font-bold truncate tracking-tight">
+                            {settings?.companyName || "Mama Liam Retail"}
+                        </div>
+                        <div className="text-[10px] text-blue-300 font-bold uppercase tracking-tighter">
+                            Active Terminal
+                        </div>
+                    </div>
+                    {isMobile && <MdClose onClick={() => setIsOpen(false)} className="text-white cursor-pointer text-xl" />}
+                </div>
             </div>
 
             {/* User card */}
-            <div className="flex items-center gap-2 p-2 mb-3 bg-white/10 rounded-lg">
-                <div className="w-8 h-8 rounded-full bg-white/30 flex items-center justify-center">
+            <div className="flex items-center gap-2 p-2 mb-3 bg-white/5 rounded-xl border border-white/5">
+                <div className="w-8 h-8 rounded-full bg-blue-700 flex items-center justify-center shadow-inner">
                     <MdPerson className="text-white" />
                 </div>
                 <div className="flex-1 min-w-0">
-                    <div className="text-white text-sm font-semibold truncate">{currentUser?.name}</div>
-                    <div className="text-white/60 text-[10px] uppercase tracking-wider font-bold">{currentUser?.role}</div>
+                    <div className="text-white text-[13px] font-semibold truncate">{currentUser?.name}</div>
+                    <div className="text-blue-300 text-[9px] uppercase tracking-widest font-black">{currentUser?.role}</div>
                 </div>
-                <button onClick={() => setShowNotifications(true)} className="relative p-1 bg-transparent border-none cursor-pointer">
+                <button onClick={() => setShowNotifications(true)} className="relative p-1.5 hover:bg-white/10 rounded-lg transition duration-200">
                     <MdNotifications className="text-white text-xl" />
                     {unreadCount > 0 && (
-                        <div className="absolute top-0 right-0 bg-red-600 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                        <div className="absolute top-0 right-0 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center border-2 border-blue-900">
                             {unreadCount > 9 ? '9+' : unreadCount}
                         </div>
                     )}
                 </button>
             </div>
 
-            {/* ✅ FIXED: Visual confirmation of shift closure */}
             {shiftCloseSuccess && (
-                <div className="bg-green-500 border border-green-400 rounded-lg p-3 text-xs text-white mb-3 shadow-lg animate-bounce">
+                <div className="bg-green-500/90 border border-green-400 rounded-lg p-3 text-xs text-white mb-3 shadow-lg animate-bounce">
                     <div className="font-bold flex items-center gap-1">
                         <MdCheckCircle /> Shift Closed!
                     </div>
-                    <p className="mt-1 opacity-90">Owner has been notified of your summary.</p>
                 </div>
             )}
 
             {/* Nav links */}
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-col gap-1 overflow-y-auto pr-1 custom-scrollbar">
                 {links.map(link => (
                     <NavLink
                         key={link.to} to={link.to} end
                         onClick={() => isMobile && setIsOpen(false)}
                         className={({ isActive }) =>
-                            `px-3 py-2 rounded-lg flex items-center gap-2 text-sm transition
-                             ${isActive ? 'bg-white text-blue-800 font-semibold shadow-inner' : 'text-gray-200 hover:bg-blue-700'}`
+                            `px-3 py-2.5 rounded-xl flex items-center gap-3 text-[13px] transition-all duration-200
+                             ${isActive 
+                                ? 'bg-white text-blue-900 font-bold shadow-lg transform scale-[1.02]' 
+                                : 'text-gray-300 hover:bg-white/10 hover:text-white'}`
                         }
                     >
-                        <span className="text-lg">{link.icon}</span>
+                        <span className="text-lg opacity-80">{link.icon}</span>
                         {link.label}
                     </NavLink>
                 ))}
             </div>
 
-            {/* ✅ FIXED: High-visibility Close Shift button for employees */}
             {!isOwner && (
                 <button
                     onClick={() => !alreadyClosed && setShowShiftClose(true)}
                     disabled={alreadyClosed}
-                    className={`mt-4 px-3 py-2.5 flex items-center justify-center gap-2 rounded-lg text-sm font-bold transition-all ${alreadyClosed
-                        ? 'bg-gray-500/50 text-gray-300 cursor-not-allowed border border-white/10'
-                        : 'bg-orange-500 hover:bg-orange-600 text-white shadow-md active:scale-95'
+                    className={`mt-4 px-3 py-3 flex items-center justify-center gap-2 rounded-xl text-xs font-black transition-all ${alreadyClosed
+                        ? 'bg-gray-700 text-gray-500 cursor-not-allowed opacity-50'
+                        : 'bg-gradient-to-r from-orange-500 to-red-500 hover:from-orange-600 hover:to-red-600 text-white shadow-lg active:scale-95'
                         }`}
                 >
                     <MdLockClock className="text-lg" />
-                    {alreadyClosed ? 'Shift Closed ✓' : 'Close My Shift'}
+                    {alreadyClosed ? 'SHIFT COMPLETED' : 'CLOSE MY SHIFT'}
                 </button>
             )}
 
             {/* Logout */}
-            <button onClick={onLogout} className="mt-auto px-3 py-2 bg-white/10 text-white text-sm flex items-center gap-2 rounded-lg hover:bg-white/20 transition">
-                <MdLogout /> Logout
+            <button onClick={onLogout} className="mt-auto px-3 py-2.5 bg-white/5 text-gray-300 text-[13px] flex items-center gap-2 rounded-xl hover:bg-red-500/20 hover:text-red-300 transition-all duration-300">
+                <MdLogout className="text-lg" /> Sign Out
             </button>
         </div>
     )
 
     return (
         <>
-            {/* Notification Overlay */}
             {showNotifications && (
                 <>
-                    <div onClick={() => setShowNotifications(false)} className="fixed inset-0 bg-black/30 z-[1999]" />
+                    <div onClick={() => setShowNotifications(false)} className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[1999]" />
                     <NotificationPanel onClose={() => setShowNotifications(false)} />
                 </>
             )}
 
-            {/* Shift Closure Modal */}
             {showShiftClose && (
                 <ShiftCloseConfirm stats={empStats} onConfirm={handleShiftClose} onCancel={() => setShowShiftClose(false)} />
             )}
 
-            {/* Layout Handling */}
             {isMobile ? (
                 <>
-                    <div className="fixed top-0 left-0 right-0 h-14 bg-blue-800 flex items-center justify-between px-4 z-[999]">
-                        <span className="text-white font-semibold">Malimali POS</span>
+                    <div className="fixed top-0 left-0 right-0 h-14 bg-blue-900 flex items-center justify-between px-4 z-[999] shadow-md">
+                        <span className="text-white font-bold tracking-tight">{settings?.companyName || "POS"}</span>
                         <div className="flex items-center gap-3">
                             <button onClick={() => setShowNotifications(true)} className="relative p-1">
                                 <MdNotifications className="text-white text-2xl" />
@@ -286,13 +299,13 @@ export default function Sidebar({ onLogout }) {
                             <MdMenu onClick={() => setIsOpen(true)} className="text-white text-2xl cursor-pointer" />
                         </div>
                     </div>
-                    {isOpen && <div onClick={() => setIsOpen(false)} className="fixed inset-0 bg-black/40 z-[1000]" />}
-                    <div className={`fixed top-0 left-0 h-screen z-[1001] transition-transform duration-200 ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+                    {isOpen && <div onClick={() => setIsOpen(false)} className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[1000]" />}
+                    <div className={`fixed top-0 left-0 h-screen z-[1001] transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
                         {sidebarContent}
                     </div>
                 </>
             ) : (
-                <div className="fixed top-0 left-0 h-screen z-[100] shadow-xl">{sidebarContent}</div>
+                <div className="fixed top-0 left-0 h-screen z-[100] shadow-2xl">{sidebarContent}</div>
             )}
         </>
     )

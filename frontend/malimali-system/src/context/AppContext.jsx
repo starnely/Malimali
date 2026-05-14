@@ -29,7 +29,8 @@ export function AppProvider({ children }) {
   }, [settings])
 
   // ── CORE STATE ────────────────────────────────────────────────────────
-  const [isSetupComplete, setIsSetupComplete] = useState(false)
+  // Updated to null to trigger the Loading state in App.jsx during initialization
+  const [isSetupComplete, setIsSetupComplete] = useState(null)
   const [currentUser, setCurrentUser] = useState(() => load('malimali_current_user', null))
   const [users, setUsers] = useState([])
   const [products, setProducts] = useState([])
@@ -40,24 +41,45 @@ export function AppProvider({ children }) {
   const [notifications, setNotifications] = useState(() => load('malimali_notifications', []))
   const [shiftCloses, setShiftCloses] = useState(() => load('malimali_shift_closes', []))
 
-  // ✅ tokenRef updated synchronously in render body — always current
   const tokenRef = useRef(currentUser?.token ?? null)
   tokenRef.current = currentUser?.token ?? null
 
   // ── CHECK SETUP ───────────────────────────────────────────────────────
+  // ── CHECK SETUP ───────────────────────────────────────────────────────
   useEffect(() => {
     const checkSetup = async () => {
       try {
-        const res = await fetch("http://localhost:5000/auth/check-setup")
-        const data = await res.json()
-        setIsSetupComplete(data.isSetupComplete)
+        // 1. Try to load settings from LocalStorage first for instant display
+        const savedSettings = localStorage.getItem('pos_settings');
+        if (savedSettings) {
+          setSettings(JSON.parse(savedSettings));
+        }
+
+        const res = await fetch("http://localhost:5000/api/setup/status");
+
+        if (!res.ok) {
+          throw new Error(`Server responded with ${res.status}`);
+        }
+
+        const data = await res.json();
+
+        // 2. Update status
+        setIsSetupComplete(data.isSetup);
+
+        // 3. If settings exist, save them to state AND localStorage
+        if (data.settings) {
+          setSettings(data.settings);
+          localStorage.setItem('pos_settings', JSON.stringify(data.settings));
+        }
+
       } catch (err) {
-        console.error("Error checking setup:", err)
-        setIsSetupComplete(false)
+        console.error("Error checking setup:", err);
+        setIsSetupComplete(false);
       }
-    }
-    checkSetup()
-  }, [])
+    };
+
+    checkSetup();
+  }, []);
 
   // ── FETCH HELPERS ─────────────────────────────────────────────────────
   const fetchProducts = useCallback(async (overrideToken) => {
@@ -114,21 +136,13 @@ export function AppProvider({ children }) {
     try {
       const authToken = overrideToken ?? tokenRef.current
       if (!authToken) return
-
       const res = await fetch("http://localhost:5000/archives", { headers: { Authorization: `Bearer ${authToken}` } })
       const data = await res.json()
-
       const archivesArray = Array.isArray(data) ? data : [];
       setDailyArchives(archivesArray)
-
-
-      // ✅ ADD THIS: Filter for today's closures so the Dashboard updates
       const today = new Date().toISOString().split('T')[0];
       const closesToday = archivesArray.filter(a => a.date === today);
-
-
       setShiftCloses(closesToday);
-
     } catch (err) {
       console.error("Error fetching archives:", err);
       setDailyArchives([])
@@ -143,7 +157,7 @@ export function AppProvider({ children }) {
     if (currentUser.role === 'owner') fetchUsers(t)
   }, [currentUser, fetchProducts, fetchSales, fetchReturns, fetchStockIn, fetchArchives, fetchUsers])
 
-  // ── LOGIN ─────────────────────────────────────────────────────────────
+  // ── LOGIN / LOGOUT ────────────────────────────────────────────────────
   const login = async (username, password) => {
     try {
       const res = await fetch("http://localhost:5000/auth/login", {
@@ -169,21 +183,49 @@ export function AppProvider({ children }) {
     }
   }
 
-  // ── SETUP OWNER ───────────────────────────────────────────────────────
-  const validatePassword = (password) => /[A-Z]/.test(password) && /[0-9]/.test(password)
-
-  const setupOwner = async (username, password, name) => {
-    if (!validatePassword(password)) return { success: false, message: "Password must contain uppercase letter and number" }
-    try {
-      const res = await fetch("http://localhost:5000/auth/setup", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password, name })
-      })
-      const data = await res.json()
-      if (data.success) { setIsSetupComplete(true); return { success: true } }
-      return { success: false, message: data.message }
-    } catch (err) { console.error("Operation failed:", err); return { success: false, message: "Server error" } }
+  const logout = () => {
+    setCurrentUser(null)
+    localStorage.removeItem("malimali_current_user")
+    window.location.href = '/login'
   }
+
+  // ── SETUP OWNER ───────────────────────────────────────────────────────
+  // ── SETUP OWNER ───────────────────────────────────────────────────────
+  const validatePassword = (password) => /[A-Z]/.test(password) && /[0-9]/.test(password);
+
+  const setupOwner = async (formData) => {
+    // 1. Client-side Password Validation
+    const password = formData.get('adminPassword');
+    if (!validatePassword(password)) {
+      return {
+        success: false,
+        message: "Password must contain at least one uppercase letter and one number."
+      };
+    }
+
+    try {
+      // 2. Send request to the /initialize route
+      const res = await fetch("http://localhost:5000/api/setup/initialize", {
+        method: "POST",
+        body: formData // No Headers needed, browser sets boundary for FormData
+      });
+
+      const data = await res.json();
+
+      if (res.ok && data.success) {
+        setIsSetupComplete(true);
+        return { success: true };
+      } else {
+        return {
+          success: false,
+          message: data.error || data.message || "Setup failed"
+        };
+      }
+    } catch (err) {
+      console.error("Setup Operation failed:", err);
+      return { success: false, message: "Could not connect to server." };
+    }
+  };
 
   // ── STOCK-IN ──────────────────────────────────────────────────────────
   const addStockIn = async (form) => {
@@ -225,7 +267,7 @@ export function AppProvider({ children }) {
       if (data.success) { fetchSales(); fetchProducts(); return { success: true, ...data } }
       return { success: false, error: data.error || 'Failed to record sale' }
     } catch (err) {
-      console.error("Sale Recording Error:", err); // This clears the underline
+      console.error("Sale Recording Error:", err);
       return { success: false, error: 'Failed to record sale' };
     }
   }
@@ -299,10 +341,7 @@ export function AppProvider({ children }) {
       const data = await res.json()
       if (data.success) setUsers(prev => prev.filter(u => u._id !== id))
       return data
-    } catch (err) {
-      console.error("Operation failed:", err); // ✅ This clears the underline
-      return { success: false };
-    }
+    } catch (err) { console.error("Operation failed:", err); return { success: false }; }
   }
 
   const toggleUserStatus = async (id) => {
@@ -313,10 +352,31 @@ export function AppProvider({ children }) {
       const data = await res.json()
       if (data.success) fetchUsers()
       return data
-    } catch (err) {
-      console.error("Operation failed:", err); // ✅ This clears the underline
-      return { success: false };
-    }
+    } catch (err) { console.error("Operation failed:", err); return { success: false }; }
+  }
+
+  // ── WHITE LABEL SETTINGS UPDATE ───────────────────────────────────────
+  const updateSettings = async (newSettings) => {
+    try {
+      const formData = new FormData()
+      Object.keys(newSettings).forEach(key => {
+        if (key !== 'logoFile') formData.append(key, newSettings[key])
+      })
+      if (newSettings.logoFile) formData.append('logo', newSettings.logoFile)
+
+      const res = await fetch("http://localhost:5000/auth/settings", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${tokenRef.current}` },
+        body: formData
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSettings(data.settings)
+        localStorage.setItem('malimali_settings', JSON.stringify(data.settings))
+        return { success: true }
+      }
+      return { success: false }
+    } catch (err) { console.error("Settings update failed:", err); return { success: false } }
   }
 
   // ── NOTIFICATIONS ─────────────────────────────────────────────────────
@@ -342,11 +402,9 @@ export function AppProvider({ children }) {
     const time = new Date().toLocaleTimeString()
     const employeeName = currentUser?.name || "Unknown"
 
-    // 1. Keep the check for duplicate clicks
     const alreadyClosed = shiftCloses.find(s => s.employeeName === employeeName && s.date === today)
     if (alreadyClosed) return { success: false, message: "You have already closed your shift today." }
 
-    // 2. Prepare the data for the backend
     const empTodaySales = sales.filter(s => {
       const saleDate = new Date(s.date).toISOString().split("T")[0]
       return saleDate === today && s.cashier === employeeName && !s.returned
@@ -357,35 +415,23 @@ export function AppProvider({ children }) {
     const itemsSold = empTodaySales.reduce((sum, s) =>
       sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0)
 
-    // 3. PERSIST TO BACKEND FIRST
     try {
       const res = await fetch("http://localhost:5000/archives", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
         body: JSON.stringify({ employeeName, date: today, revenue, transactions, itemsSold })
       })
-
-      const data = await res.json().catch(() => ({})); // In case response is not JSON
+      const data = await res.json().catch(() => ({}));
 
       if (res.ok && data.success) {
-        // ✅ SUCCESS
         fetchArchives();
-
         setShiftCloses(prev => [{ employeeName, date: today }, ...prev]);
-
         addNotification(`🔒 ${employeeName} closed shift at ${time}`, "info", "owner");
         addNotification(`✅ Your shift has been closed.`, "success", employeeName);
-
         return { success: true };
       }
-
-      // ❌ FAILURE: If we get here, the server responded with 400 or 500
-      // We check every possible error field so we never return 'undefined'
-      const errorMsg = data.message || data.error || "Server refused to close shift";
-      return { success: false, message: errorMsg };
-
+      return { success: false, message: data.message || "Server refused to close shift" };
     } catch (err) {
-      // 🌐 NETWORK ERROR (Server is offline or no internet)
       console.error("Error saving archive:", err);
       return { success: false, message: "Network error or Server is down" };
     }
@@ -411,21 +457,12 @@ export function AppProvider({ children }) {
     return () => clearInterval(interval)
   }, [fetchSales])
 
-  // ── SYNC ENGINE: Keeps products/sales fresh across different devices ──
+  // ── SYNC ENGINE ───────────────────────────────────────────────────────
   useEffect(() => {
     if (!currentUser?.token) return;
-
-    const syncData = () => {
-      console.log("🔄 Background Sync: Fetching fresh products...");
-      fetchProducts();
-    };
-
-    // 1. Refresh when the user switches back to this tab (very effective)
+    const syncData = () => { fetchProducts(); };
     window.addEventListener('focus', syncData);
-
-    // 2. Refresh every 5 minutes automatically
     const interval = setInterval(syncData, 5 * 60 * 1000);
-
     return () => {
       window.removeEventListener('focus', syncData);
       clearInterval(interval);
@@ -434,17 +471,9 @@ export function AppProvider({ children }) {
 
   // ── DERIVED VALUES ────────────────────────────────────────────────────
   const today = new Date().toISOString().split('T')[0]
-
   const todaySales = sales.filter(s => s.date?.startsWith(today) && !s.returned)
-
-  // ✅ Fixed: was filtering out entire returned sales (s.returned)
-  // which deducted the whole receipt even when only 1 item was returned.
-  // Now revenue = sum of non-returned item values per sale.
-  // For a fully returned sale (s.returned=true) total is already 0 effectively,
-  // but for partial returns we use all items since item-level tracking is on items[].returnStatus
   const totalRevenue = sales.reduce((sum, s) => {
-    if (s.returned) return sum // fully returned sale — skip entirely
-    // Partial return: subtract only returned items' value
+    if (s.returned) return sum
     const returnedValue = s.items?.reduce((rv, item) => {
       if (item.returnStatus === 'approved') return rv + (item.price || 0) * item.qty
       return rv
@@ -452,11 +481,9 @@ export function AppProvider({ children }) {
     return sum + (s.total || 0) - returnedValue
   }, 0)
 
-  const totalProfit = 0 // calculated in components using product buyPrices
   const lowStockProducts = products.filter(p => p.stock <= (settings.lowStockThreshold || 5))
   const pendingReturns = returns.filter(r => r.status === 'pending')
   const todayShiftCloses = shiftCloses.filter(s => s.date === today)
-
   const myNotifications = notifications.filter(n =>
     n.target === 'all' ||
     (currentUser?.role === 'owner' && n.target === 'owner') ||
@@ -464,68 +491,44 @@ export function AppProvider({ children }) {
   )
   const unreadCount = myNotifications.filter(n => !n.read).length
 
-
   const [socket, setSocket] = useState(null)
 
   useEffect(() => {
     const newSocket = io("http://localhost:5000");
     setSocket(newSocket);
-
-    // ✅ ADD THIS: Tell the server this user is an owner
     if (currentUser?.role === 'owner') {
       newSocket.emit("join-owner-room");
-      console.log("Admin joined owner room");
     }
-
     return () => newSocket.close();
   }, [currentUser]);
 
-
-  // ── SOCKET LISTENERS ───────────────────────────────────────────────────
   useEffect(() => {
     if (!socket) return;
-
-    // Listen for shift closure alerts (Admin side)
     socket.on("adminShiftNotification", (data) => {
-      // Only the owner should process this socket event
       if (currentUser?.role === 'owner') {
-        console.log("Socket Data Received:", data);
-
         const name = data.employeeName || data.cashier || data.name || "An employee";
-        console.log(`Admin Shift Notification: ${name} has closed their shift.`);
-
-        addNotification(
-          `🔒 ${name} has closed their shift.`,
-          "info",
-          "owner"
-        );
-
-        // Auto-refresh data so dashboard badges update immediately
+        addNotification(`🔒 ${name} has closed their shift.`, "info", "owner");
         fetchArchives();
         fetchSales();
       }
     });
-
-    // Cleanup listener when socket changes or component unmounts
-    return () => {
-      socket.off("adminShiftNotification");
-    };
+    return () => { socket.off("adminShiftNotification"); };
   }, [socket, currentUser, addNotification, fetchArchives, fetchSales]);
 
   // ── PROVIDER ──────────────────────────────────────────────────────────
   return (
     <AppContext.Provider value={{
       socket,
-      settings, setSettings,
+      settings, setSettings, updateSettings,
       isSetupComplete, setupOwner,
-      currentUser, login,
+      currentUser, login, logout,
       isOwner: currentUser?.role === 'owner',
       isEmployee: currentUser?.role === 'employee',
       users, setUsers,
       fetchUsers, addUser, updateUser, deleteUser, toggleUserStatus,
       products, fetchProducts,
       sales, fetchSales, recordMultipleSales,
-      todaySales, totalRevenue, totalProfit,
+      todaySales, totalRevenue,
       returns, pendingReturns, fetchReturns,
       processReturn, approveReturn, rejectReturn,
       notifications, myNotifications, unreadCount,
@@ -541,7 +544,7 @@ export function AppProvider({ children }) {
     </AppContext.Provider>
   )
 }
-// eslint-disable-next-line react-refresh/only-export-components
+
 export function useApp() {
   return useContext(AppContext)
 }

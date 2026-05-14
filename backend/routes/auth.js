@@ -129,8 +129,9 @@ router.post("/login", async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid credentials" });
     }
 
+    // FIX: Included name in the token payload
     const token = jwt.sign(
-      { id: user._id, role: user.role },
+      { id: user._id, role: user.role, name: user.name }, 
       process.env.JWT_SECRET || "secretkey",
       { expiresIn: "1d" }
     );

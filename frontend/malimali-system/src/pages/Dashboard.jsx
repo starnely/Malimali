@@ -13,7 +13,7 @@ export default function Dashboard() {
     products, sales, todaySales,
     lowStockProducts, pendingReturns,
     shiftCloses,
-    fetchSales, fetchArchives, fetchProducts
+    fetchSales, fetchArchives, fetchProducts,settings
   } = useApp()
 
   // 1. Unified Sync Function
@@ -62,7 +62,7 @@ export default function Dashboard() {
   const [showDailySummary, setShowDailySummary] = useState(false)
 
   // Current Date string for comparison (YYYY-MM-DD)
-  const today = new Date().toISOString().split('T')[0]
+  const today = new Date().toISOString('en-CA').split('T')[0]
 
   // Ensure arrays exist
   const safeProducts = products ?? []
@@ -152,7 +152,7 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex justify-between items-start mb-6 flex-wrap gap-2">
         <div>
-          <h1 className="text-xl font-bold text-gray-800">Dashboard</h1>
+          <h1 className="text-xl font-bold text-gray-800">{settings.companyName || "POS System"}</h1>
           <p className="text-xs text-gray-500 mt-1">
             {new Date().toLocaleDateString('en-KE', {
               weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'

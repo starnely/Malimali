@@ -5,6 +5,11 @@ const Product = require("../models/Product");
 const User = require("../models/User");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
+// Helper to match your Sale model's EAT logic
+function getEATDate() {
+  return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split("T")[0];
+}
+
 // ── RECORD SALE ────────────────────────────────────────────────────────
 router.post("/", authMiddleware, async (req, res) => {
   try {

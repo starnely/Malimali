@@ -33,7 +33,7 @@ router.post("/", authMiddleware, async (req, res) => {
     const daySales = await Sale.find({
       date,
       returned: false,
-      employeeName: req.user.name
+      cashier: req.user.name
     });
 
     // 2. Calculate Revenue based on what was ACTUALLY paid (finalTotal)
@@ -72,7 +72,7 @@ router.post("/", authMiddleware, async (req, res) => {
 
     // 4. Save archive snapshot
     const archiveData = {
-      employeeName: req.user?.name || req.body.employeeName || "Unknown Employee",
+      employeeName: req.user?.name || "Unknown Employee",
       date,
       revenue,
       profit: daySales.reduce((sum, s) => sum + (s.profit || 0), 0),
@@ -102,7 +102,7 @@ router.post("/", authMiddleware, async (req, res) => {
       // A. Notify the 'owner' room specifically for the Sidebar Notification
       // This matches the listener we added in Sidebar.jsx
 
-      const displayName = req.user?.name || req.body.employeeName || "Employee";
+      const displayName = req.user?.name || "Unknown Employee";
       
       io.to("owner").emit("adminShiftNotification", {
         employeeName: displayName,
