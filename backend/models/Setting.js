@@ -1,33 +1,86 @@
-// backend/models/Setting.js
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
 
 const SettingSchema = new mongoose.Schema({
-  // Ensure only one settings document exists
-  settingKey: { type: String, default: 'global', unique: true },
-
-  companyName: { type: String, required: true },
-  phone: String,
-  email: String,
-  location: String,
-  logo: String, // Store the file path or Base64 string
-  paymentMethods: { 
-    type: [String], 
-    default: ['cash', 'mpesa', 'split', 'credit'] 
+  settingKey: {
+    type:    String,
+    default: "global",
+    unique:  true
   },
-  receiptPrefix: { 
-    type: String, 
-    default: "RCP" 
+  companyName: {
+    type:     String,
+    required: true
   },
-  isActivated: { type: Boolean, default: false },
-  activationCode: String,
-  installedAt: { type: Date, default: Date.now },
-  currency: { type: String, default: "$" },
-  taxRate: { type: Number, default: 0 }, // e.g., 0.15 for 15%
-  receiptFooter: { type: String, default: "Thank you for your business!" },
-  lowStockThreshold: { type: Number, default: 3 }, // Alert when stock is below this number
+  phone:    { type: String, default: "" },
+  email:    { type: String, default: "" },
+  location: { type: String, default: "" },
+  logo:     { type: String, default: "" },
 
-  // Useful for your EAT logic
-  timezone: { type: String, default: "Africa/Nairobi" }
+  paymentMethods: {
+    type:    [String],
+    default: ["cash", "mpesa", "split", "credit"]
+  },
+  receiptPrefix: {
+    type:    String,
+    default: "RCP"
+  },
+  receiptFooter: {
+    type:    String,
+    default: "Thank you for your business!"
+  },
+  currency: {
+    type:    String,
+    default: "KSh"
+  },
+  taxRate: {
+    type:    Number,
+    default: 0
+  },
+  lowStockThreshold: {
+    type:    Number,
+    default: 5
+  },
+  timezone: {
+    type:    String,
+    default: "Africa/Nairobi"
+  },
+
+  // ── KRA Compliance ──────────────────────────────────────────────────
+  kraPin: {
+    type:    String,
+    default: ""
+  },
+
+  // ── Printer Configuration ───────────────────────────────────────────
+  printerType: {
+    type:    String,
+    enum:    ["usb", "network", "browser"],
+    default: "browser"
+  },
+  printerIp: {
+    type:    String,
+    default: ""
+  },
+
+  // ── Business Document Info (PDF letterhead) ─────────────────────────
+  businessAddress: { type: String, default: "" },
+  businessWebsite: { type: String, default: "" },
+
+  // ── SMTP Email Configuration ────────────────────────────────────────
+  smtp: {
+    host:     { type: String, default: "" },
+    port:     { type: Number, default: 587 },
+    secure:   { type: Boolean, default: false }, // true = port 465 SSL
+    user:     { type: String, default: "" },
+    password: { type: String, default: "" },     // AES-256 encrypted at rest
+    fromName: { type: String, default: "" },
+  },
+
+  // ── Schema version for future migrations ────────────────────────────
+  schemaVersion: { type: Number, default: 1 },
+
+  isActivated:    { type: Boolean, default: false },
+  activationCode: { type: String },
+  installedAt:    { type: Date, default: Date.now }
 });
 
-module.exports = mongoose.model('Setting', SettingSchema);
+module.exports = mongoose.model("Setting", SettingSchema);

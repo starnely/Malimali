@@ -3,184 +3,341 @@ const router = express.Router();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
-
 const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware");
 
-// ── EMPLOYEE ROUTES (Owner Only) ───────────────────────────────────────
-
-// Register new employee (Manager or Cashier)
-router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
-  try {
-    const { username, password, fullname, email, role, store } = req.body;
-
-    const existingUser = await User.findOne({
-      $or: [{ username }, { email }]
-    });
-
-    if (existingUser) {
-      return res.status(400).json({
-        success: false,
-        message: "Username or Email already exists"
-      });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const employee = new User({
-      username,
-      email,
-      fullname, // Saved from UI
-      password: hashedPassword,
-      role,     // Dynamically set to 'manager' or 'cashier'
-      store,    // Linked to specific store
-      active: true
-    });
-
-    await employee.save();
-    res.json({ success: true, user: employee });
-  } catch (err) {
-    console.error("Register error:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// Get all employees (Updated to fetch both managers and cashiers)
-router.get("/employees", authMiddleware, ownerOnly, async (req, res) => {
-  try {
-    const employees = await User.find({
-      role: { $in: ["manager", "cashier"] }
-    }).sort({ createdAt: -1 });
-
-    res.json(employees);
-  } catch (err) {
-    console.error("Fetch employees error:", err.message);
-    res.status(500).json([]);
-  }
-});
-
-// Update employee
-router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
-  try {
-    const { fullname, username, email, password, role, store } = req.body;
-    const updateData = { fullname, username, email, role, store };
-
-    if (password) updateData.password = await bcrypt.hash(password, 10);
-
-    const user = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
-    res.json({ success: true, user });
-  } catch (err) {
-    console.error("Update error:", err.message);
-    res.status(500).json({ success: false });
-  }
-});
-
-// Delete employee
-router.delete("/:id", authMiddleware, ownerOnly, async (req, res) => {
-  try {
-    await User.findByIdAndDelete(req.params.id);
-    res.json({ success: true });
-  } catch (err) {
-    console.error("Delete error:", err.message);
-    res.status(500).json({ success: false });
-  }
-});
-
-// Toggle employee active status
-router.patch("/:id/toggle", authMiddleware, ownerOnly, async (req, res) => {
-  try {
-    const user = await User.findById(req.params.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found" });
-
-    user.active = !user.active;
-    await user.save();
-
-    res.json({ success: true, user });
-  } catch (err) {
-    console.error("Toggle error:", err.message);
-    res.status(500).json({ success: false });
-  }
-});
-
-// ── OWNER SETUP ────────────────────────────────────────────────────────
-router.post("/setup", async (req, res) => {
-  try {
-    const { username, password, name } = req.body;
-    const existingOwner = await User.findOne({ role: "owner" });
-    if (existingOwner) {
-      return res.status(400).json({ success: false, message: "Owner already exists" });
-    }
-
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    const owner = new User({
-      username,
-      password: hashedPassword,
-      role: "owner",
-      fullname: name, 
-      email: email,
-      store: "Headquarters", 
-      active: true
-    });
-
-    await owner.save();
-    res.json({ success: true, id: owner._id, message: "Owner setup complete" });
-  } catch (err) {
-    console.error("Setup error:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
-  }
-});
-
-// ── LOGIN (Updated with Store & Role) ──────────────────────────────────
+// ── 1. LOGIN ─────────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    const user = await User.findOne({ username, active: true });
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false,
+        message: "Username and password are required."
+      });
+    }
+
+    const sanitized = username.trim();
+    const user = await User.findOne({
+      username: { $regex: new RegExp(`^${sanitized}$`, "i") }
+    });
+
     if (!user) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid username or password." });
+    }
+
+    if (user.active === false || user.isActive === false) {
+      return res.status(403).json({
+        success: false,
+        message: "Your account has been suspended. Please contact management."
+      });
     }
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Invalid credentials" });
+      return res.status(401).json({ success: false, message: "Invalid username or password." });
     }
 
-    // Payload for the JWT
-    const payload = {
-      id: user._id,
-      role: user.role,
-      name: user.fullname || user.username,
-      store: user.store || "Main Store" // Fallback if store is missing
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+      console.error("CRITICAL: JWT_SECRET is not defined in environment.");
+      return res.status(500).json({ success: false, message: "Server configuration error. Please contact support." });
+    }
+
+    const tokenPayload = {
+      id:    user._id,
+      role:  user.role,
+      name:  user.fullname || user.username,
+      store: user.store
     };
 
-    const token = jwt.sign(
-      payload,
-      process.env.JWT_SECRET || "secretkey",
-      { expiresIn: "1d" }
-    );
+    const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "24h" });
 
-    // This JSON object now perfectly matches your AppContext.jsx
     res.json({
-      success: true,
+      success:     true,
       token,
-      role: user.role,
-      name: user.fullname || user.username,
-      store: user.store || "Main Store",
-      id: user._id
+      id:          user._id,
+      _id:         user._id,
+      fullname:    user.fullname,
+      username:    user.username,
+      role:        user.role,
+      store:       user.store,
+      shiftStatus: user.shiftStatus,
+      user: {
+        id:          user._id,
+        _id:         user._id,
+        fullname:    user.fullname,
+        username:    user.username,
+        role:        user.role,
+        store:       user.store,
+        shiftStatus: user.shiftStatus
+      }
     });
+
   } catch (err) {
     console.error("Login error:", err.message);
-    res.status(500).json({ success: false, message: "Server error" });
+    res.status(500).json({ success: false, message: "Server error during login.", error: err.message });
   }
 });
 
-// ── CHECK SETUP ────────────────────────────────────────────────────────
-router.get("/check-setup", async (req, res) => {
+// ── 2. GET ALL EMPLOYEES (owner/manager only) ────────────────────────
+router.get("/employees", authMiddleware, async (req, res) => {
   try {
-    const owner = await User.findOne({ role: "owner" });
-    res.json({ isSetupComplete: !!owner });
+    if (req.user.role !== "owner" && req.user.role !== "manager") {
+      return res.status(403).json({ success: false, message: "Access denied: Management clearance required." });
+    }
+
+    let query = { role: { $ne: "owner" } };
+    if (req.user.role === "manager") {
+      query.store = req.user.store;
+    }
+
+    const employees = await User.find(query).select("-password").sort({ createdAt: -1 });
+    res.json(employees);
+
   } catch (err) {
-    res.status(500).json({ isSetupComplete: false });
+    console.error("Employee fetch error:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch employee roster.", error: err.message });
+  }
+});
+
+// ── 3. REGISTER NEW STAFF (owner only) ──────────────────────────────
+router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { fullname, username, email, password, role, store } = req.body;
+
+    if (!fullname || !username || !password) {
+      return res.status(400).json({ success: false, message: "Fullname, username, and password are required." });
+    }
+    if (password.length < 6) {
+      return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
+    }
+    if (role === "owner") {
+      return res.status(403).json({ success: false, message: "Cannot create another owner account." });
+    }
+
+    const sanitized = username.trim();
+    const existingUsername = await User.findOne({
+      username: { $regex: new RegExp(`^${sanitized}$`, "i") }
+    });
+    if (existingUsername) {
+      return res.status(409).json({ success: false, message: "This username is already taken. Please choose another." });
+    }
+
+    if (email && email.trim()) {
+      const existingEmail = await User.findOne({ email: email.trim().toLowerCase() });
+      if (existingEmail) {
+        return res.status(409).json({ success: false, message: "This email is already registered to another account." });
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const newUser = new User({
+      fullname:    fullname.trim(),
+      username:    sanitized,
+      email:       email ? email.trim().toLowerCase() : "",
+      password:    hashedPassword,
+      role:        role  || "cashier",
+      store:       store || "",
+      active:      true,
+      isActive:    true,
+      shiftStatus: "closed"
+    });
+
+    await newUser.save();
+
+    return res.status(201).json({
+      success: true,
+      message: "Staff account created successfully.",
+      user: {
+        id:          newUser._id,
+        _id:         newUser._id,
+        fullname:    newUser.fullname,
+        username:    newUser.username,
+        email:       newUser.email,
+        role:        newUser.role,
+        store:       newUser.store,
+        active:      newUser.active,
+        isActive:    newUser.isActive,
+        shiftStatus: newUser.shiftStatus
+      }
+    });
+
+  } catch (err) {
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0] || "field";
+      return res.status(409).json({ success: false, message: `This ${field} is already in use.` });
+    }
+    console.error("Registration error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error during registration.", error: err.message });
+  }
+});
+
+// ── 4. CHANGE OWN PASSWORD (any authenticated user) ──────────────────
+// Owner changes their own password by verifying current password first.
+// Staff passwords are managed by the owner via PUT /:id.
+router.put("/change-password", authMiddleware, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ success: false, message: "Current password and new password are required." });
+    }
+    if (newPassword.length < 6) {
+      return res.status(400).json({ success: false, message: "New password must be at least 6 characters." });
+    }
+    if (currentPassword === newPassword) {
+      return res.status(400).json({ success: false, message: "New password must be different from current password." });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Current password is incorrect." });
+    }
+
+    user.password = await bcrypt.hash(newPassword, 10);
+    await user.save();
+
+    return res.json({ success: true, message: "Password changed successfully." });
+
+  } catch (err) {
+    console.error("Change password error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error during password change.", error: err.message });
+  }
+});
+
+// ── 5. TOGGLE USER ACTIVE STATUS (owner only) ────────────────────────
+router.patch("/:id/toggle", authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id === String(req.user.id)) {
+      return res.status(403).json({ success: false, message: "You cannot deactivate your own account." });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Staff member not found." });
+    }
+    if (user.role === "owner") {
+      return res.status(403).json({ success: false, message: "Owner accounts cannot be deactivated." });
+    }
+
+    user.active   = !user.active;
+    user.isActive = user.active;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: `Account ${user.active ? "activated" : "deactivated"} successfully.`,
+      user: {
+        id: user._id, _id: user._id, fullname: user.fullname,
+        username: user.username, role: user.role, store: user.store,
+        active: user.active, isActive: user.isActive, shiftStatus: user.shiftStatus
+      }
+    });
+
+  } catch (err) {
+    console.error("Toggle status error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error during status toggle.", error: err.message });
+  }
+});
+
+// ── 6. UPDATE USER PROFILE (owner only) ─────────────────────────────
+router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { fullname, username, email, role, store, password } = req.body;
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Staff member not found." });
+    }
+    if (role === "owner") {
+      return res.status(403).json({ success: false, message: "Cannot assign owner role through this endpoint." });
+    }
+
+    if (username && username.trim().toLowerCase() !== user.username.toLowerCase()) {
+      const sanitized    = username.trim();
+      const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${sanitized}$`, "i") } });
+      if (existingUser) {
+        return res.status(409).json({ success: false, message: "This username is already taken by another account." });
+      }
+      user.username = sanitized;
+    }
+
+    if (email !== undefined && email.trim().toLowerCase() !== user.email) {
+      const existingEmail = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: id } });
+      if (existingEmail) {
+        return res.status(409).json({ success: false, message: "This email is already registered to another account." });
+      }
+      user.email = email.trim().toLowerCase();
+    }
+
+    if (fullname)            user.fullname = fullname.trim();
+    if (role)                user.role     = role;
+    if (store !== undefined) user.store    = store;
+
+    if (password && password.trim() !== "") {
+      if (password.length < 6) {
+        return res.status(400).json({ success: false, message: "Password must be at least 6 characters." });
+      }
+      user.password = await bcrypt.hash(password, 10);
+    }
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Staff profile updated successfully.",
+      user: {
+        id: user._id, _id: user._id, fullname: user.fullname,
+        username: user.username, email: user.email, role: user.role,
+        store: user.store, active: user.active, isActive: user.isActive,
+        shiftStatus: user.shiftStatus
+      }
+    });
+
+  } catch (err) {
+    if (err.code === 11000) {
+      const field = Object.keys(err.keyPattern || {})[0] || "field";
+      return res.status(409).json({ success: false, message: `This ${field} is already in use.` });
+    }
+    console.error("User update error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error during profile update.", error: err.message });
+  }
+});
+
+// ── 7. DELETE STAFF ACCOUNT (owner only) ────────────────────────────
+router.delete("/:id", authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    if (id === String(req.user.id)) {
+      return res.status(403).json({ success: false, message: "You cannot delete your own account." });
+    }
+
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "Staff member not found." });
+    }
+    if (user.role === "owner") {
+      return res.status(403).json({ success: false, message: "Owner accounts cannot be deleted." });
+    }
+
+    await User.findByIdAndDelete(id);
+
+    return res.json({ success: true, message: "Staff account permanently removed.", id });
+
+  } catch (err) {
+    console.error("Delete user error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error during account deletion.", error: err.message });
   }
 });
 

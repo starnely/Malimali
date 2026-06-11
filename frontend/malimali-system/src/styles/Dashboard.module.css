@@ -1,13 +1,29 @@
 .box {
-  @apply bg-white p-5 rounded-xl border border-gray-200 mb-4 shadow-sm animate-fadeIn;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow-card);
 }
 
 .title {
-  @apply text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
 }
 
 .empty {
-  @apply text-center text-gray-400 text-sm py-4;
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  padding: 1.5rem 0;
 }
 
 .grid {
@@ -17,52 +33,130 @@
 }
 
 .employeeCard {
-  @apply bg-gray-50 p-3 rounded-lg cursor-pointer transition hover:shadow-md hover:scale-[1.02];
+  background: var(--bg-muted);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.employeeCard:hover {
+  box-shadow: var(--shadow-card);
+  transform: scale(1.02);
+  border-color: var(--primary-muted);
 }
 
 .muted {
-  @apply text-xs text-gray-500 mt-1;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
 }
 
 .row {
-  @apply flex justify-between items-center py-2 border-b border-gray-100 transition hover:bg-gray-50;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.15s;
+}
+.row:last-child {
+  border-bottom: none;
+}
+.row:hover {
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  padding-left: 6px;
+  padding-right: 6px;
 }
 
+/* ── Stat Cards ─────────────────────────────────────────── */
 .card {
-  @apply bg-white border border-gray-200 rounded-xl p-4 flex items-center gap-4 shadow-sm transition transform hover:scale-105 hover:shadow-lg;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 1rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s ease;
+}
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.09);
 }
 
-/* Color themes with gradients */
-.card-blue { @apply border-l-4 border-blue-700 bg-gradient-to-r from-blue-50 to-blue-100; }
-.card-green { @apply border-l-4 border-green-700 bg-gradient-to-r from-green-50 to-green-100; }
-.card-yellow { @apply border-l-4 border-yellow-600 bg-gradient-to-r from-yellow-50 to-yellow-100; }
-.card-purple { @apply border-l-4 border-purple-700 bg-gradient-to-r from-purple-50 to-purple-100; }
-.card-red { @apply border-l-4 border-red-700 bg-gradient-to-r from-red-50 to-red-100; }
-.card-gray { @apply border-l-4 border-gray-400 bg-gradient-to-r from-gray-50 to-gray-100; }
+/* Primary — Total Stock */
+.card-primary {
+  border-left: 4px solid var(--primary);
+  background: linear-gradient(135deg, var(--primary-light) 0%, #fff 100%);
+}
+.icon-primary {
+  background: var(--primary-light);
+  color: var(--primary);
+}
+
+/* Success — Revenue & Profit */
+.card-success {
+  border-left: 4px solid var(--success);
+  background: linear-gradient(135deg, var(--success-light) 0%, #fff 100%);
+}
+.icon-success {
+  background: var(--success-light);
+  color: var(--success-dark);
+}
+
+/* Warning — Today Revenue */
+.card-warning {
+  border-left: 4px solid var(--warning);
+  background: linear-gradient(135deg, var(--warning-light) 0%, #fff 100%);
+}
+.icon-warning {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+}
+
+/* Danger — Low Stock */
+.card-danger {
+  border-left: 4px solid var(--danger);
+  background: linear-gradient(135deg, var(--danger-light) 0%, #fff 100%);
+}
+.icon-danger {
+  background: var(--danger-light);
+  color: var(--danger-dark);
+}
+
+/* Info — Pending Returns */
+.card-info {
+  border-left: 4px solid var(--info);
+  background: linear-gradient(135deg, var(--info-light) 0%, #fff 100%);
+}
+.icon-info {
+  background: var(--info-light);
+  color: var(--info-dark);
+}
 
 .icon {
-  @apply w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
 }
-.icon-blue { @apply bg-blue-100 text-blue-700; }
-.icon-green { @apply bg-green-100 text-green-700; }
-.icon-yellow { @apply bg-yellow-100 text-yellow-600; }
-.icon-purple { @apply bg-purple-100 text-purple-700; }
-.icon-red { @apply bg-red-100 text-red-700; }
-.icon-gray { @apply bg-gray-200 text-gray-600; }
 
-/* Animations */
+/* ── Animations ─────────────────────────────────────────── */
 @keyframes fadeIn {
   from { opacity: 0 }
-  to { opacity: 1 }
+  to   { opacity: 1 }
 }
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0 }
-  to { transform: translateY(0); opacity: 1 }
+  from { transform: translateY(16px); opacity: 0 }
+  to   { transform: translateY(0);    opacity: 1 }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.5s ease-out;
-}
-.animate-slideUp {
-  animation: slideUp 0.5s ease-out;
-}
+.animate-fadeIn { animation: fadeIn 0.4s ease-out; }
+.animate-slideUp { animation: slideUp 0.4s ease-out; }

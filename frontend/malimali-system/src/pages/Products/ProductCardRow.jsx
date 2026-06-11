@@ -1,45 +1,170 @@
-import { MdEdit, MdDelete } from 'react-icons/md';
+import { MdEdit, MdDelete, MdStorefront, MdCalendarToday, MdWarning } from 'react-icons/md'
+import styles from '@/styles/Products.module.css'
 
 export default function ProductCardRow({ product, stockBadge, openEdit, setRestockProduct, setDeleteConfirm }) {
-  const badge = stockBadge(product.stock);
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const expiryDate      = product.expiryDate ? new Date(product.expiryDate) : null
+  const isExpired       = expiryDate && expiryDate < today
+  const isExpiringSoon  = expiryDate && !isExpired &&
+    (expiryDate - today) / (1000 * 60 * 60 * 24) <= 30
+
+  const formatDate = (d) => {
+    if (!d) return '—'
+    return new Date(d).toLocaleDateString('en-KE', { day: '2-digit', month: 'short', year: 'numeric' })
+  }
+
+  const expiryBadgeClass = isExpired
+    ? styles.expiredBadge
+    : isExpiringSoon
+      ? styles.expiringSoonBadge
+      : styles.freshBadge
 
   return (
-    <tr
-      key={product._id}
-      className="border-t border-gray-200 hover:bg-blue-50 transition-colors duration-200"
-    >
-      <td className="p-3 text-sm">
-        <div className="font-semibold">{product.name}</div>
-        <div className="text-xs text-gray-400">{product.category}</div>
+    <tr className={`${styles.tableRow} ${isExpired ? styles.tableRowExpired : ''}`}>
+
+      {/* ── Product Info ─────────────────────────────────── */}
+      <td className="p-3 w-5/12">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+            {product.name}
+          </span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            {product.category}
+          </span>
+          {product.description && (
+            <span className="text-xs truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>
+              {product.description}
+            </span>
+          )}
+          {product.batch && (
+            <span className="text-[10px] font-semibold" style={{ color: 'var(--primary)' }}>
+              Batch: {product.batch}
+            </span>
+          )}
+
+          {/* Store + Supplier tags */}
+          <div className="flex flex-wrap gap-1.5 mt-1">
+            {product.store && (
+              <span
+                className="flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded"
+                style={{ background: 'var(--primary-light)', color: 'var(--primary)' }}
+              >
+                <MdStorefront className="text-[11px]" /> {product.store}
+              </span>
+            )}
+            {product.supplier && (
+              <span
+                className="text-[10px] font-medium px-1.5 py-0.5 rounded"
+                style={{ background: 'var(--bg-muted)', color: 'var(--text-secondary)' }}
+              >
+                {product.supplier}
+              </span>
+            )}
+          </div>
+
+          {/* Dates */}
+          <div className="flex flex-wrap gap-2 mt-0.5">
+            {product.mftDate && (
+              <span className="flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+                <MdCalendarToday className="text-[10px]" /> MFT: {formatDate(product.mftDate)}
+              </span>
+            )}
+            {expiryDate && (
+              <span className={`flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded ${expiryBadgeClass}`}>
+                {(isExpired || isExpiringSoon) && <MdWarning className="text-[11px]" />}
+                EXP: {formatDate(expiryDate)}
+              </span>
+            )}
+          </div>
+        </div>
       </td>
-      <td className="p-3 text-sm font-bold">{product.stock}</td>
-      <td className="p-3 text-sm">
-        <span className={`${badge.class} px-3 py-1 rounded text-xs font-semibold`}>
-          {badge.label}
+
+      {/* ── Stock ────────────────────────────────────────── */}
+      <td className="p-3 w-1/12">
+        <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
+          {product.stock}
         </span>
       </td>
-      <td className="p-3 text-sm">
-        <div className="flex gap-2">
+
+      {/* ── Prices ───────────────────────────────────────── */}
+      <td className="p-3 w-2/12">
+        <div className="flex flex-col gap-0.5">
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Buy:{' '}
+            <span className="font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              KSh {(product.buyPrice || 0).toLocaleString()}
+            </span>
+          </span>
+          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+            Sell:{' '}
+            <span className="font-bold" style={{ color: 'var(--primary)' }}>
+              KSh {(product.sellPrice || 0).toLocaleString()}
+            </span>
+          </span>
+        </div>
+      </td>
+
+      {/* ── Status ───────────────────────────────────────── */}
+      <td className="p-3 w-1/12">
+        {isExpired ? (
+          <span className={`px-2 py-1 rounded-md text-xs ${styles.expiredBadge}`}>
+            Expired
+          </span>
+        ) : (
+          <span className={`px-2 py-1 rounded-md text-xs ${stockBadge(product.stock)}`}>
+            {product.stock <= 3 ? 'Critical' : product.stock <= 6 ? 'Low' : 'In Stock'}
+          </span>
+        )}
+      </td>
+
+      {/* ── Actions ──────────────────────────────────────── */}
+      <td className="p-3 w-3/12">
+        <div className="flex items-center gap-1 flex-wrap">
           <button
             onClick={() => openEdit(product)}
-            className="p-1 border border-gray-300 rounded bg-white hover:bg-gray-100 transition-colors duration-200"
+            className="p-1.5 rounded-lg transition"
+            title="Edit"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--primary-light)'
+              e.currentTarget.style.color = 'var(--primary)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--text-muted)'
+            }}
           >
-            <MdEdit />
+            <MdEdit className="text-base" />
           </button>
           <button
             onClick={() => setRestockProduct(product)}
-            className="bg-green-700 text-white px-2 py-1 rounded hover:bg-green-800 transition-colors duration-200"
+            className="px-2.5 py-1 text-xs font-bold rounded-lg text-white transition"
+            style={{ background: 'var(--success)' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--success-dark)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'var(--success)'}
           >
             Restock
           </button>
           <button
             onClick={() => setDeleteConfirm(product)}
-            className="bg-red-700 text-white px-2 py-1 rounded hover:bg-red-800 transition-colors duration-200"
+            className="p-1.5 rounded-lg transition"
+            title="Delete"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'var(--danger-light)'
+              e.currentTarget.style.color = 'var(--danger)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'transparent'
+              e.currentTarget.style.color = 'var(--text-muted)'
+            }}
           >
-            <MdDelete />
+            <MdDelete className="text-base" />
           </button>
         </div>
       </td>
     </tr>
-  );
+  )
 }

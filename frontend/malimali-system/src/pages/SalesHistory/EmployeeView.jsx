@@ -1,30 +1,40 @@
-import DateGroup from './DateGroup';
-import EmptyState from './EmptyState';
+import DateGroup from './DateGroup'
+import EmptyState from './EmptyState'
 
 export default function EmployeeView({
-    sortedDates,
-    groupedByDate,
-    isOwner,
-    setReturnModal,
+  sortedDates, groupedByDate,
+  isOwner, setReturnModal, setVoidModal, category,
 }) {
-    if (sortedDates.length === 0) {
-        return <EmptyState message="No sales this week." />;
-    }
+  const filteredSortedDates = sortedDates.filter(date => {
+    const daySales = groupedByDate[date]
+    return category === 'All' || daySales.some(sale =>
+      sale.items?.some(item => item.productId?.category === category)
+    )
+  })
 
-    return (
-        <>
-            {sortedDates.map(date => {
-                const daySales = groupedByDate[date];
-                return (
-                    <DateGroup
-                        key={date}
-                        date={date}
-                        sales={daySales}
-                        isOwner={isOwner}
-                        setReturnModal={setReturnModal}
-                    />
-                );
-            })}
-        </>
-    );
+  if (filteredSortedDates.length === 0) {
+    return <EmptyState message="No sales found for the selected filter." />
+  }
+
+  return (
+    <>
+      {filteredSortedDates.map(date => {
+        const daySales = groupedByDate[date].filter(sale =>
+          category === 'All' ||
+          sale.items?.some(item => item.productId?.category === category)
+        )
+        return (
+          <DateGroup
+            key={date}
+            date={date}
+            sales={daySales}
+            isOwner={isOwner}
+            setReturnModal={setReturnModal}
+            setVoidModal={setVoidModal}
+            category={category}
+          />
+        )
+      })}
+    </>
+  )
 }

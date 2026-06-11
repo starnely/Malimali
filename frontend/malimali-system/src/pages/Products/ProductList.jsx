@@ -1,20 +1,44 @@
-import ProductCardRow from './ProductCardRow';
+import ProductCardRow from './ProductCardRow'
+import styles from '@/styles/Products.module.css'
 
-export default function ProductList({ filtered, stockBadge, openEdit, setRestockProduct, setDeleteConfirm }) {
+const columns = [
+  { name: 'Product', width: 'w-5/12' },
+  { name: 'Stock',   width: 'w-1/12' },
+  { name: 'Prices',  width: 'w-2/12' },
+  { name: 'Status',  width: 'w-1/12' },
+  { name: 'Actions', width: 'w-3/12' },
+]
+
+// Returns CSS module class name instead of Tailwind string
+const stockBadgeClass = (stock) => {
+  if (stock <= 3) return styles.critical
+  if (stock <= 6) return styles.low
+  return styles.inStock
+}
+
+export default function ProductList({ filtered, openEdit, setRestockProduct, setDeleteConfirm }) {
   return (
     <div className="flex-1 overflow-hidden px-6 pb-6">
-      <div className="bg-white rounded-lg shadow h-full flex flex-col">
-        {/* Table header */}
-        <div className="flex-shrink-0">
-          <table className="w-full border-collapse">
+      <div
+        className="rounded-xl h-full flex flex-col"
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-soft)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        {/* ── Fixed Table Header ───────────────────────── */}
+        <div className="flex-shrink-0 pr-[17px]">
+          <table className="w-full table-fixed border-collapse">
             <thead>
-              <tr className="bg-gray-50">
-                {['Product', 'Stock', 'Status', 'Actions'].map(h => (
+              <tr style={{ background: 'var(--bg-muted)', borderBottom: '2px solid var(--border-soft)' }}>
+                {columns.map(col => (
                   <th
-                    key={h}
-                    className="p-3 text-left text-xs text-gray-500"
+                    key={col.name}
+                    className={`p-3 text-left text-[10px] font-black uppercase tracking-widest ${col.width}`}
+                    style={{ color: 'var(--text-muted)' }}
                   >
-                    {h}
+                    {col.name}
                   </th>
                 ))}
               </tr>
@@ -22,17 +46,17 @@ export default function ProductList({ filtered, stockBadge, openEdit, setRestock
           </table>
         </div>
 
-        {/* Table body */}
+        {/* ── Scrollable Table Body ────────────────────── */}
         <div className="flex-1 overflow-y-auto">
-          <table className="w-full border-collapse">
+          <table className="w-full table-fixed border-collapse">
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td
-                    colSpan="4"
-                    className="p-8 text-center text-sm text-gray-400"
-                  >
-                    No products found
+                  <td colSpan="5" className="p-12 text-center">
+                    <div className="text-3xl mb-2">📦</div>
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
+                      No products found
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -40,7 +64,7 @@ export default function ProductList({ filtered, stockBadge, openEdit, setRestock
                   <ProductCardRow
                     key={p._id}
                     product={p}
-                    stockBadge={stockBadge}
+                    stockBadge={stockBadgeClass}
                     openEdit={openEdit}
                     setRestockProduct={setRestockProduct}
                     setDeleteConfirm={setDeleteConfirm}
@@ -52,5 +76,5 @@ export default function ProductList({ filtered, stockBadge, openEdit, setRestock
         </div>
       </div>
     </div>
-  );
+  )
 }

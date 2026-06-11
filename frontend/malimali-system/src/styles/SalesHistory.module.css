@@ -1,61 +1,173 @@
-/* === Status Badges === */
+/* ── Status Badges ──────────────────────────────────────── */
 .returned {
-  background: #FCEBEB;
-  color: #A32D2D;
+  background: var(--danger-light);
+  color: var(--danger-dark);
+  font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .returned:hover {
-  background: #E24B4A;
+  background: var(--danger);
   color: #fff;
 }
 
 .partialReturn {
-  background: #FFF4E5;
-  color: #7A4D00;
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .partialReturn:hover {
-  background: #F5A623;
+  background: var(--warning);
   color: #fff;
 }
 
-/* === Payment Method Badges === */
+/* ── Payment Method Badges ──────────────────────────────── */
 .paymentMpesa {
-  background: #E6F1FB;
-  color: #0C447C;
+  background: var(--info-light);
+  color: var(--info-dark);
+  font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .paymentMpesa:hover {
-  background: #0C447C;
+  background: var(--info);
   color: #fff;
 }
 
 .paymentCredit {
-  background: #FFF4E5;
-  color: #7A4D00;
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .paymentCredit:hover {
-  background: #7A4D00;
+  background: var(--warning);
   color: #fff;
 }
 
 .paymentSplit {
-  background: #f0f7ff;
-  color: #185FA5;
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .paymentSplit:hover {
-  background: #185FA5;
+  background: var(--primary);
   color: #fff;
 }
 
 .paymentCash {
-  background: #EAF3DE;
-  color: #27500A;
+  background: var(--success-light);
+  color: var(--success-dark);
+  font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .paymentCash:hover {
-  background: #27500A;
+  background: var(--success);
   color: #fff;
 }
+
+/* ── New: Card and Bank payment badges ──────────────────── */
+.paymentCard {
+  background: var(--primary-light);
+  color: var(--primary-dark);
+  font-weight: 600;
+  transition: all 0.2s ease-in-out;
+}
+.paymentCard:hover {
+  background: var(--primary);
+  color: #fff;
+}
+
+.paymentBank {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-weight: 600;
+  border: 1px solid var(--border-medium);
+  transition: all 0.2s ease-in-out;
+}
+.paymentBank:hover {
+  background: var(--text-secondary);
+  color: #fff;
+}
+
+/* ── Item Status Badges ─────────────────────────────────── */
+.itemSold {
+  background: var(--bg-muted);
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.itemPending {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  font-weight: 600;
+}
+
+.itemApproved {
+  background: var(--success-light);
+  color: var(--success-dark);
+  font-weight: 600;
+}
+
+.itemRejected {
+  background: var(--danger-light);
+  color: var(--danger-dark);
+  font-weight: 600;
+}
+
+/* ── Voided item badge ──────────────────────────────────── */
+.itemVoided {
+  background: var(--danger-light);
+  color: var(--danger-dark);
+  font-weight: 600;
+  text-decoration: line-through;
+}
+
+/* ── Return Button ──────────────────────────────────────── */
+.returnBtn {
+  border: 1px solid var(--danger);
+  color: var(--danger-dark);
+  background: var(--danger-light);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.returnBtn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ── Void Button ────────────────────────────────────────── */
+.voidBtn {
+  border: 1px solid var(--danger);
+  color: var(--danger-dark);
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.voidBtn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.fadeIn { animation: fadeIn 0.25s ease-out forwards; }

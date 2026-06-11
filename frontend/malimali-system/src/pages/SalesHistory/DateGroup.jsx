@@ -1,52 +1,87 @@
-import SaleCard from './SaleCard';
+import SaleCard from './SaleCard'
 
 const DAY_COLORS = [
-    { bg: 'bg-blue-50', border: 'border-blue-200', header: 'bg-blue-100', text: 'text-blue-800' },
-    { bg: 'bg-green-50', border: 'border-green-200', header: 'bg-green-100', text: 'text-green-800' },
-    { bg: 'bg-purple-50', border: 'border-purple-200', header: 'bg-purple-100', text: 'text-purple-800' },
-    { bg: 'bg-amber-50', border: 'border-amber-200', header: 'bg-amber-100', text: 'text-amber-800' },
-    { bg: 'bg-rose-50', border: 'border-rose-200', header: 'bg-rose-100', text: 'text-rose-800' },
-    { bg: 'bg-teal-50', border: 'border-teal-200', header: 'bg-teal-100', text: 'text-teal-800' },
-];
+  { bg: 'var(--primary-light)', border: 'var(--primary-muted)', header: 'var(--primary-light)', text: 'var(--primary-dark)' }, // Sun
+  { bg: 'var(--success-light)', border: 'var(--success)', header: 'var(--success-light)', text: 'var(--success-dark)' }, // Mon
+  { bg: 'var(--info-light)', border: 'var(--info)', header: 'var(--info-light)', text: 'var(--info-dark)' }, // Tue
+  { bg: 'var(--warning-light)', border: 'var(--warning)', header: 'var(--warning-light)', text: 'var(--warning-dark)' }, // Wed
+  { bg: 'var(--danger-light)', border: 'var(--danger)', header: 'var(--danger-light)', text: 'var(--danger-dark)' }, // Thu
+  { bg: 'var(--primary-light)', border: 'var(--primary)', header: 'var(--primary-light)', text: 'var(--primary)' }, // Fri
+  { bg: 'var(--success-light)', border: 'var(--success-dark)', header: 'var(--success-light)', text: 'var(--success-dark)' }, // Sat
+]
 
 function getColorForDate(date) {
-    const day = new Date(date + 'T00:00:00').getDay();
-    return DAY_COLORS[day % DAY_COLORS.length];
+  const day = new Date(date + 'T00:00:00').getDay()
+  return DAY_COLORS[day]
 }
 
-export default function DateGroup({ date, sales, isOwner, setReturnModal }) {
-    const color = getColorForDate(date);
-    const dateTotal = sales.filter(s => !s.returned).reduce((sum, s) => sum + (s.total || 0), 0);
-    const dayQty = sales.reduce((sum, s) => sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0);
+export default function DateGroup({ date, sales, isOwner, setReturnModal, setVoidModal, category }) {
+  const color = getColorForDate(date)
 
-    return (
-        <div className={`mb-4 rounded-lg border ${color.border} overflow-hidden`}>
-            {/* Date header */}
-            <div className={`px-4 py-2 flex justify-between items-center ${color.header}`}>
-                <span className={`text-sm font-semibold ${color.text}`}>
-                    {new Date(date + 'T00:00:00').toLocaleDateString('en-KE', {
-                        weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
-                    })}
-                </span>
-                <div className="flex gap-4">
-                    <span className={`text-xs ${color.text} opacity-70`}>{dayQty} items</span>
-                    <span className={`text-sm font-bold ${color.text}`}>KSh {dateTotal.toLocaleString()}</span>
-                </div>
-            </div>
+  const dateTotal = sales.reduce((sum, s) => {
+    if (s.voided) return sum
+    const itemSum = s.items
+      ?.filter(item => category === 'All' || item.productId?.category === category)
+      .reduce((iSum, i) => {
+        if (i.voidStatus === 'voided') return iSum
+        const qty = Math.max(0, (i.qty || 0) - (i.voidedQty || 0) - (i.returnedQty || 0))
+        return iSum + (i.price * qty)
+      }, 0)
+    return sum + itemSum
+  }, 0)
 
-            {/* Sales list */}
-            <div className={color.bg}>
-                {sales
-                    .sort((a, b) => new Date(b.date) - new Date(a.date))
-                    .map(sale => (
-                        <SaleCard
-                            key={sale._id}
-                            sale={sale}
-                            onReturn={() => setReturnModal(sale)}
-                            isOwner={isOwner}
-                        />
-                    ))}
-            </div>
+  const dayQty = sales.reduce((sum, s) => {
+    if (s.voided) return sum
+    const itemQty = s.items
+      ?.filter(item => category === 'All' || item.productId?.category === category)
+      .reduce((q, i) => {
+        if (i.voidStatus === 'voided') return q
+        const qty = Math.max(0, (i.qty || 0) - (i.voidedQty || 0) - (i.returnedQty || 0))
+        return q + qty
+      }, 0)
+    return sum + itemQty
+  }, 0)
+
+  return (
+    <div
+      className="mb-4 rounded-xl overflow-hidden"
+      style={{ border: `1px solid ${color.border}` }}
+    >
+      {/* Date header */}
+      <div
+        className="px-4 py-2.5 flex justify-between items-center"
+        style={{ background: color.header }}
+      >
+        <span className="text-sm font-bold" style={{ color: color.text }}>
+          {new Date(date + 'T00:00:00').toLocaleDateString('en-KE', {
+            weekday: 'long', year: 'numeric', month: 'short', day: 'numeric'
+          })}
+        </span>
+        <div className="flex items-center gap-4">
+          <span className="text-xs font-semibold" style={{ color: color.text, opacity: 0.7 }}>
+            {dayQty} items
+          </span>
+          <span className="text-sm font-black" style={{ color: color.text }}>
+            KSh {dateTotal.toLocaleString()}
+          </span>
         </div>
-    );
+      </div>
+
+      {/* Sales list */}
+      <div style={{ background: color.bg }}>
+        {sales
+          .sort((a, b) => new Date(b.date) - new Date(a.date))
+          .map(sale => (
+            <SaleCard
+              key={sale._id}
+              sale={sale}
+              onReturn={() => setReturnModal(sale)}
+              onVoid={setVoidModal ? () => setVoidModal(sale) : undefined}
+              isOwner={isOwner}
+              category={category}
+            />
+          ))}
+      </div>
+    </div>
+  )
 }

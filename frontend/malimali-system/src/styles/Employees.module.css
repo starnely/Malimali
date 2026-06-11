@@ -1,39 +1,76 @@
 .td {
-  @apply px-4 py-3 text-sm text-gray-700 border-b border-gray-100;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text-secondary);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .btnBlue {
-  @apply bg-blue-50 text-blue-700 p-2 rounded-md cursor-pointer;
+  background: var(--primary-light);
+  color: var(--primary);
+  padding: 7px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.btnBlue:hover {
+  background: var(--primary);
+  color: #fff;
 }
 
 .btnYellow {
-  @apply bg-yellow-100 text-yellow-700 p-2 rounded-md cursor-pointer;
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  padding: 7px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.btnYellow:hover {
+  background: var(--warning);
+  color: #fff;
 }
 
 .btnRed {
-  @apply bg-red-100 text-red-700 p-2 rounded-md cursor-pointer;
+  background: var(--danger-light);
+  color: var(--danger);
+  padding: 7px;
+  border-radius: 8px;
+  cursor: pointer;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+}
+.btnRed:hover {
+  background: var(--danger);
+  color: #fff;
 }
 
-/* Row hover highlight + shadow lift */
 .rowHover {
-  @apply hover:bg-blue-50 hover:shadow-md transition;
+  transition: background 0.15s ease;
+}
+.rowHover:hover {
+  background: var(--primary-light) !important;
 }
 
-/* Animations */
 @keyframes fadeIn {
-  from { opacity: 0 }
-  to { opacity: 1 }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
-
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0 }
-  to { transform: translateY(0); opacity: 1 }
+  from { transform: translateY(20px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
 }
 
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out;
-}
-
-.animate-slideUp {
-  animation: slideUp 0.3s ease-out;
-}
+.animate-fadeIn  { animation: fadeIn  0.3s ease-out; }
+.animate-slideUp { animation: slideUp 0.3s ease-out; }

@@ -6,18 +6,41 @@ const productSchema = new mongoose.Schema(
       type: String,
       required: [true, "Product name is required"],
       trim: true,
-      minlength: [2, "Name must be at least 2 characters long"]
+      minlength: [2, "Name must be at least 2 characters"]
+    },
+    description: {
+      type: String,
+      trim: true,
+      default: ""
     },
     category: {
       type: String,
       required: [true, "Category is required"],
-      trim: true,
-      // ✅ Fixed: Added "Accessories" to match frontend categories
-      enum: {
-        values: ["Furniture", "Bedding", "Utensils", "Cleaning", "Accessories", "Other"],
-        message: "'{VALUE}' is not a valid category"
-      },
       trim: true
+    },
+    // ── Legacy plain-text supplier (kept for backward compat) ────────
+    supplier: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    // ── Phase 6: linked Supplier document (optional) ─────────────────
+    supplierId: {
+      type:    mongoose.Schema.Types.ObjectId,
+      ref:     "Supplier",
+      default: null,
+    },
+    // ── Phase 6: reorder threshold ───────────────────────────────────
+    reorderLevel: {
+      type:    Number,
+      default: 5,
+      min:     [0, "Reorder level cannot be negative"],
+    },
+    // Store/Warehouse this product belongs to
+    store: {
+      type: String,
+      trim: true,
+      default: "Main Store"
     },
     stock: {
       type: Number,
@@ -33,14 +56,12 @@ const productSchema = new mongoose.Schema(
       type: Number,
       required: [true, "Sell price is required"],
       min: [0, "Sell price cannot be negative"],
-      // ✅ Fixed: validator fires on updates too — use Number() to avoid string comparison
-      // Also skip validation if buyPrice not set yet (e.g. partial updates)
       validate: {
         validator: function (value) {
           if (this.buyPrice === undefined || this.buyPrice === null) return true
           return Number(value) >= Number(this.buyPrice)
         },
-        message: "Sell price must be greater than or equal to buy price"
+        message: "Selling price must be equal to or higher than buy price"
       }
     },
     barcode: {
@@ -48,7 +69,26 @@ const productSchema = new mongoose.Schema(
       unique: true,
       sparse: true,
       index: true,
-      minlength: [6, "Barcode must be at least 6 characters long"]
+      minlength: [6, "Barcode must be at least 6 characters"]
+    },
+    // Batch tracking
+    batch: {
+      type: String,
+      trim: true,
+      default: ""
+    },
+    mftDate: {
+      type: Date,
+      default: null
+    },
+    expiryDate: {
+      type: Date,
+      default: null
+    },
+    // Flag for expired products (moved to expired stock)
+    isExpired: {
+      type: Boolean,
+      default: false
     }
   },
   { timestamps: true }

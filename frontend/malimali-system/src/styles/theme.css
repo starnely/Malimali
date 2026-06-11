@@ -1,0 +1,114 @@
+/* ============================================================
+   THEME.CSS — POS System Design Tokens
+   ============================================================
+   HOW TO REBRAND FOR A NEW CLIENT:
+   Change ONLY the values in the :root block below.
+   Every color across the entire system updates automatically.
+   ============================================================ */
+
+:root {
+  /* ── Primary Brand Color ──────────────────────────────── */
+  --primary:          #1E5FA5;   /* Main brand — buttons, active states */
+  --primary-dark:     #0C447C;   /* Hover / pressed state */
+  --primary-light:    #E6F1FB;   /* Backgrounds, chips, badges */
+  --primary-muted:    #5B9BD5;   /* Subtle accents, icons */
+
+  /* ── Sidebar (Dark Surface) ───────────────────────────── */
+  --sidebar-bg:       #0C3660;   /* Sidebar background */
+  --sidebar-border:   rgba(255,255,255,0.08);
+  --sidebar-text:     #B8D4F0;   /* Nav link text */
+  --sidebar-active-bg:#185FA5;   /* Active nav item bg */
+  --sidebar-active-text: #FFFFFF;
+  --sidebar-hover-bg: rgba(255,255,255,0.07);
+
+  /* ── Topbar ───────────────────────────────────────────── */
+  --topbar-bg:        #FFFFFF;
+  --topbar-border:    #E5E7EB;
+  --topbar-shadow:    0 1px 3px rgba(0,0,0,0.06);
+
+  /* ── Semantic Colors ──────────────────────────────────── */
+  --success:          #10B981;   /* Revenue, stock OK, approved */
+  --success-light:    #D1FAE5;
+  --success-dark:     #065F46;
+
+  --warning:          #F59E0B;   /* Low stock, pending */
+  --warning-light:    #FEF3C7;
+  --warning-dark:     #92400E;
+
+  --danger:           #EF4444;   /* Errors, rejections, delete */
+  --danger-light:     #FEE2E2;
+  --danger-dark:      #991B1B;
+
+  --info:             #0EA5E9;   /* Notifications, info banners */
+  --info-light:       #E0F2FE;
+  --info-dark:        #075985;
+
+  /* ── Neutral Surfaces ─────────────────────────────────── */
+  --bg-page:          #F5F7FF;   /* Page background */
+  --bg-card:          #FFFFFF;   /* Card / panel background */
+  --bg-muted:         #F1F5F9;   /* Input backgrounds, row stripes */
+  --border-soft:      #E2E8F0;   /* Card borders, dividers */
+  --border-medium:    #CBD5E1;
+
+  /* ── Typography ───────────────────────────────────────── */
+  --text-primary:     #0F172A;   /* Headings */
+  --text-secondary:   #475569;   /* Body / labels */
+  --text-muted:       #94A3B8;   /* Placeholders, captions */
+  --text-inverse:     #FFFFFF;
+
+  /* ── Clock / Terminal ─────────────────────────────────── */
+  --clock-bg:         #0F172A;
+  --clock-text:       #34D399;
+  --clock-border:     #1E293B;
+
+  /* ── Radii & Shadows ──────────────────────────────────── */
+  --radius-sm:        6px;
+  --radius-md:        10px;
+  --radius-lg:        14px;
+  --radius-xl:        20px;
+  --shadow-card:      0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(79,70,229,0.06);
+  --shadow-dropdown:  0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  --shadow-sidebar:   4px 0 24px rgba(30,27,75,0.18);
+}
+
+/* ============================================================
+   EXAMPLE CLIENT OVERRIDES — uncomment to rebrand
+   ============================================================
+
+   // Forest Green theme (Pharmacy / Health)
+   :root {
+     --primary:       #059669;
+     --primary-dark:  #047857;
+     --primary-light: #ECFDF5;
+     --primary-muted: #6EE7B7;
+     --sidebar-bg:    #064E3B;
+     --sidebar-active-bg: #059669;
+     --sidebar-text:  #A7F3D0;
+     --bg-page:       #F0FDF9;
+   }
+
+   // Deep Rose theme (Salon / Beauty)
+   :root {
+     --primary:       #E11D48;
+     --primary-dark:  #BE123C;
+     --primary-light: #FFF1F2;
+     --primary-muted: #FDA4AF;
+     --sidebar-bg:    #4C0519;
+     --sidebar-active-bg: #E11D48;
+     --sidebar-text:  #FECDD3;
+     --bg-page:       #FFF5F7;
+   }
+
+   // Amber / Gold theme (Restaurant / Hospitality)
+   :root {
+     --primary:       #D97706;
+     --primary-dark:  #B45309;
+     --primary-light: #FFFBEB;
+     --primary-muted: #FCD34D;
+     --sidebar-bg:    #451A03;
+     --sidebar-active-bg: #D97706;
+     --sidebar-text:  #FDE68A;
+     --bg-page:       #FEFCE8;
+   }
+
+   ============================================================ */

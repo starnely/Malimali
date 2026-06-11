@@ -1,69 +1,92 @@
-import { MdAttachMoney, MdInventory } from 'react-icons/md';
+import { MdAttachMoney, MdInventory, MdReceipt } from 'react-icons/md'
 
-export default function SalesStats({ isOwner, filtered }) {
-  // ✅ Correct per-item revenue calculation
-  const totalRevenue = filtered.reduce((sum, sale) => {
+export default function SalesStats({ isOwner, filtered, category }) {
+
+  // Exclude voided sales from all calculations
+  const activeFiltered = filtered.filter(sale => !sale.voided)
+
+  const totalRevenue = activeFiltered.reduce((sum, sale) => {
     const itemRevenue = sale.items
-      .filter(item => item.returnStatus !== 'approved') // exclude only returned items
-      .reduce((itemSum, item) => itemSum + (item.price * item.qty), 0);
-    return sum + itemRevenue;
-  }, 0);
+      ?.filter(item => category === 'All' || item.productId?.category === category)
+      .reduce((itemSum, item) => {
+        if (item.voidStatus === 'voided') return itemSum
+        const qty = Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+        return itemSum + (item.price * qty)
+      }, 0) || 0
+    return sum + itemRevenue
+  }, 0)
 
-  // ✅ Total items sold (excluding returned items)
-  const totalItemsSold = filtered.reduce((sum, sale) => {
+  const totalItemsSold = activeFiltered.reduce((sum, sale) => {
     const itemCount = sale.items
-      .filter(item => item.returnStatus !== 'approved')
-      .reduce((itemSum, item) => itemSum + item.qty, 0);
-    return sum + itemCount;
-  }, 0);
+      ?.filter(item => category === 'All' || item.productId?.category === category)
+      .reduce((itemSum, item) => {
+        if (item.voidStatus === 'voided') return itemSum
+        const qty = Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+        return itemSum + qty
+      }, 0) || 0
+    return sum + itemCount
+  }, 0)
 
+  const transactionCount = activeFiltered.filter(sale =>
+    sale.items?.some(item => {
+      const matchCat = category === 'All' || item.productId?.category === category
+      if (!matchCat || item.voidStatus === 'voided') return false
+      const qty = Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+      return qty > 0
+    })
+  ).length
   const cards = [
     {
-      label: isOwner ? 'Total revenue' : 'Your revenue this week',
+      label: isOwner ? 'Total Revenue' : 'Your Revenue (30 days)',
       value: `KSh ${totalRevenue.toLocaleString()}`,
       icon: <MdAttachMoney />,
-      color: 'text-blue-800',
-      bg: 'bg-blue-50',
+      color: 'var(--primary)',
+      bg: 'var(--primary-light)',
     },
     {
       label: 'Transactions',
-      value: filtered.length,
-      icon: <MdAttachMoney />,
-      color: 'text-green-700',
-      bg: 'bg-green-50',
+      value: transactionCount,
+      icon: <MdReceipt />,
+      color: 'var(--success-dark)',
+      bg: 'var(--success-light)',
     },
     {
-      label: 'Items sold',
+      label: 'Items Sold',
       value: totalItemsSold,
       icon: <MdInventory />,
-      color: 'text-yellow-700',
-      bg: 'bg-yellow-50',
+      color: 'var(--warning-dark)',
+      bg: 'var(--warning-light)',
     },
-  ];
+  ]
 
-{/* Stats */}
-<SalesStats
-  isOwner={isOwner}
-  filtered={filtered}
-/>
   return (
     <div className="grid grid-cols-3 gap-3 mb-3">
       {cards.map((card, i) => (
         <div
           key={i}
-          className="bg-white border border-gray-200 rounded-lg p-3 flex items-center gap-3"
+          className="rounded-xl p-3 flex items-center gap-3"
+          style={{
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-soft)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
           <div
-            className={`w-9 h-9 rounded-lg flex items-center justify-center text-xl ${card.bg} ${card.color}`}
+            className="w-10 h-10 rounded-lg flex items-center justify-center text-xl flex-shrink-0"
+            style={{ background: card.bg, color: card.color }}
           >
             {card.icon}
           </div>
           <div>
-            <div className="text-xs text-gray-500">{card.label}</div>
-            <div className="text-base font-semibold text-gray-800">{card.value}</div>
+            <div className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+              {card.label}
+            </div>
+            <div className="text-base font-bold mt-0.5" style={{ color: 'var(--text-primary)' }}>
+              {card.value}
+            </div>
           </div>
         </div>
       ))}
     </div>
-  );
+  )
 }

@@ -1,314 +1,380 @@
 import { useState, useMemo, useEffect } from 'react'
-import { MdCheckCircle, MdBarChart, MdAccessTime } from 'react-icons/md'
+import {
+  MdCheckCircle, MdBarChart, MdAccessTime,
+  MdAttachMoney, MdTrendingUp, MdToday,
+  MdWarning, MdPeopleAlt, MdShoppingCart, MdPayments,
+  MdArrowUpward, MdArrowDownward,
+} from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useNavigate } from 'react-router-dom'
 import EmployeeSalesModal from '@/components/modals/EmployeeSalesModal'
 import DailySummaryModal from '@/components/modals/DailySummaryModal'
 import styles from '@/styles/Dashboard.module.css'
-import Button from '@/components/Button'
+import Button from '@/components/shared/Button'
 import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
 
 export default function Dashboard() {
   const {
-    socket,
-    products, sales, todaySales,
-    lowStockProducts, pendingReturns,
-    shiftCloses,
-    fetchSales, fetchArchives, fetchProducts, settings
+    socket, products, sales, todaySales, pendingReturns, dailyArchives,
+    fetchSales, fetchArchives, fetchProducts,
+    fetchCustomers, fetchExpenseSummary, currentUser,
   } = useApp()
 
-  // 1. Unified Sync Function
+  const [debtSummary, setDebtSummary] = useState(null)
+  const [debtLoading, setDebtLoading] = useState(true)
+  const [lowStockCount, setLowStockCount] = useState(null)
+  const [stockLoading, setStockLoading] = useState(true)
+  const [expenseTotal, setExpenseTotal] = useState(null)
+  const [expenseCats, setExpenseCats] = useState(0)
+  const [expenseLoading, setExpenseLoading] = useState(true)
+  const [supplierDebt, setSupplierDebt] = useState(0)
+  const [supplierDebtCount, setSupplierDebtCount] = useState(0)
+  const [supplierDebtLoading, setSupplierDebtLoading] = useState(true)
+
   const syncAllData = useMemo(() => () => {
-    fetchSales();
-    fetchArchives();
-    fetchProducts();
-  }, [fetchSales, fetchArchives, fetchProducts]);
+    fetchSales(); fetchArchives(); fetchProducts()
+  }, [fetchSales, fetchArchives, fetchProducts])
+
+  const todayEAT = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
 
   useEffect(() => {
-    syncAllData();
+    let active = true
+    fetchCustomers({}).then(data => {
+      if (!active || !Array.isArray(data)) return
+      setDebtSummary({
+        totalDebt: data.reduce((s, c) => s + (c.balance || 0), 0),
+        overdueCount: data.filter(c => c.overdue).length,
+        blacklistedCount: data.filter(c => c.blacklisted).length,
+        activeCount: data.filter(c => c.balance > 0).length,
+      })
+      setDebtLoading(false)
+    })
+    return () => { active = false }
+  }, [fetchCustomers])
 
-    if (socket) {
-      // Listen for sales
-      socket.on("newSale", (data) => {
-        console.log(`⚡ Sale by ${data.cashier}: Syncing...`);
-        syncAllData();
-      });
-
-      // Listen for stock updates
-      socket.on("productsUpdated", () => {
-        fetchProducts();
-      });
-
-      // Listen for shift closures
-      socket.on("adminShiftNotification", () => {
-        console.log("🔒 Shift closed notification received. Refreshing archives...");
-        fetchArchives(); // Specifically refresh archives to update status badges
-      });
+  useEffect(() => {
+    if (!currentUser?.token) return
+    let active = true
+    const load = async () => {
+      setStockLoading(true)
+      try {
+        const store = currentUser.store || 'Main Store'
+        const res = await fetch(`http://localhost:5000/api/products/low-stock?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const data = await res.json()
+        if (active) setLowStockCount(data.count ?? data.products?.length ?? 0)
+      } catch { if (active) setLowStockCount(0) }
+      finally { if (active) setStockLoading(false) }
     }
+    load()
+    return () => { active = false }
+  }, [currentUser])
 
-    const interval = setInterval(syncAllData, 5 * 60 * 1000);
+  useEffect(() => {
+    if (!currentUser?.token) return
+    let active = true
+    const load = async () => {
+      setExpenseLoading(true)
+      try {
+        const store = currentUser.store || 'Main Store'
+        const data = await fetchExpenseSummary({ store, date: todayEAT })
+        if (active) { setExpenseTotal(data.grandTotal ?? 0); setExpenseCats(data.summary?.length ?? 0) }
+      } catch { if (active) setExpenseTotal(0) }
+      finally { if (active) setExpenseLoading(false) }
+    }
+    load()
+    return () => { active = false }
+  }, [currentUser, fetchExpenseSummary, todayEAT])
 
+  useEffect(() => {
+    if (!currentUser?.token) return
+    let active = true
+    const load = async () => {
+      setSupplierDebtLoading(true)
+      try {
+        const store = currentUser.store || 'Main Store'
+        const res = await fetch(`http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const data = await res.json()
+        if (active) { setSupplierDebt(data.totalOutstanding || 0); setSupplierDebtCount(data.count || 0) }
+      } catch { if (active) { setSupplierDebt(0); setSupplierDebtCount(0) } }
+      finally { if (active) setSupplierDebtLoading(false) }
+    }
+    load()
+    return () => { active = false }
+  }, [currentUser])
+
+  useEffect(() => {
+    syncAllData()
+    if (socket) {
+      socket.on('newSale', () => syncAllData())
+      socket.on('productsUpdated', () => fetchProducts())
+      socket.on('adminShiftNotification', () => fetchArchives())
+      socket.on('supplierPaymentMade', () => {
+        if (!currentUser?.token) return
+        const store = currentUser.store || 'Main Store'
+        fetch(`http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+          .then(r => r.json()).then(d => { setSupplierDebt(d.totalOutstanding || 0); setSupplierDebtCount(d.count || 0) }).catch(() => { })
+      })
+    }
+    const interval = setInterval(syncAllData, 5 * 60 * 1000)
     return () => {
-      clearInterval(interval);
-      if (socket) {
-        socket.off("newSale");
-        socket.off("productsUpdated");
-        socket.off("adminShiftNotification");
-      }
-    };
-  }, [socket, syncAllData, fetchArchives, fetchProducts]);
+      clearInterval(interval)
+      if (socket) { socket.off('newSale'); socket.off('productsUpdated'); socket.off('adminShiftNotification'); socket.off('supplierPaymentMade') }
+    }
+  }, [socket, syncAllData, fetchArchives, fetchProducts, currentUser])
 
   const navigate = useNavigate()
   const [selectedEmployee, setSelectedEmployee] = useState(null)
   const [showDailySummary, setShowDailySummary] = useState(false)
 
-  // Current Date string for comparison (YYYY-MM-DD)
-  const today = new Date().toLocaleDateString('en-CA');
+  const today = new Date().toLocaleDateString('en-CA')
+  const safeProducts = useMemo(() => products ?? [], [products])
+  const safeTodaySales = useMemo(() => todaySales ?? [], [todaySales])
+  const safeReturns = useMemo(() => pendingReturns ?? [], [pendingReturns])
+  const safeDailyArchives = useMemo(() => dailyArchives ?? [], [dailyArchives])
 
-  // Ensure arrays exist
-  const safeProducts = useMemo(() => products ?? [], [products]);
-  const safeTodaySales = useMemo(() => todaySales ?? [], [todaySales]);
-  const safeLowStock = useMemo(() => lowStockProducts ?? [], [lowStockProducts]);
-  const safeReturns = useMemo(() => pendingReturns ?? [], [pendingReturns]);
-  const safeShiftCloses = useMemo(() => shiftCloses ?? [], [shiftCloses]);
+  const closedTodayNames = useMemo(() =>
+    safeDailyArchives
+      .filter(a => a?.date && new Date(a.date).toLocaleDateString('en-CA') === today)
+      .map(a => (a.employeeName || '').toLowerCase().trim()),
+    [safeDailyArchives, today]
+  )
 
-  // 2. Identify Employees who closed TODAY
-  const closedTodayNames = useMemo(() => {
-    return safeShiftCloses
-      .filter(archive => {
-        if (!archive || !archive.date) return false;
-        // Convert any date format to YYYY-MM-DD
-        const archiveDate = new Date(archive.date).toLocaleDateString('en-CA');
-        return archiveDate === today;
-      })
-      .map(a => (a.employeeName || "").toLowerCase().trim());
-  }, [safeShiftCloses, today]);
-
-  // 3. Product map for profit
   const productMap = useMemo(() => {
     const m = {}
     safeProducts.forEach(p => { m[String(p._id)] = p.buyPrice || 0 })
     return m
   }, [safeProducts])
 
-  const calcProfit = (salesArr) =>
-    salesArr.reduce((sum, sale) => {
-      if (sale.returned) return sum
+  // ── Active qty: subtracts both voided and returned units ──────────
+  const activeQty = (item) => {
+    if (item.voidStatus === 'voided') return 0
+    return Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+  }
 
-      return sum + (sale.items?.reduce((s2, item) => {
-        // Only calculate profit for items kept by the customer
-        if (item.returnStatus === 'approved') return s2;
+  const calcRevenue = (arr) => arr.reduce((sum, s) => {
+    if (s.returned || s.voided) return sum
+    return sum + (s.items?.reduce((rv, item) => {
+      if (item.voidStatus === 'voided') return rv
+      return rv + (item.price || 0) * activeQty(item)
+    }, 0) || 0)
+  }, 0)
 
-        const buy = productMap[String(item.productId?._id || item.productId)] || 0
-        if (item.returnStatus === 'approved') return s2
-        return s2 + (item.price - buy) * item.qty
-      }, 0) || 0)
-    }, 0)
-
-  const calcRevenue = (salesArr) =>
-    salesArr.reduce((sum, s) => {
-      // If the entire sale was voided/returned, skip it entirely
-      if (s.returned) return sum;
-
-      const validItemsValue = s.items?.reduce((rv, item) => {
-        // ONLY count items that are NOT approved returns
-        if (item.returnStatus !== 'approved') {
-          return rv + (item.price || 0) * item.qty;
-        }
-        return rv;
-      }, 0) || 0;
-
-      return sum + validItemsValue;
-    }, 0);
+  const calcProfit = (arr) => arr.reduce((sum, sale) => {
+    if (sale.returned || sale.voided) return sum
+    return sum + (sale.items?.reduce((s2, item) => {
+      if (item.voidStatus === 'voided') return s2
+      const buy = productMap[String(item.productId?._id || item.productId)] || 0
+      return s2 + (item.price - buy) * activeQty(item)
+    }, 0) || 0)
+  }, 0)
 
   const allSales = sales ?? []
-  const allRevenue = calcRevenue(allSales)
-  const allProfit = calcProfit(allSales)
   const todayRevenue = calcRevenue(safeTodaySales)
   const todayProfit = calcProfit(safeTodaySales)
-  const todayQty = safeTodaySales.reduce((sum, s) =>
-    sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0)
-  const totalStock = safeProducts.reduce((sum, p) => sum + (p.stock || 0), 0)
+  const todayQty = safeTodaySales.reduce((sum, s) => {
+    if (s.voided || s.returned) return sum
+    return sum + (s.items?.reduce((q, i) => {
+      if (i.voidStatus === 'voided') return q
+      return q + activeQty(i)
+    }, 0) || 0)
+  }, 0)
+  const profitMargin = todayRevenue > 0 ? Math.round((todayProfit / todayRevenue) * 100) : 0
+  const netPosition = todayRevenue - (expenseTotal || 0)
 
-  // 4. Final Seller Stats with refined closure check
   const todaySellers = [...new Set(safeTodaySales.map(s => s.cashier).filter(Boolean))]
   const sellerStats = todaySellers.map(seller => {
     const sellerSales = safeTodaySales.filter(s => s.cashier === seller)
-
-    // Check if this specific seller is in today's closed list
-    const sellerNameLower = (seller || "").toLowerCase().trim();
-
-    // 2. Check if ANY name in the closed list matches this seller
-    const hasClosed = closedTodayNames.some(closedName =>
-      (closedName || "").toLowerCase().trim() === sellerNameLower
-    );
-
-    const revenue = calcRevenue(sellerSales)
-    const profit = calcProfit(sellerSales)
-    const qty = sellerSales.reduce((sum, s) =>
-      sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0)
-
+    const hasClosed = closedTodayNames.some(n => n === (seller || '').toLowerCase().trim())
     return {
       name: seller,
-      total: revenue,
-      profit,
-      qty,
+      total: calcRevenue(sellerSales),
+      profit: calcProfit(sellerSales),
+      qty: sellerSales.reduce((sum, s) => {
+        if (s.voided || s.returned) return sum
+        return sum + (s.items?.reduce((q, i) => {
+          if (i.voidStatus === 'voided') return q
+          return q + activeQty(i)
+        }, 0) || 0)
+      }, 0),
       count: sellerSales.length,
       hasClosed,
     }
   }).sort((a, b) => b.total - a.total)
 
+  const hourNow = new Date().getHours()
+  const greeting = hourNow < 12 ? 'Morning' : hourNow < 17 ? 'Afternoon' : 'Evening'
+
+  const hoverLift = e => { e.currentTarget.style.boxShadow = 'var(--shadow-dropdown)'; e.currentTarget.style.transform = 'translateY(-2px)' }
+  const hoverReset = e => { e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = 'translateY(0)' }
+
   return (
-    <div className="p-6 bg-gray-100 min-h-screen animate-fadeIn">
-      {/* Header */}
-      <div className="flex justify-between items-start mb-6 flex-wrap gap-2">
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: 'var(--bg-page)', padding: '24px 28px 48px', gap: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 className="text-xl font-bold text-gray-800">{settings.companyName || "POS System"}</h1>
-          <p className="text-xs text-gray-500 mt-1">
-            {new Date().toLocaleDateString('en-KE', {
-              weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-            })}
-          </p>
+          <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 4 }}>
+            {new Date().toLocaleDateString('en-KE', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0, lineHeight: 1.2 }}>Good {greeting} 👋</h1>
+          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+            {currentUser?.fullname || currentUser?.username} · {currentUser?.store || 'Headquarters'}
+          </div>
         </div>
         <Button onClick={() => setShowDailySummary(true)} variant="primary">
-          <MdBarChart className="text-lg" /> Daily Summary
+          <MdBarChart style={{ fontSize: 18 }} /> Daily Summary
         </Button>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 mb-6 grid-cols-[repeat(auto-fit,minmax(200px,1fr))]">
-        <Card title="Total Stock" value={totalStock} color="blue" />
-        <Card title="Total Revenue" value={`KSh ${allRevenue.toLocaleString()}`} color="green" />
-        <Card title="Total Profit" value={`KSh ${allProfit.toLocaleString()}`} color="purple" />
-        <Card
-          title="Today Revenue"
-          value={`KSh ${todayRevenue.toLocaleString()}`}
-          color="yellow"
-          sub={`${todayQty} items · Profit KSh ${todayProfit.toLocaleString()}`}
-        />
-        <Card
-          title="Low Stock"
-          value={safeLowStock.length}
-          color="red"
-          sub="click to restock"
-          onClick={() => navigate('/products', { state: { filter: 'lowStock' } })}
-          clickable
-        />
-        <Card
-          title="Pending Returns"
-          value={safeReturns.length}
-          color="gray"
-          sub={safeReturns.length > 0 ? 'click to review' : undefined}
-          onClick={() => {
-            const element = document.getElementById('returns-section');
-            if (element) {
-              element.scrollIntoView({ behavior: 'smooth' });
-            }
-          }}
-          clickable={safeReturns.length > 0}
-        />
+      <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+        <div className={`${styles.card} ${styles['card-warning']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/sales-history')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div className={`${styles.icon} ${styles['icon-warning']}`}><MdToday style={{ fontSize: 20 }} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Revenue</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {todayRevenue.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{todayQty} items sold</div>
+          </div>
+        </div>
+        <div className={`${styles.card} ${styles[todayProfit >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div className={`${styles.icon} ${styles[todayProfit >= 0 ? 'icon-success' : 'icon-danger']}`}>
+            {todayProfit >= 0 ? <MdArrowUpward style={{ fontSize: 20 }} /> : <MdArrowDownward style={{ fontSize: 20 }} />}
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Profit</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {todayProfit.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{profitMargin}% margin</div>
+          </div>
+        </div>
+        <div className={`${styles.card} ${styles[expenseTotal > 0 ? 'card-danger' : 'card-primary']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/expenses')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div className={`${styles.icon} ${styles[expenseTotal > 0 ? 'icon-danger' : 'icon-primary']}`}><MdAttachMoney style={{ fontSize: 20 }} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Expenses</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>{expenseLoading ? '—' : `KSh ${(expenseTotal || 0).toLocaleString()}`}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{expenseLoading ? 'Loading...' : expenseTotal > 0 ? `${expenseCats} categor${expenseCats !== 1 ? 'ies' : 'y'}` : 'None logged today'}</div>
+          </div>
+        </div>
+        <div className={`${styles.card} ${styles[netPosition >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div className={`${styles.icon} ${styles[netPosition >= 0 ? 'icon-success' : 'icon-danger']}`}><MdTrendingUp style={{ fontSize: 20 }} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Net Position</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {netPosition.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Revenue − Expenses</div>
+          </div>
+        </div>
       </div>
 
-      {safeReturns.length > 0 && (
-        <div id="returns-section" className="mb-6 scroll-mt-6">
-          <PendingReturnsPanel pendingReturns={safeReturns} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
+        <div onClick={() => navigate('/purchase-orders')} className={styles['animate-slideUp']} style={{ background: lowStockCount > 0 ? '#fff7ed' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? '#ea580c' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: lowStockCount > 0 ? '#fed7aa' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdWarning style={{ color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{stockLoading ? '—' : lowStockCount}</div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', marginBottom: 2 }}>Low Stock</div>
+          <div style={{ fontSize: 11, color: lowStockCount > 0 ? '#92400e' : 'var(--text-muted)' }}>{stockLoading ? 'Checking...' : lowStockCount === 0 ? 'All levels OK ✓' : 'Click → Create PO'}</div>
         </div>
+        <div onClick={() => navigate('/purchase-orders')} className={styles['animate-slideUp']} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? '#fecaca' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: supplierDebt > 0 ? '#fecaca' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdPayments style={{ color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
+          <div style={{ fontSize: supplierDebt > 0 ? 18 : 26, fontWeight: 900, color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{supplierDebtLoading ? '—' : supplierDebt > 0 ? `KSh ${supplierDebt.toLocaleString()}` : '✓'}</div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Supplier Debt</div>
+          <div style={{ fontSize: 11, color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)' }}>{supplierDebtLoading ? 'Loading...' : supplierDebt > 0 ? `${supplierDebtCount} unpaid PO${supplierDebtCount !== 1 ? 's' : ''}` : 'All suppliers paid'}</div>
+        </div>
+        <div onClick={() => navigate('/sales-history')} className={styles['animate-slideUp']} style={{ background: safeReturns.length > 0 ? 'var(--info-light)' : 'var(--bg-card)', border: `1px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: safeReturns.length > 0 ? 'var(--info)' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdShoppingCart style={{ color: safeReturns.length > 0 ? '#fff' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: safeReturns.length > 0 ? 'var(--info-dark)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{safeReturns.length}</div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: safeReturns.length > 0 ? 'var(--info-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Pending Returns</div>
+          <div style={{ fontSize: 11, color: safeReturns.length > 0 ? 'var(--info-dark)' : 'var(--text-muted)' }}>{safeReturns.length > 0 ? 'Click to review' : 'None pending ✓'}</div>
+        </div>
+      </div>
+
+      <DebtWidget summary={debtSummary} loading={debtLoading} onNavigate={() => navigate('/customers')} />
+
+      {safeReturns.length > 0 && (
+        <div id="returns-section"><PendingReturnsPanel pendingReturns={safeReturns} /></div>
       )}
 
-      {/* Sales by Employee Today */}
       <div className={styles.box}>
-        <h2 className={styles.title}>Sales by Employee Today</h2>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h2 className={styles.title} style={{ margin: 0 }}>
+            <MdBarChart style={{ color: 'var(--primary)', fontSize: 18 }} /> Sales by Employee Today
+          </h2>
+          {sellerStats.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{sellerStats.length} active · {todayQty} items</span>}
+        </div>
         {sellerStats.length === 0 ? (
-          <p className={styles.empty}>No sales today</p>
+          <div className={styles.empty}><div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>No sales recorded today</div>
         ) : (
           <div className={styles.grid}>
-            {sellerStats.map((s, i) => (
-              <div
-                key={i}
-                className={`${styles.employeeCard} animate-slideUp cursor-pointer hover:shadow-md transition-all duration-200`}
-                onClick={() => setSelectedEmployee(s.name)}
-              >
-                <div className="flex justify-between items-center mb-2">
-                  <span className="font-semibold text-gray-800">{s.name}</span>
-                  {s.hasClosed ? (
-                    <span className="flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
-                      <MdCheckCircle className="text-xs" /> Shift Closed
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full font-medium">
-                      <MdAccessTime className="text-xs" /> Still Working
-                    </span>
-                  )}
+            {sellerStats.map((s, i) => {
+              const share = todayRevenue > 0 ? Math.round((s.total / todayRevenue) * 100) : 0
+              return (
+                <div key={i} className={`${styles.employeeCard} ${styles['animate-slideUp']}`} onClick={() => setSelectedEmployee(s.name)}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 900, fontSize: 12, flexShrink: 0 }}>{s.name.charAt(0).toUpperCase()}</div>
+                      <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{s.name}</span>
+                    </div>
+                    {s.hasClosed ? (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--success-dark)', whiteSpace: 'nowrap' }}><MdCheckCircle style={{ fontSize: 10 }} /> Closed</span>
+                    ) : (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--warning-dark)', whiteSpace: 'nowrap' }}><MdAccessTime style={{ fontSize: 10 }} /> Working</span>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
+                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Revenue</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--primary)' }}>KSh {s.total.toLocaleString()}</div></div>
+                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Profit</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--success-dark)' }}>KSh {s.profit.toLocaleString()}</div></div>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 4, background: 'var(--border-soft)', overflow: 'hidden', marginBottom: 5 }}>
+                    <div style={{ height: '100%', width: `${share}%`, background: 'var(--primary)', borderRadius: 4, transition: 'width 0.5s ease' }} />
+                  </div>
+                  <div className={styles.muted}>{s.count} sales · {s.qty} items · {share}% of today</div>
                 </div>
-                <div className={styles.muted}>{s.count} sales · {s.qty} items</div>
-                <div className="text-blue-700 font-semibold mt-1">KSh {s.total.toLocaleString()}</div>
-                <div className="text-green-700 text-xs mt-1">Profit: KSh {s.profit.toLocaleString()}</div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         )}
       </div>
 
-      {/* Low Stock Alerts */}
-      <div className={styles.box}>
-        <h2 className={styles.title}>Low Stock Alerts</h2>
-        {safeLowStock.length === 0 ? (
-          <p className={styles.empty}>All products are well stocked</p>
-        ) : (
-          safeLowStock.map(p => (
-            <div
-              key={p._id}
-              className={`${styles.row} animate-fadeIn cursor-pointer hover:bg-yellow-50 transition-colors duration-150`}
-              onClick={() => navigate('/products', { state: { filter: 'lowStock' } })}
-            >
-              <div>
-                <div className="text-sm text-gray-800">{p.name}</div>
-                <div className="text-xs text-gray-400">{p.category}</div>
-              </div>
-              <span className="text-xs font-semibold px-2 py-1 rounded-md bg-yellow-100 text-yellow-700">
-                {p.stock} left
-              </span>
-            </div>
-          ))
-        )}
-      </div>
-
-      {/* Modals */}
-      {selectedEmployee && (
-        <EmployeeSalesModal
-          employee={selectedEmployee}
-          sales={allSales}
-          products={safeProducts}
-          date={today}
-          onClose={() => setSelectedEmployee(null)}
-        />
-      )}
-      {showDailySummary && (
-        <DailySummaryModal onClose={() => setShowDailySummary(false)} />
-      )}
+      {selectedEmployee && <EmployeeSalesModal employee={selectedEmployee} sales={allSales} products={safeProducts} date={today} onClose={() => setSelectedEmployee(null)} />}
+      {showDailySummary && <DailySummaryModal onClose={() => setShowDailySummary(false)} />}
     </div>
   )
 }
 
-function Card({ title, value, color, sub, onClick, clickable }) {
+function DebtWidget({ summary, loading, onNavigate }) {
+  if (loading) return (
+    <div className={styles.box} style={{ padding: '16px 20px' }}>
+      <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading debtor summary...</div>
+    </div>
+  )
   return (
-    <div
-      className={`
-        ${styles.card} ${styles[`card-${color}`]} animate-slideUp
-        ${clickable ? 'cursor-pointer hover:shadow-md hover:-translate-y-0.5 transition-all duration-200' : ''}
-      `}
-      onClick={clickable ? onClick : undefined}
-    >
-      <div className="flex items-start gap-3">
-        <div className={`${styles.icon} ${styles[`icon-${color}`]}`}>
-          <MdCheckCircle />
-        </div>
-        <div className="flex-1">
-          <div className="text-xs text-gray-500 mb-1">{title}</div>
-          <div className="text-xl font-bold text-gray-800">{value}</div>
-          {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
-        </div>
+    <div className={styles.box} style={{ padding: '20px 24px', cursor: 'pointer' }} onClick={onNavigate}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <h2 className={styles.title} style={{ margin: 0 }}><MdPeopleAlt style={{ color: 'var(--primary)' }} /> Debtor Tracker</h2>
+        <button onClick={e => { e.stopPropagation(); onNavigate() }} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View All →</button>
       </div>
+      {!summary || summary.activeCount === 0 ? (
+        <div className={styles.empty} style={{ padding: '12px 0' }}>✅ No outstanding credit balances</div>
+      ) : (
+        <>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: summary.overdueCount > 0 ? 14 : 0 }}>
+            {[
+              { label: 'Outstanding', value: `KSh ${summary.totalDebt.toLocaleString()}`, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
+              { label: 'Active Debtors', value: summary.activeCount, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
+              { label: 'Overdue', value: summary.overdueCount, bg: summary.overdueCount > 0 ? '#fff7ed' : '#f0fdf4', border: summary.overdueCount > 0 ? '#fed7aa' : '#bbf7d0', color: summary.overdueCount > 0 ? '#ea580c' : 'var(--success-dark)' },
+              ...(summary.blacklistedCount > 0 ? [{ label: 'Blacklisted', value: summary.blacklistedCount, bg: '#fef2f2', border: '#fecaca', color: '#dc2626' }] : []),
+            ].map(s => (
+              <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: s.color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{s.label}</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: s.color }}>{s.value}</div>
+              </div>
+            ))}
+          </div>
+          {summary.overdueCount > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#92400e' }}>
+                <MdWarning style={{ color: '#ea580c', fontSize: 16, flexShrink: 0 }} />
+                {summary.overdueCount} customer{summary.overdueCount !== 1 ? 's have' : ' has'} passed their payment deadline
+              </div>
+              <button onClick={e => { e.stopPropagation(); onNavigate() }} style={{ padding: '5px 12px', background: '#ea580c', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Follow Up</button>
+            </div>
+          )}
+        </>
+      )}
     </div>
   )
 }

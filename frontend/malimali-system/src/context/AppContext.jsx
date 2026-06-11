@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useSocket, useSocketActions } from './SocketContext';
 
+/* @refresh reload */
 const AppContext = createContext()
 
 function load(key, fallback) {
@@ -14,28 +15,18 @@ function load(key, fallback) {
 
 export function AppProvider({ children }) {
 
-  // ── GENERIC SETTINGS ──────────────────────────────────────────────────────────
-  const [settings, setSettings] = useState(() =>
-    load('pos_system_settings', {
-      businessName: 'My POS Shop',
-      currency: 'KSh',
-      lowStockThreshold: 5,
-      paymentMethods: ['cash', 'mpesa', 'split', 'credit'],
-      receiptPrefix: 'RCP',
-    })
-  )
+  // ── SETTINGS ──────────────────────────────────────────────────────────
+  const [settings, setSettings] = useState(() => load('pos_system_settings', null))
 
   useEffect(() => {
     if (settings) {
       localStorage.setItem('pos_system_settings', JSON.stringify(settings));
-      // Update document title to the client's shop name
-      document.title = `${settings.companyName || 'POS'} - Management`;
+      const displayTitle = settings.companyName || settings.businessName || 'POS';
+      document.title = `${displayTitle} - Management`;
     }
   }, [settings]);
 
-
-  // ── CORE STATE ────────────────────────────────────────────────────────
-  // Updated to null to trigger the Loading state in App.jsx during initialization
+  // ── CORE STATE ─────────────────────────────────────────────────────────
   const [isSetupComplete, setIsSetupComplete] = useState(null)
   const [currentUser, setCurrentUser] = useState(() => load('pos_system_user', null))
   const [users, setUsers] = useState([])
@@ -45,387 +36,766 @@ export function AppProvider({ children }) {
   const [stockInLog, setStockInLog] = useState([])
   const [dailyArchives, setDailyArchives] = useState([])
   const [notifications, setNotifications] = useState(() => load('pos_system_notifications', []))
-  const [shiftCloses, setShiftCloses] = useState(() => load('pos_system_shift_closes', []));
+  const [shiftCloses, setShiftCloses] = useState(() => load('pos_system_shift_closes', []))
+  const [stores, setStores] = useState([])
+  const [categories, setCategories] = useState([])
+  const [suppliers, setSuppliers] = useState([])
+  const [messages, setMessages] = useState([])
+  const [conversations, setConversations] = useState([])
+  const [unreadMsgCount, setUnreadMsgCount] = useState(0)
+  const [shiftCloseNotifs, setShiftCloseNotifs] = useState(() => load('pos_shift_close_notifs', []))
+
+  useEffect(() => {
+    localStorage.setItem('pos_shift_close_notifs', JSON.stringify(shiftCloseNotifs));
+  }, [shiftCloseNotifs]);
+
+  useEffect(() => {
+    localStorage.setItem('pos_system_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  const addShiftCloseNotif = useCallback((employeeName, time, revenue) => {
+    const notif = {
+      id: Date.now() + Math.random(),
+      employeeName, time, revenue,
+      date: new Date().toLocaleDateString('en-CA'),
+      read: false,
+      createdAt: Date.now(),
+    };
+    setShiftCloseNotifs(prev => [notif, ...prev]);
+  }, []);
+
+  const clearShiftCloseNotifs = () => setShiftCloseNotifs([]);
+  const markShiftCloseNotifRead = (id) =>
+    setShiftCloseNotifs(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
 
   const tokenRef = useRef(currentUser?.token ?? null)
   tokenRef.current = currentUser?.token ?? null
 
   const { refreshSocket } = useSocketActions();
+  const refreshSocketRef = useRef(refreshSocket)
+  refreshSocketRef.current = refreshSocket
 
-  // ── CHECK SETUP ON LOAD ───────────────────────────────────────────────────────
+  const logout = useCallback(() => {
+    setCurrentUser(null);
+    localStorage.removeItem('pos_system_user');
+    refreshSocketRef.current?.();
+    window.location.href = '/login';
+  }, []);
+
+  // ── CENTRAL AUTH FETCH — auto-logout on 401 ───────────────────────────
+  const authFetch = useCallback(async (url, options = {}) => {
+    const token = tokenRef.current
+    if (!token) return null
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        ...(options.headers || {}),
+        Authorization: `Bearer ${token}`,
+      },
+    })
+    if (res.status === 401) {
+      console.warn('🔒 Session expired — redirecting to login')
+      setCurrentUser(null)
+      localStorage.removeItem('pos_system_user')
+      localStorage.setItem('pos_session_expired', '1')
+      refreshSocketRef.current?.()
+      window.location.href = '/login'
+      return null
+    }
+    return res
+  }, [])
+
+  const authFetchRef = useRef(authFetch)
+  authFetchRef.current = authFetch
+
+  // ── SETUP CHECK ────────────────────────────────────────────────────────
   useEffect(() => {
     const checkSetup = async () => {
       try {
-        const res = await fetch("http://localhost:5000/api/setup/status");
-
-        if (!res.ok) {
-          throw new Error(`Server responded with ${res.status}`);
-        }
-
+        const res = await fetch('http://localhost:5000/api/setup/status');
+        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
         const data = await res.json();
-
-        /// If the backend has settings, we use them!
         setIsSetupComplete(data.isSetup && data.hasOwner);
-
-        // 3. If settings exist, save them to state AND localStorage
         if (data.isSetup) {
-          // We need a route to fetch the actual settings details
-          const settingsRes = await fetch("http://localhost:5000/api/setup/details");
+          const settingsRes = await fetch('http://localhost:5000/api/setup/details');
           const settingsData = await settingsRes.json();
-          setSettings(settingsData);
-
-          localStorage.setItem('pos_system_settings', JSON.stringify(settingsData));
+          setSettings(settingsData.settings || settingsData);
         }
-
       } catch (err) {
-        console.error("Setup check failed:", err);
+        console.error('Setup check failed:', err);
         setIsSetupComplete(false);
       }
     };
-
     checkSetup();
   }, []);
 
-  // ── FETCH HELPERS ─────────────────────────────────────────────────────
-  const fetchProducts = useCallback(async (overrideToken) => {
+  // ── FETCH HELPERS — all use authFetch ─────────────────────────────────
+  const fetchProducts = useCallback(async () => {
     try {
-      const authToken = overrideToken ?? tokenRef.current
-      if (!authToken) return
-      const res = await fetch("http://localhost:5000/api/products", { headers: { Authorization: `Bearer ${authToken}` } })
+      const user = JSON.parse(localStorage.getItem('pos_system_user') || '{}')
+      const params = new URLSearchParams()
+      if (user.role !== 'owner' && user.store) params.set('store', user.store)
+      const res = await authFetchRef.current(`http://localhost:5000/api/products?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
-      setProducts(Array.isArray(data) ? data : [])
-    } catch (err) { console.error("Error fetching products:", err); setProducts([]) }
+      setProducts(data.success && Array.isArray(data.products) ? data.products : [])
+    } catch (err) { console.error('Error fetching products:', err); setProducts([]) }
   }, [])
 
-  const fetchSales = useCallback(async (overrideToken) => {
+  const fetchSales = useCallback(async () => {
     try {
-      const authToken = overrideToken ?? tokenRef.current
-      if (!authToken) return
-      const res = await fetch("http://localhost:5000/api/sales", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await authFetchRef.current('http://localhost:5000/api/sales')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
-      setSales(Array.isArray(data) ? data : [])
-    } catch (err) { console.error("Error fetching sales:", err); setSales([]) }
+      setSales(data.success && Array.isArray(data.sales) ? data.sales : [])
+    } catch (err) { console.error('Error fetching sales:', err); setSales([]) }
   }, [])
 
-  const fetchReturns = useCallback(async (overrideToken) => {
+  const fetchReturns = useCallback(async () => {
     try {
-      const authToken = overrideToken ?? tokenRef.current
-      if (!authToken) return
-      const res = await fetch("http://localhost:5000/api/returns", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await authFetchRef.current('http://localhost:5000/api/returns')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
-      setReturns(Array.isArray(data) ? data : [])
-    } catch (err) { console.error("Error fetching returns:", err); setReturns([]) }
+      setReturns(data.success && Array.isArray(data.returns) ? data.returns : [])
+    } catch (err) { console.error('Error fetching returns:', err); setReturns([]) }
   }, [])
 
-  const fetchStockIn = useCallback(async (overrideToken) => {
+  const fetchStockIn = useCallback(async () => {
     try {
-      const authToken = overrideToken ?? tokenRef.current
-      if (!authToken) return
-      const res = await fetch("http://localhost:5000/api/stockin", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await authFetchRef.current('http://localhost:5000/api/stockin')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
-      setStockInLog(Array.isArray(data) ? data : [])
-    } catch (err) { console.error("Error fetching stock-in:", err); setStockInLog([]) }
+      setStockInLog(data.success && Array.isArray(data.stockIn) ? data.stockIn : [])
+    } catch (err) { console.error('Error fetching stock-in:', err); setStockInLog([]) }
   }, [])
 
-  const fetchUsers = useCallback(async (overrideToken) => {
+  const fetchUsers = useCallback(async () => {
     try {
-      const authToken = overrideToken ?? tokenRef.current
-      if (!authToken) return
-      const res = await fetch("http://localhost:5000/api/auth/employees", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await authFetchRef.current('http://localhost:5000/api/auth/employees')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
-      setUsers(Array.isArray(data) ? data : [])
-    } catch (err) { console.error("Error fetching users:", err); setUsers([]) }
+      if (Array.isArray(data)) setUsers(data)
+      else if (data.success && Array.isArray(data.users)) setUsers(data.users)
+      else setUsers([])
+    } catch (err) { console.error('Error fetching users:', err.message); setUsers([]) }
   }, [])
 
-  const fetchArchives = useCallback(async (overrideToken) => {
+  const fetchArchives = useCallback(async () => {
     try {
-      const authToken = overrideToken ?? tokenRef.current
-      if (!authToken) return
-      const res = await fetch("http://localhost:5000/api/archives", { headers: { Authorization: `Bearer ${authToken}` } })
+      const res = await authFetchRef.current('http://localhost:5000/api/archives')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
-      const archivesArray = Array.isArray(data) ? data : [];
-      setDailyArchives(archivesArray)
-      const today = new Date().toLocaleDateString('en-CA');
-      const closesToday = archivesArray.filter(a => a.date === today);
-      setShiftCloses(closesToday);
-    } catch (err) {
-      console.error("Error fetching archives:", err);
-      setDailyArchives([])
-    }
+      const archivesArray = data.success && Array.isArray(data.archives) ? data.archives : [];
+      setDailyArchives(archivesArray);
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role === 'owner') {
+        const todayStr = new Date().toLocaleDateString('en-CA');
+        const todayArchives = archivesArray.filter(a => {
+          if (!a?.date) return false;
+          return new Date(a.date).toLocaleDateString('en-CA') === todayStr;
+        });
+        setShiftCloseNotifs(prev => {
+          const existingNames = new Set(prev.map(n => n.employeeName));
+          const newNotifs = todayArchives
+            .filter(a => !existingNames.has(a.employeeName))
+            .map(a => ({
+              id: a._id || (a.employeeName + a.date),
+              employeeName: a.employeeName,
+              time: a.closedAt
+                ? new Date(a.closedAt).toLocaleTimeString()
+                : a.createdAt ? new Date(a.createdAt).toLocaleTimeString() : 'unknown time',
+              revenue: a.revenue || 0,
+              date: todayStr, read: false, createdAt: Date.now(),
+            }));
+          return newNotifs.length > 0 ? [...newNotifs, ...prev] : prev;
+        });
+      }
+    } catch (err) { console.error('Error fetching archives:', err); setDailyArchives([]) }
   }, [])
 
-  // ── FETCH ON USER CHANGE ──────────────────────────────────────────────
+  const fetchStores = useCallback(async () => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/stores')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      setStores(data.success && Array.isArray(data.stores) ? data.stores : [])
+    } catch (err) { console.error('Error fetching stores:', err); setStores([]) }
+  }, [])
+
+  const fetchCategories = useCallback(async () => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/categories')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      setCategories(data.success && Array.isArray(data.categories) ? data.categories : [])
+    } catch (err) { console.error('Error fetching categories:', err); setCategories([]) }
+  }, [])
+
+  const fetchSuppliers = useCallback(async () => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/suppliers')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      setSuppliers(data.success && Array.isArray(data.suppliers) ? data.suppliers : [])
+    } catch (err) { console.error('Error fetching suppliers:', err); setSuppliers([]) }
+  }, [])
+
+  // ── CUSTOMERS ──────────────────────────────────────────────────────────
+  const fetchCustomers = useCallback(async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.store) params.set('store', filters.store);
+      if (filters.search) params.set('search', filters.search);
+      if (filters.overdue) params.set('overdue', 'true');
+      if (filters.blacklisted) params.set('blacklisted', 'true');
+      const res = await authFetchRef.current(`http://localhost:5000/api/customers?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      return Array.isArray(data) ? data : [];
+    } catch (err) { console.error('Error fetching customers:', err); return []; }
+  }, []);
+
+  const fetchCustomer = useCallback(async (customerId) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/customers/${customerId}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      return await res.json();
+    } catch (err) { console.error('Error fetching customer:', err); return null; }
+  }, []);
+
+  const recordRepayment = useCallback(async (customerId, amount, notes = '') => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/customers/${customerId}/repayments`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(amount), notes })
+      });
+      const data = await res.json();
+      if (res.ok) return { success: true, ...data };
+      return { success: false, message: data.error || 'Failed to record repayment' };
+    } catch (err) { console.error('Repayment error:', err); return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const blacklistCustomer = useCallback(async (customerId, blacklisted, reason = '') => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/customers/${customerId}/blacklist`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ blacklisted, reason })
+      });
+      const data = await res.json();
+      if (res.ok) return { success: true, customer: data.customer };
+      return { success: false, message: data.error || 'Failed to update blacklist' };
+    } catch (err) { console.error('Blacklist error:', err); return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const checkCustomerCredit = useCallback(async (name, phone, store) => {
+    try {
+      const params = new URLSearchParams({ search: phone || name, store });
+      const res = await authFetchRef.current(`http://localhost:5000/api/customers?${params}`)
+      if (!res || !res.ok) return null;
+      const data = await res.json();
+      if (!Array.isArray(data) || data.length === 0) return null;
+      const match = phone
+        ? data.find(c => c.phone === phone)
+        : data.find(c => c.name.toLowerCase() === name.toLowerCase());
+      return match || null;
+    } catch { return null; }
+  }, []);
+
+  // ── PURCHASE ORDERS ────────────────────────────────────────────────────
+  const fetchPurchaseOrders = useCallback(async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.store) params.set('store', filters.store);
+      if (filters.status) params.set('status', filters.status);
+      if (filters.supplierId) params.set('supplierId', filters.supplierId);
+      if (filters.paymentStatus) params.set('paymentStatus', filters.paymentStatus);
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      return data.purchaseOrders || [];
+    } catch (err) { console.error('fetchPurchaseOrders error:', err); return []; }
+  }, []);
+
+  const fetchPurchaseOrder = useCallback(async (id) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      return data.purchaseOrder || null;
+    } catch (err) { console.error('fetchPurchaseOrder error:', err); return null; }
+  }, []);
+
+  const createPurchaseOrder = useCallback(async (payload) => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/purchase-orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, purchaseOrder: data.purchaseOrder } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const updatePurchaseOrder = useCallback(async (id, payload) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, purchaseOrder: data.purchaseOrder } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const sendPurchaseOrder = useCallback(async (id) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}/send`, { method: 'PATCH' });
+      const data = await res.json();
+      return res.ok ? { success: true, purchaseOrder: data.purchaseOrder } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const receivePurchaseOrder = useCallback(async (id, items) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}/receive`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items })
+      });
+      const data = await res.json();
+      if (res.ok) { fetchProducts(); return { success: true, purchaseOrder: data.purchaseOrder, stockUpdates: data.stockUpdates }; }
+      return { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, [fetchProducts]);
+
+  const cancelPurchaseOrder = useCallback(async (id, reason = '') => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}/cancel`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      return res.ok ? { success: true } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const deletePurchaseOrder = useCallback(async (id) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      return res.ok ? { success: true } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  // ── EXPENSES ───────────────────────────────────────────────────────────
+  const fetchExpenses = useCallback(async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.store) params.set('store', filters.store);
+      if (filters.date) params.set('date', filters.date);
+      if (filters.category) params.set('category', filters.category);
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      const res = await authFetchRef.current(`http://localhost:5000/api/expenses?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      return data.expenses || [];
+    } catch (err) { console.error('fetchExpenses error:', err); return []; }
+  }, []);
+
+  const fetchExpenseSummary = useCallback(async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.store) params.set('store', filters.store);
+      if (filters.date) params.set('date', filters.date);
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      const res = await authFetchRef.current(`http://localhost:5000/api/expenses/summary?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      return await res.json();
+    } catch (err) { console.error('fetchExpenseSummary error:', err); return { summary: [], grandTotal: 0 }; }
+  }, []);
+
+  const logExpense = useCallback(async (payload) => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, expense: data.expense } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const deleteExpense = useCallback(async (id, reason = '') => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/expenses/${id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason })
+      });
+      const data = await res.json();
+      return res.ok ? { success: true } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  // ── PETTY CASH ─────────────────────────────────────────────────────────
+  const fetchPettyCashToday = useCallback(async (store) => {
+    try {
+      const params = new URLSearchParams();
+      if (store) params.set('store', store);
+      const res = await authFetchRef.current(`http://localhost:5000/api/petty-cash/today?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      return await res.json();
+    } catch (err) { console.error('fetchPettyCashToday error:', err); return { record: null }; }
+  }, []);
+
+  const fetchPettyCashHistory = useCallback(async (filters = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (filters.store) params.set('store', filters.store);
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      const res = await authFetchRef.current(`http://localhost:5000/api/petty-cash/history?${params}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      return data.records || [];
+    } catch (err) { console.error('fetchPettyCashHistory error:', err); return []; }
+  }, []);
+
+  const openPettyCash = useCallback(async (store, openingFloat = 0, notes = '') => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/petty-cash/open', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ store, openingFloat: Number(openingFloat), notes })
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, record: data.record } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const addPettyCashTransaction = useCallback(async (store, type, amount, description = '', expenseCategory = 'other') => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/petty-cash/transaction', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ store, type, amount: Number(amount), description, expenseCategory })
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, record: data.record } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  const closePettyCash = useCallback(async (store, closingFloat, notes = '') => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/petty-cash/close', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ store, closingFloat: Number(closingFloat), notes })
+      });
+      const data = await res.json();
+      return res.ok ? { success: true, record: data.record } : { success: false, message: data.message };
+    } catch { return { success: false, message: 'Network error' }; }
+  }, []);
+
+  // ── MESSAGES ───────────────────────────────────────────────────────────
+  const fetchConversations = useCallback(async () => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/messages/conversations')
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      setConversations(data.success ? data.conversations : []);
+    } catch (err) { console.error('Error fetching conversations:', err); setConversations([]); }
+  }, []);
+
+  const fetchThread = useCallback(async (userId) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/messages/thread/${userId}`)
+      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
+      const data = await res.json()
+      if (data.success) { setMessages(data.messages); fetchConversations(); }
+      return data.messages || [];
+    } catch (err) { console.error('Error fetching thread:', err); return []; }
+  }, [fetchConversations]);
+
+  const sendMessage = useCallback(async (receiverId, content) => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ receiverId, content })
+      });
+      const data = await res.json();
+      if (data.success) { setMessages(prev => [...prev, data.message]); fetchConversations(); }
+      return data;
+    } catch (err) { console.error('Send message error:', err); return { success: false }; }
+  }, [fetchConversations]);
+
+  const sendBroadcast = useCallback(async (content) => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/messages/broadcast', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content })
+      });
+      const data = await res.json();
+      if (data.success) { setMessages(prev => [...prev, data.message]); fetchConversations(); }
+      return data;
+    } catch (err) { console.error('Broadcast error:', err); return { success: false }; }
+  }, [fetchConversations]);
+
+  const fetchUnreadMsgCount = useCallback(async () => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/messages/unread-count')
+      if (!res || !res.ok) return;
+      const data = await res.json()
+      if (data.success) setUnreadMsgCount(data.unreadCount);
+    } catch (err) { console.error('Unread count error:', err); }
+  }, []);
+
+  // ── FETCH ON USER CHANGE ───────────────────────────────────────────────
+  const currentUserRef = useRef(currentUser)
+  currentUserRef.current = currentUser
+
   useEffect(() => {
     if (!currentUser?.token) return
-    const t = currentUser.token
-    fetchProducts(t); fetchSales(t); fetchReturns(t); fetchStockIn(t); fetchArchives(t)
-    if (currentUser.role === 'owner') fetchUsers(t)
-  }, [currentUser, fetchProducts, fetchSales, fetchReturns, fetchStockIn, fetchArchives, fetchUsers])
+    setUnreadMsgCount(0);
+    const role = currentUser.role
+    const fetches = [
+      () => fetchProducts(),
+      () => fetchSales(),
+      () => fetchReturns(),
+      () => (role === 'owner' || role === 'manager') && fetchStockIn(),
+      () => fetchArchives(),
+      () => fetchStores(),
+      () => fetchCategories(),
+      () => fetchSuppliers(),
+      () => fetchConversations(),
+      () => fetchUnreadMsgCount(),
+      () => (role === 'owner' || role === 'manager') && fetchUsers(),
+    ];
+    const timers = fetches.map((fn, i) => setTimeout(fn, i * 200));
+    return () => timers.forEach(clearTimeout);
+  }, [
+    currentUser?.token, currentUser?.role,
+    fetchUsers, fetchProducts, fetchSales, fetchReturns,
+    fetchStockIn, fetchArchives, fetchStores, fetchCategories,
+    fetchSuppliers, fetchConversations, fetchUnreadMsgCount,
+  ]);
 
-  // ── LOGIN / LOGOUT ────────────────────────────────────────────────────
+  // ── LOGIN ──────────────────────────────────────────────────────────────
   const login = async (username, password) => {
     try {
-      const res = await fetch("http://localhost:5000/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('http://localhost:5000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
       })
+      if (!res.ok) throw new Error(`Status: ${res.status}`);
       const data = await res.json()
       if (data.success) {
         const userData = {
           token: data.token,
           role: data.role,
-          name: data.name,
+          fullname: data.fullname || data.name,
+          name: data.fullname || data.name,
+          username: data.username,
+          _id: data.id || data._id,
           id: data.id,
           store: data.store
         }
         setCurrentUser(userData)
-        localStorage.setItem("pos_system_user", JSON.stringify(userData))
+        localStorage.setItem('pos_system_user', JSON.stringify(userData))
         tokenRef.current = data.token
-        refreshSocket();
-        fetchProducts(data.token); fetchSales(data.token); fetchReturns(data.token)
-        fetchStockIn(data.token);
-        fetchArchives(data.token)
-        if (data.role === 'owner') fetchUsers(data.token)
+        refreshSocketRef.current?.();
         return { success: true, role: data.role }
       }
-      return { success: false, message: data.message || "Login failed" }
-    } catch (err) {
-      console.error("Login error:", err)
-      return { success: false, message: "Server error" }
-    }
+      return { success: false, message: data.message || 'Login failed' }
+    } catch (err) { console.error('Login error:', err); return { success: false, message: 'Server error' } }
   }
 
-  const logout = () => {
-    setCurrentUser(null)
-    localStorage.removeItem("pos_system_user")
-    refreshSocket(); // <--- Add this!
-    window.location.href = '/login'
-  }
-
-  // ── SETUP OWNER ───────────────────────────────────────────────────────
-  // ── SETUP OWNER ───────────────────────────────────────────────────────
+  // ── SETUP OWNER ────────────────────────────────────────────────────────
   const validatePassword = (password) => {
     if (!password) return false;
     return /[A-Z]/.test(password) && /[0-9]/.test(password);
   };
 
   const setupOwner = async (formData) => {
-    // ✅ FIXED KEY: Matches 'ownerPassword' from your SetupWizard.jsx
     const password = formData.get('ownerPassword');
-
     if (!validatePassword(password)) {
-      return {
-        success: false,
-        message: "Password must contain at least one uppercase letter and one number."
-      };
+      return { success: false, message: 'Password must contain at least one uppercase letter and one number.' };
     }
-
     try {
-      // 2. Send request to the /initialize route
-      const res = await fetch("http://localhost:5000/api/setup/initialize", {
-        method: "POST",
-        body: formData // No Headers needed, browser sets boundary for FormData
-      });
-
+      const res = await fetch('http://localhost:5000/api/setup/initialize', { method: 'POST', body: formData });
       const data = await res.json();
-
-      if (res.ok && data.success) {
-        setIsSetupComplete(true);
-        return { success: true };
-      } else {
-        if (data.error && data.error.includes("E11000")) {
-          return {
-            success: false,
-            message: "This email is already registered. Please use a different email or log in."
-          };
-        }
-        return {
-          success: false,
-          message: data.error || data.message || "Setup failed"
-        };
-      }
-    } catch (err) {
-      console.error("Setup Operation failed:", err);
-      return { success: false, message: "Could not connect to server." };
-    }
+      if (res.ok && data.success) { setIsSetupComplete(true); return { success: true }; }
+      if (data.error && data.error.includes('E11000')) return { success: false, message: 'This email is already registered.' };
+      return { success: false, message: data.error || data.message || 'Setup failed' };
+    } catch (err) { console.error('Setup failed:', err); return { success: false, message: 'Could not connect to server.' }; }
   };
 
-  // ── STOCK-IN ──────────────────────────────────────────────────────────
+  // ── STOCK IN ───────────────────────────────────────────────────────────
   const addStockIn = async (form) => {
     try {
-      const res = await fetch("http://localhost:5000/api/stockin", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      const res = await authFetchRef.current('http://localhost:5000/api/stockin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form)
       })
       const data = await res.json()
       if (data.success) { fetchStockIn(); fetchProducts() }
       return data
-    } catch (err) { console.error("Operation failed:", err); return { success: false } }
+    } catch (err) { console.error('Operation failed:', err); return { success: false } }
   }
 
-  // ── RECORD SALE ───────────────────────────────────────────────────────
+  // ── RECORD SALE ────────────────────────────────────────────────────────
   const recordMultipleSales = async (cartItems, paymentInfo = {}) => {
     try {
-      const res = await fetch("http://localhost:5000/api/sales", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tokenRef.current}`
-        },
+      const res = await authFetchRef.current('http://localhost:5000/api/sales', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          // Include the store context from the current user session
-          store: currentUser?.store || "Main Store",
-          cashier: currentUser?.name || "Unknown",
-          items: cartItems.map(item => ({
-            productId: item._id || item.id,
-            qty: item.qty,
-            price: item.sellPrice
-          })),
+          store: currentUserRef.current?.store || 'Main Store',
+          cashier: currentUserRef.current?.fullname || currentUserRef.current?.username || 'Unknown',
+          items: cartItems.map(item => ({ productId: item._id || item.id, qty: item.qty, price: item.sellPrice })),
           total: cartItems.reduce((sum, i) => sum + i.total, 0),
           paymentInfo: {
             paymentMethod: paymentInfo.paymentMethod,
-            mpesaPhone: paymentInfo.mpesaPhone || "",
-            customerName: paymentInfo.customerName || "",
+            mpesaPhone: paymentInfo.mpesaPhone || '',
+            customerName: paymentInfo.customerName || '',
+            customerPhone: paymentInfo.customerPhone || '',
+            promiseDate: paymentInfo.promiseDate || '',
             cashPart: Number(paymentInfo.cashPart) || 0,
             mpesaPart: Number(paymentInfo.mpesaPart) || 0,
             discount: Number(paymentInfo.discount) || 0,
             finalTotal: Number(paymentInfo.finalTotal) || cartItems.reduce((s, i) => s + i.total, 0),
             cashGiven: Number(paymentInfo.cashGiven) || 0,
             change: Number(paymentInfo.change) || 0,
+            cardApprovalCode: paymentInfo.cardApprovalCode || '',
+            bankReference: paymentInfo.bankReference || '',
           }
         })
       });
-
       const data = await res.json();
       if (data.success) {
-        fetchSales();
-        fetchProducts();
+        fetchSales(); fetchProducts();
+        if (paymentInfo.paymentMethod === 'credit' && data.sale?._id) {
+          try {
+            await authFetchRef.current('http://localhost:5000/api/customers/from-sale', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                customerName: paymentInfo.customerName || '',
+                phone: paymentInfo.customerPhone || '',
+                store: currentUserRef.current?.store || 'Main Store',
+                saleId: data.sale._id,
+              })
+            })
+          } catch (err) {
+            console.error('Customer link error:', err)
+          }
+        }
         return { success: true, ...data };
       }
       return { success: false, error: data.error || 'Failed to record sale' };
-    } catch (err) {
-      console.error("Sale Recording Error:", err);
-      return { success: false, error: 'Failed to record sale' };
-    }
+    } catch (err) { console.error('Sale Recording Error:', err); return { success: false, error: 'Failed to record sale' }; }
   };
 
-  // ── RETURNS ───────────────────────────────────────────────────────────
+  // ── RETURNS ────────────────────────────────────────────────────────────
   const processReturn = async (saleId, returnItems, reason, customerName) => {
     try {
-      const res = await fetch("http://localhost:5000/api/returns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
+      const res = await authFetchRef.current('http://localhost:5000/api/returns', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ saleId, items: returnItems, reason, customerName })
       })
       const data = await res.json()
       fetchReturns()
       return { success: true, returnId: data._id }
-    } catch (err) { console.error("Operation failed:", err); return { success: false } }
+    } catch (err) { console.error('Operation failed:', err); return { success: false } }
   }
 
   const approveReturn = async (returnId) => {
     try {
-      await fetch(`http://localhost:5000/api/returns/${returnId}/approve`, {
-        method: "PATCH", headers: { Authorization: `Bearer ${tokenRef.current}` }
-      })
+      await authFetchRef.current(`http://localhost:5000/api/returns/${returnId}/approve`, { method: 'PATCH' })
       fetchReturns(); fetchProducts(); fetchSales()
       return true
-    } catch (err) { console.error("Operation failed:", err); return false }
+    } catch (err) { console.error('Operation failed:', err); return false }
   }
 
   const rejectReturn = async (returnId) => {
     try {
-      await fetch(`http://localhost:5000/api/returns/${returnId}/reject`, {
-        method: "PATCH", headers: { Authorization: `Bearer ${tokenRef.current}` }
-      })
+      await authFetchRef.current(`http://localhost:5000/api/returns/${returnId}/reject`, { method: 'PATCH' })
       fetchReturns(); fetchSales()
       return true
-    } catch (err) { console.error("Operation failed:", err); return false }
+    } catch (err) { console.error('Operation failed:', err); return false }
   }
 
-  // ── USER MANAGEMENT ───────────────────────────────────────────────────
+  // ── USER MANAGEMENT ────────────────────────────────────────────────────
   const addUser = async (form) => {
     try {
-      const res = await fetch("http://localhost:5000/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tokenRef.current}`
-        },
-        // Send the full form which should now include 'role' and 'store'
-        body: JSON.stringify(form)
+      const res = await authFetchRef.current('http://localhost:5000/api/auth/register', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
       });
       const data = await res.json();
       if (data.success) fetchUsers();
       return data;
-    } catch (err) {
-      console.error("Operation failed:", err);
-      return { success: false };
-    }
+    } catch (err) { console.error('Operation failed:', err); return { success: false }; }
   };
 
   const updateUser = async (id, form) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/${id}`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${tokenRef.current}` },
-        body: JSON.stringify(form)
+      const res = await authFetchRef.current(`http://localhost:5000/api/auth/${id}`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
       })
       const data = await res.json()
       if (data.success) fetchUsers()
       return data
-    } catch (err) { console.error("Operation failed:", err); return { success: false }; }
+    } catch (err) { console.error('Operation failed:', err); return { success: false }; }
   }
 
   const deleteUser = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/${id}`, {
-        method: "DELETE", headers: { Authorization: `Bearer ${tokenRef.current}` }
-      })
+      const res = await authFetchRef.current(`http://localhost:5000/api/auth/${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) setUsers(prev => prev.filter(u => u._id !== id))
       return data
-    } catch (err) { console.error("Operation failed:", err); return { success: false }; }
+    } catch (err) { console.error('Operation failed:', err); return { success: false }; }
   }
 
   const toggleUserStatus = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/auth/${id}/toggle`, {
-        method: "PATCH", headers: { Authorization: `Bearer ${tokenRef.current}` }
-      })
+      const res = await authFetchRef.current(`http://localhost:5000/api/auth/${id}/toggle`, { method: 'PATCH' })
+      if (!res || !res.ok) throw new Error(`Server rejected request with status: ${res?.status}`);
       const data = await res.json()
       if (data.success) fetchUsers()
       return data
-    } catch (err) { console.error("Operation failed:", err); return { success: false }; }
+    } catch (err) { console.error('Staff toggle failed:', err.message); return { success: false, message: err.message }; }
   }
 
-  // ── WHITE LABEL SETTINGS UPDATE ───────────────────────────────────────
+  // ── SETTINGS UPDATE ────────────────────────────────────────────────────
   const updateSettings = async (newSettings) => {
     try {
       const formData = new FormData()
-      Object.keys(newSettings).forEach(key => {
-        if (key !== 'logoFile') formData.append(key, newSettings[key])
-      })
+      Object.keys(newSettings).forEach(key => { if (key !== 'logoFile') formData.append(key, newSettings[key]) })
       if (newSettings.logoFile) formData.append('logo', newSettings.logoFile)
-
-      const res = await fetch("http://localhost:5000/api/auth/settings", {
-        method: "PUT",
-        headers: { Authorization: `Bearer ${tokenRef.current}` },
-        body: formData
-      })
+      const res = await authFetchRef.current('http://localhost:5000/api/setup/update', { method: 'PUT', body: formData })
       const data = await res.json()
-      if (data.success) {
-        setSettings(data.settings)
-        localStorage.setItem('pos_system_settings', JSON.stringify(data.settings))
-        return { success: true }
-      }
+      if (data.success) { setSettings(data.settings); localStorage.setItem('pos_system_settings', JSON.stringify(data.settings)); return { success: true } }
       return { success: false }
-    } catch (err) { console.error("Settings update failed:", err); return { success: false } }
+    } catch (err) { console.error('Settings update failed:', err); return { success: false } }
   }
 
-  // ── NOTIFICATIONS ─────────────────────────────────────────────────────
+  // ── NOTIFICATIONS ──────────────────────────────────────────────────────
   const addNotification = useCallback((message, type = 'info', target = 'owner') => {
     const notif = {
       id: Date.now() + Math.random(),
@@ -442,93 +812,224 @@ export function AppProvider({ children }) {
   const markAllNotificationsRead = (target) => setNotifications(prev => prev.map(n => (n.target === target || n.target === 'all') ? { ...n, read: true } : n))
   const clearNotifications = (target) => setNotifications(prev => prev.filter(n => n.target !== target && n.target !== 'all'))
 
-  // ── 2. DEFINE SOCKET LISTENER AFTER NOTIFICATIONS ──────────────────────────
+  // ── SOCKET LISTENERS ───────────────────────────────────────────────────
   const socket = useSocket();
 
   useEffect(() => {
     if (!socket) return;
 
-    socket.on("adminShiftNotification", (data) => {
+    socket.on('adminShiftNotification', (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
-      const name = data.employeeName || "An employee";
+      const name = data.employeeName || 'An employee';
       const time = data.time || new Date().toLocaleTimeString();
-      addNotification(`🔒 ${name} closed shift at ${time}`, "info", "owner");
-      fetchArchives();
-      fetchSales();
+      const revenue = data.revenue ?? 0;
+      addNotification(`🔒 ${name} closed shift at ${time}`, 'info', 'owner');
+      addShiftCloseNotif(name, time, revenue);
+      fetchArchives(); fetchSales();
     });
 
-    // ── Triggered after return approval, stock-in, or any backend data change
-    socket.on("sync_system_data", () => {
-      fetchSales();
-      fetchReturns();
-      fetchArchives();
+    socket.on('sync_system_data', () => {
+      fetchSales(); fetchReturns(); fetchProducts();
+    });
+
+    socket.on('newReturnRequest', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
+      if (role !== 'owner') return
+      addNotification(
+        `🔄 ${data.requesterName} submitted a return request — KSh ${(data.refundAmount || 0).toLocaleString()}. Reason: ${data.reason || '—'}`,
+        'warning', 'owner'
+      )
+      fetchReturns()
+    })
+
+    socket.on('returnUpdated', (data) => {
+      const user = currentUserRef.current
+      if (!user) return
+      addNotification(
+        data.message || 'Your return request was updated',
+        data.status === 'approved' ? 'success' : 'error',
+        user.fullname || user.username
+      )
+      fetchReturns()
+      fetchSales()
+    })
+
+    socket.on('saleVoided', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner') return;
+      const name = data.voidedBy || 'A manager';
+      const cashier = data.cashier || 'unknown cashier';
+      const receipt = data.receiptId || '';
+      const total = data.total || 0;
+      addNotification(
+        `🚫 ${name} voided sale ${receipt} (${cashier}) — KSh ${total.toLocaleString()}. Reason: ${data.voidReason || '—'}`,
+        'warning', 'owner'
+      );
+      fetchSales(); fetchProducts();
+    });
+
+    socket.on('autoExpiredCheck', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner') return;
       fetchProducts();
+      addNotification(`⚠️ Auto-check moved ${data.moved} expired product(s) to expired stock.`, 'info', 'owner');
+    });
+
+    socket.on('overdueCustomers', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner') return;
+      const count = data.count || 0;
+      addNotification(
+        `⏰ ${count} customer${count !== 1 ? 's have' : ' has'} passed their payment deadline. Visit Debtors to follow up.`,
+        'warning', 'owner'
+      );
+    });
+
+    socket.on('lowStockAlert', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner' && role !== 'manager') return;
+      addNotification(
+        `⚠️ Low stock: ${data.productName} — only ${data.stock} unit(s) left (reorder at ${data.reorderLevel})`,
+        'warning', 'owner'
+      );
+    });
+
+    socket.on('stockReceived', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner' && role !== 'manager') return;
+      fetchProducts();
+      addNotification(
+        `📦 Stock received from ${data.supplierName} on PO ${data.poNumber} — by ${data.receivedBy}`,
+        'info', 'owner'
+      );
+    });
+
+    socket.on('pettyCashAutoClosed', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner') return;
+      addNotification(
+        `🔒 Petty cash for ${data.store} was auto-closed at midnight (KSh ${(data.closingFloat || 0).toLocaleString()}). No physical count was done — verify tomorrow morning.`,
+        'warning', 'owner'
+      );
+    });
+
+    socket.on('expenseLogged', (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner') return;
+      addNotification(
+        `💸 Expense logged: KSh ${data.amount?.toLocaleString()} (${data.category}) by ${data.recordedBy}`,
+        'info', 'owner'
+      );
+    });
+
+    socket.on('new_message', (data) => {
+      const msg = data?.message;
+      const user = currentUserRef.current;
+      if (!msg) return;
+      const senderId = String(msg.senderId);
+      const currentId = String(user?._id || user?.id || '');
+      if (senderId === currentId) { fetchConversations(); return; }
+
+      // Only count as new if message arrived in last 30 seconds
+      const msgAge = Date.now() - new Date(msg.createdAt || msg.timestamp || 0).getTime()
+      if (msgAge > 30000) { fetchConversations(); return; }
+
+      setUnreadMsgCount(prev => prev + 1);
+      fetchConversations();
+      setMessages(prev => {
+        const exists = prev.some(m => String(m._id) === String(msg._id));
+        if (exists) return prev;
+        return [...prev, msg];
+      });
+      const msgFrom = data.from || 'Someone';
+      if (msg.isBroadcast) {
+        const preview = msg.content?.slice(0, 50) || '';
+        const suffix = (msg.content?.length || 0) > 50 ? '...' : '';
+        addNotification(`📢 ${msgFrom}: ${preview}${suffix}`, 'info', 'all');
+      } else {
+        addNotification(
+          `💬 New message from ${msgFrom}`, 'info',
+          user?.role === 'owner' ? 'owner' : (user?.fullname || user?.username || 'employee')
+        );
+      }
     });
 
     return () => {
-      socket.off("adminShiftNotification");
-      socket.off("sync_system_data");
+      socket.off('adminShiftNotification');
+      socket.off('sync_system_data');
+      socket.off('autoExpiredCheck');
+      socket.off('new_message');
+      socket.off('saleVoided');
+      socket.off('overdueCustomers');
+      socket.off('lowStockAlert');
+      socket.off('stockReceived');
+      socket.off('expenseLogged');
+      socket.off('newReturnRequest')
+      socket.off('returnUpdated')
     };
-  }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns, fetchProducts]);
+  }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns,
+    fetchProducts, addShiftCloseNotif, fetchConversations]);
 
-  // ── SHIFT CLOSE ───────────────────────────────────────────────────────
-  const closeShift = async () => {
-    const today = new Date().toLocaleDateString('en-CA')
-    const employeeName = currentUser?.name || "Unknown"
+  // ── VOID SALE ──────────────────────────────────────────────────────────
+  const voidSale = async (saleId, managerUsername, managerPassword, reason) => {
+    try {
+      const res = await authFetchRef.current(`http://localhost:5000/api/sales/${saleId}/void`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ managerUsername, managerPassword, reason })
+      })
+      const data = await res.json()
+      if (data.success) { fetchSales(); fetchProducts(); return { success: true } }
+      return { success: false, message: data.message || 'Failed to void sale.' }
+    } catch (err) { console.error('Void sale error:', err); return { success: false, message: 'Network error. Please try again.' } }
+  }
 
-    const alreadyClosed = shiftCloses.find(s => s.employeeName === employeeName && s.date === today)
-    if (alreadyClosed) return { success: false, message: "You have already closed your shift today." }
-
+  // ── SHIFT CLOSE ────────────────────────────────────────────────────────
+  const closeShift = async ({ actualCash = 0 } = {}) => {
+    const today = new Date().toLocaleDateString('en-CA');
+    const employeeName = currentUserRef.current?.fullname || currentUserRef.current?.username || 'Unknown'
+    const alreadyClosed = dailyArchives.find(a => a.employeeName === employeeName && a.date === today)
+    if (alreadyClosed) return { success: false, message: 'You have already closed your shift today.' }
     const empTodaySales = sales.filter(s => {
       const saleDate = new Date(s.date).toLocaleDateString('en-CA')
-      return saleDate === today && s.cashier === employeeName && !s.returned
+      return saleDate === today && s.cashier === employeeName && !s.returned && !s.voided
     })
-
-    const revenue = empTodaySales.reduce((sum, s) => sum + (s.total || 0), 0)
+    const revenue = empTodaySales.reduce((sum, s) =>
+      sum + (s.items?.reduce((rv, item) => {
+        if (item.voidStatus === 'voided') return rv
+        return rv + (item.price || 0) * Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+      }, 0) || 0), 0)
     const transactions = empTodaySales.length
     const itemsSold = empTodaySales.reduce((sum, s) =>
-      sum + (s.items?.reduce((q, i) => q + i.qty, 0) || 0), 0)
-
+      sum + (s.items?.reduce((q, item) => {
+        if (item.voidStatus === 'voided') return q
+        return q + Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+      }, 0) || 0), 0)
     try {
-      const res = await fetch("http://localhost:5000/api/archives", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${tokenRef.current}`
-        },
-        body: JSON.stringify({ employeeName, date: today, revenue, transactions, itemsSold })
+      const res = await authFetchRef.current('http://localhost:5000/api/archives', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ employeeName, date: today, revenue, transactions, itemsSold, openingFloat: 0, actualCash: Number(actualCash) || 0 })
       });
-
       const data = await res.json().catch(() => ({}));
-
       if (res.ok && data.success) {
-
-        if (socket) {
-          socket.emit("shift-closed", {
-            employeeName,
-            time: new Date().toLocaleTimeString()
-          });
-        }
-
         fetchArchives();
         setShiftCloses(prev => [{ employeeName, date: today }, ...prev]);
-        addNotification(`✅ Your shift has been closed.`, "success", employeeName);
-        return { success: true };
+        addNotification('✅ Your shift has been closed.', 'success', employeeName);
+        return { success: true, archive: data.archive };
       }
-      return { success: false, message: data.message || "Server refused to close shift" };
-    } catch (err) {
-      console.error("Error saving archive:", err);
-      return { success: false, message: "Network error or Server is down" };
-    }
+      return { success: false, message: data.message || 'Server refused to close shift' };
+    } catch (err) { console.error('Error saving archive:', err); return { success: false, message: 'Network error or Server is down' }; }
   }
 
   const hasClosedShiftToday = () => {
     const today = new Date().toLocaleDateString('en-CA');
-    return shiftCloses.some(s => s.employeeName === currentUser?.name && s.date === today)
+    const employeeName = currentUserRef.current?.fullname || currentUserRef.current?.username;
+    return dailyArchives.some(s => s.employeeName === employeeName && s.date === today);
   }
 
-  // ── MIDNIGHT RESET ────────────────────────────────────────────────────
+  // ── MIDNIGHT RESET ─────────────────────────────────────────────────────
   useEffect(() => {
     const interval = setInterval(() => {
       const today = new Date().toLocaleDateString('en-CA')
@@ -543,55 +1044,60 @@ export function AppProvider({ children }) {
     return () => clearInterval(interval)
   }, [fetchSales])
 
-  // ── SYNC ENGINE ───────────────────────────────────────────────────────
+  // ── SYNC ENGINE ────────────────────────────────────────────────────────
   useEffect(() => {
-    if (!currentUser?.token) return;
+    if (!tokenRef.current) return;
     const syncData = () => { fetchProducts(); fetchSales(); }
     window.addEventListener('focus', syncData);
     const interval = setInterval(syncData, 5 * 60 * 1000);
-    return () => {
-      window.removeEventListener('focus', syncData);
-      clearInterval(interval);
-    };
-  }, [currentUser, fetchProducts, fetchSales]);
+    return () => { window.removeEventListener('focus', syncData); clearInterval(interval); };
+  }, [currentUser?.token, fetchProducts, fetchSales]);
 
-  // ── DERIVED VALUES ────────────────────────────────────────────────────
+  // ── DERIVED VALUES ─────────────────────────────────────────────────────
   const today = new Date().toLocaleDateString('en-CA');
+
   const todaySales = sales.filter(s => {
     const saleDate = new Date(s.date).toLocaleDateString('en-CA')
-    return saleDate === today && !s.returned
+    return saleDate === today && !s.returned && !s.voided
   })
+
   const totalRevenue = sales.reduce((sum, s) => {
     if (s.returned) return sum
     const returnedValue = s.items?.reduce((rv, item) => {
-      if (item.returnStatus === 'approved') return rv + (item.price || 0) * item.qty
+      if (item.returnStatus === 'approved') return rv + (item.price || 0) * Math.max(0, item.qty - (item.voidedQty || 0) - (item.returnedQty || 0))
       return rv
     }, 0) || 0
     return sum + (s.total || 0) - returnedValue
   }, 0)
 
-  const lowStockProducts = products.filter(p => p.stock <= (settings.lowStockThreshold || 5))
+  const lowStockProducts = products.filter(p => p.stock <= (settings?.lowStockThreshold || 5))
   const pendingReturns = returns.filter(r => r.status === 'pending')
-  const todayShiftCloses = shiftCloses.filter(s => s.date === today)
+  const todayShiftCloses = dailyArchives.filter(s => s.date === today);
+
   const myNotifications = notifications.filter(n =>
     n.target === 'all' ||
-    (currentUser?.role === 'owner' && n.target === 'owner') ||
-    (currentUser?.role === 'employee' && (n.target === currentUser?.name || n.target === 'employee'))
+    (currentUser?.role === 'owner' && (n.target === 'owner' || n.target === 'all')) ||
+    ((currentUser?.role === 'cashier' || currentUser?.role === 'employee' || currentUser?.role === 'manager') &&
+      (n.target === 'all' || n.target === 'employee' ||
+        n.target === currentUser?.fullname || n.target === currentUser?.username)
+    )
   )
-  const unreadCount = myNotifications.filter(n => !n.read).length
+
   const isOwner = currentUser?.role === 'owner';
   const isManager = currentUser?.role === 'manager';
   const isCashier = currentUser?.role === 'cashier' || currentUser?.role === 'employee';
 
+  const shiftCloseUnread = isOwner ? shiftCloseNotifs.filter(n => !n.read).length : 0;
+  const unreadCount = myNotifications.filter(n => !n.read).length + shiftCloseUnread;
 
-  // ── PROVIDER ──────────────────────────────────────────────────────────
+  // ── PROVIDER ───────────────────────────────────────────────────────────
   return (
     <AppContext.Provider value={{
       socket,
       settings, setSettings, updateSettings,
       isSetupComplete, setupOwner,
       currentUser, login, logout,
-      isOwner: currentUser?.role === 'owner',
+      isOwner,
       isEmployee: currentUser?.role === 'employee',
       isManager,
       isCashier,
@@ -608,9 +1114,32 @@ export function AppProvider({ children }) {
       markAllNotificationsRead, clearNotifications,
       shiftCloses, todayShiftCloses,
       closeShift, hasClosedShiftToday,
+      voidSale,
       dailyArchives, fetchArchives,
       lowStockProducts, today,
-      stockInLog, addStockIn, fetchStockIn
+      stockInLog, addStockIn, fetchStockIn,
+      stores, setStores, fetchStores,
+      categories, setCategories, fetchCategories,
+      suppliers, setSuppliers, fetchSuppliers,
+      shiftCloseNotifs, addShiftCloseNotif,
+      clearShiftCloseNotifs, markShiftCloseNotifRead,
+      messages, setMessages,
+      conversations, fetchConversations,
+      fetchThread, sendMessage, sendBroadcast,
+      unreadMsgCount, setUnreadMsgCount, fetchUnreadMsgCount,
+      // Customers
+      fetchCustomers, fetchCustomer,
+      recordRepayment, blacklistCustomer, checkCustomerCredit,
+      // Phase 6: Purchase Orders
+      fetchPurchaseOrders, fetchPurchaseOrder,
+      createPurchaseOrder, updatePurchaseOrder,
+      sendPurchaseOrder, receivePurchaseOrder,
+      cancelPurchaseOrder, deletePurchaseOrder,
+      // Phase 6: Expenses
+      fetchExpenses, fetchExpenseSummary, logExpense, deleteExpense,
+      // Phase 6: Petty Cash
+      fetchPettyCashToday, fetchPettyCashHistory,
+      openPettyCash, addPettyCashTransaction, closePettyCash,
     }}>
       {children}
     </AppContext.Provider>

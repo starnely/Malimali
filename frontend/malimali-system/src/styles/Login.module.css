@@ -1,29 +1,154 @@
+/* ── Split layout ─────────────────────────────────────────────────── */
+.page {
+  min-height: 100vh;
+  display: flex;
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* ── Logo wrapper ─────────────────────────────────────────────────── */
+.logoWrap {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.logoWrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+/* ── Field label ──────────────────────────────────────────────────── */
+.label {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* ── Input wrapper ────────────────────────────────────────────────── */
+.inputWrap {
+  position: relative;
+}
+
+.inputIcon {
+  position: absolute;
+  left: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  pointer-events: none;
+}
+
 .input {
   width: 100%;
-  padding: 11px 38px 11px 36px;
-  border: 1px solid #ddd;
-  border-radius: 10px;
-  font-size: 14px;
+  padding: 12px 42px 12px 42px;
   outline: none;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+  box-sizing: border-box;
 }
 
-.input:focus {
-  border-color: #185FA5;
-  box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.1);
+.input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.7;
 }
 
+/* ── Eye toggle ───────────────────────────────────────────────────── */
+.eyeBtn {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  font-size: 18px;
+  transition: color 0.2s;
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.eyeBtn:hover {
+  color: var(--primary) !important;
+}
+
+/* ── Forgot button ────────────────────────────────────────────────── */
+.forgotBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  transition: opacity 0.15s;
+  padding: 0;
+}
+
+.forgotBtn:hover {
+  opacity: 0.7;
+}
+
+/* ── Login / submit button ────────────────────────────────────────── */
 .loginBtn {
   width: 100%;
-  padding: 12px;
-  background: #185FA5;
-  color: #fff;
+  padding: 13px;
   border: none;
-  border-radius: 10px;
-  font-weight: 600;
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-family: 'DM Sans', system-ui, sans-serif;
+  color: #ffffff;
   cursor: pointer;
-  margin-top: 10px;
+  transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
+  letter-spacing: 0.02em;
+  display: block;
 }
 
-.loginBtn:hover {
-  background: #144a83;
+.loginBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 24px rgba(30, 95, 165, 0.5) !important;
+}
+
+.loginBtn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.loginBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Error box ────────────────────────────────────────────────────── */
+.errorBox {
+  padding: 10px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ── Brand strip ──────────────────────────────────────────────────── */
+.brand {
+  text-align: center;
+  font-size: 0.68rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* ── Recovery modal backdrop ──────────────────────────────────────── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }

@@ -1,51 +1,101 @@
-/* Critical stock badge */
+/* ── Stock Badges ───────────────────────────────────────── */
 .critical {
-  background: #FCEBEB;
-  color: #791F1F;
+  background: var(--danger-light);
+  color: var(--danger-dark);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .critical:hover {
-  background: #E24B4A;
+  background: var(--danger);
   color: #fff;
 }
 
-/* Low stock badge */
 .low {
-  background: #FAEEDA;
-  color: #633806;
+  background: var(--warning-light);
+  color: var(--warning-dark);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .low:hover {
-  background: #F5A623;
+  background: var(--warning);
   color: #fff;
 }
 
-/* In stock badge */
 .inStock {
-  background: #EAF3DE;
-  color: #27500A;
+  background: var(--success-light);
+  color: var(--success-dark);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
 .inStock:hover {
-  background: #27500A;
+  background: var(--success);
   color: #fff;
 }
 
-/* === Modal Animations === */
-@keyframes fadeInScale {
-  0% {
-    opacity: 0;
-    transform: scale(0.95);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+/* ── Expiry Badges ──────────────────────────────────────── */
+.expiredBadge {
+  background: var(--danger-light);
+  color: var(--danger-dark);
+  font-weight: 600;
 }
 
+.expiringSoonBadge {
+  background: var(--warning-light);
+  color: var(--warning-dark);
+  font-weight: 600;
+}
+
+.freshBadge {
+  background: var(--success-light);
+  color: var(--success-dark);
+  font-weight: 600;
+}
+
+/* ── Table Row ──────────────────────────────────────────── */
+.tableRow {
+  border-top: 1px solid var(--border-soft);
+  transition: background 0.15s;
+}
+.tableRow:hover {
+  background: var(--primary-light);
+}
+.tableRowExpired {
+  background: var(--danger-light);
+  opacity: 0.85;
+}
+
+/* ── Form Panel ─────────────────────────────────────────── */
+.formPanel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 480px;
+  background: var(--bg-card);
+  box-shadow: var(--shadow-dropdown);
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.formPanelOpen {
+  transform: translateX(0);
+}
+
+/* ── Animations ─────────────────────────────────────────── */
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
 .animate-fadeIn {
   animation: fadeInScale 0.25s ease-out forwards;
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.animate-slideUp {
+  animation: slideUp 0.25s ease-out forwards;
 }

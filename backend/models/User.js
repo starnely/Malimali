@@ -1,37 +1,49 @@
+
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema(
   {
-    fullname: { type: String, required: true }, // Added to match "Fullname" in image_3b9fb0.png
+    fullname: { type: String, required: true }, 
     username: { type: String, required: true, unique: true },
-    email: { type: String, required: true, unique: true }, // Added email field
+    email: { type: String, required: true, unique: true }, 
     password: { type: String, required: true },
     
-    // Updated roles to match your requirement: owner, manager, cashier
+    // ✅ Aligned with frontend dashboard filters and register endpoints
     role: { 
       type: String, 
-      enum: ["owner", "manager", "cashier"], 
+      enum: ["owner", "manager", "cashier", "employee"], 
       default: "cashier" 
     },
 
-    // New field to link the user to a specific Store/Warehouse
+    // Link the user to a specific Store/Warehouse
     store: { 
       type: String, 
       required: true,
-      default: "Store One" // Defaulting to match your UI example
+      default: "Store One" 
+      
     },
 
+    // ✅ Dual-flag configuration prevents suspension bypass across old/new endpoints
     active: { type: Boolean, default: true },
+    isActive: { type: Boolean, default: true },
 
-    // ✅ Keeps your existing shift tracking logic
     shiftStatus: {
       type: String,
       enum: ["open", "closed"],
-      default: "closed" // Generally safer to start 'closed' until they clock in
+      default: "closed" 
     }
   },
   { timestamps: true }
 );
 
-// ✅ Prevent OverwriteModelError by reusing existing model if already compiled
+// ── AUTO-SYNC MITIGATION MIDDLEWARE ──────────────────────────────────
+// Ensures that changing either flag updates the other automatically on save
+userSchema.pre("save", function () {
+  if (this.isModified("active")) {
+    this.isActive = this.active;
+  } else if (this.isModified("isActive")) {
+    this.active = this.isActive;
+  }
+});
+
 module.exports = mongoose.models.User || mongoose.model("User", userSchema);

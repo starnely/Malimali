@@ -1,0 +1,833 @@
+/* ── Page ────────────────────────────────────────────────────────────── */
+.page {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.pageHeader { margin-bottom: 20px; }
+
+.pageTitleRow {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+}
+
+.pageSubtitle {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text-muted);
+}
+
+/* ── Summary ─────────────────────────────────────────────────────────── */
+.summaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 900px) {
+  .summaryGrid { grid-template-columns: repeat(2, 1fr); }
+}
+
+@media (max-width: 480px) {
+  .summaryGrid { grid-template-columns: 1fr 1fr; }
+}
+
+.summaryCard {
+  border-radius: var(--radius-lg);
+  padding: 14px 16px;
+  border: 1px solid transparent;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.summaryIcon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.summaryCard.blue   { background: #eff6ff; border-color: #bfdbfe; }
+.summaryCard.red    { background: #fef2f2; border-color: #fecaca; }
+.summaryCard.green  { background: #f0fdf4; border-color: #bbf7d0; }
+.summaryCard.orange { background: #fff7ed; border-color: #fed7aa; }
+
+.summaryLabel {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+
+.summaryCard.blue   .summaryLabel { color: var(--primary); }
+.summaryCard.red    .summaryLabel { color: #dc2626; }
+.summaryCard.green  .summaryLabel { color: var(--success-dark); }
+.summaryCard.orange .summaryLabel { color: #ea580c; }
+
+.summaryValue {
+  font-size: 18px;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.summaryCard.blue   .summaryValue { color: var(--primary); }
+.summaryCard.red    .summaryValue { color: #dc2626; }
+.summaryCard.green  .summaryValue { color: var(--success-dark); }
+.summaryCard.orange .summaryValue { color: #ea580c; }
+
+.summarySubtext {
+  font-size: 11px;
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+/* ── Recovery Progress Bar ───────────────────────────────────────────── */
+.recoveryBar {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.recoveryBarLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.recoveryTrack {
+  height: 8px;
+  background: var(--bg-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.recoveryFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--success));
+  border-radius: 999px;
+  transition: width 0.5s ease;
+  min-width: 4px;
+}
+
+/* ── Filter Tabs ─────────────────────────────────────────────────────── */
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterTab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-soft);
+  background: transparent;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.filterTab:hover {
+  background: var(--bg-muted);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.filterActive {
+  background: var(--primary);
+  border-color: var(--primary);
+  color: #fff;
+}
+
+.filterActive:hover {
+  background: var(--primary-dark);
+  border-color: var(--primary-dark);
+  color: #fff;
+}
+
+.filterBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  background: var(--bg-muted);
+  color: var(--text-muted);
+}
+
+.filterBadgeActive {
+  background: rgba(255,255,255,0.25);
+  color: #fff;
+}
+
+.filterOverduePulse {
+  border-color: #fecaca;
+  color: #dc2626;
+}
+
+.filterOverduePulse:not(.filterActive):hover {
+  background: #fef2f2;
+  border-color: #dc2626;
+}
+
+/* ── Refresh Button ──────────────────────────────────────────────────── */
+.refreshBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.refreshBtn:hover { background: var(--bg-muted); border-color: var(--primary); color: var(--primary); }
+.refreshBtn:disabled { cursor: not-allowed; opacity: 0.6; }
+.spinning { animation: spin 1s linear infinite; }
+
+/* ── Empty / Loading ─────────────────────────────────────────────────── */
+.emptyState {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--text-muted);
+}
+
+.emptyIcon { font-size: 56px; opacity: 0.25; display: block; margin: 0 auto 14px; }
+.emptyTitle { font-size: 17px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; }
+.emptyDesc  { font-size: 13px; }
+
+.loadingState {
+  text-align: center;
+  padding: 80px;
+  color: var(--text-muted);
+  font-size: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Sale Cards Grid ─────────────────────────────────────────────────── */
+.list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+@media (max-width: 800px) {
+  .list { grid-template-columns: 1fr; }
+}
+
+.saleCard {
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  padding: 16px;
+  border-top: 4px solid var(--primary);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  transition: box-shadow 0.15s, transform 0.15s;
+}
+
+.saleCard:hover {
+  box-shadow: var(--shadow-dropdown);
+  transform: translateY(-1px);
+}
+
+.cardOverdue  { border-top-color: #dc2626; background: #fffafa; }
+.cardSettled  { border-top-color: var(--success); opacity: 0.85; }
+.cardActive   { border-top-color: var(--primary); }
+
+.saleCardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.saleLeft { flex: 1; min-width: 0; }
+
+.customerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.customerAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--primary-light);
+  color: var(--primary);
+  font-weight: 900;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.cardOverdue .customerAvatar {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.cardSettled .customerAvatar {
+  background: #dcfce7;
+  color: var(--success-dark);
+}
+
+.customerName {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.customerPhone {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.blacklistWarning {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 11px;
+  color: #dc2626;
+  font-weight: 600;
+  background: #fef2f2;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Promise Badge ───────────────────────────────────────────────────── */
+.promiseBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 10px;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.promiseBadge.settled  { background: #f0fdf4; color: var(--success-dark); border: 1px solid #bbf7d0; }
+.promiseBadge.overdue  { background: #fef2f2; color: #dc2626;             border: 1px solid #fecaca; }
+.promiseBadge.dueToday { background: #fff7ed; color: #ea580c;             border: 1px solid #fed7aa; }
+.promiseBadge.soon     { background: #fffbeb; color: #d97706;             border: 1px solid #fde68a; }
+.promiseBadge.ok       { background: #f0fdf4; color: var(--success-dark); border: 1px solid #bbf7d0; }
+
+/* ── Sale Right (amounts) ────────────────────────────────────────────── */
+.saleRight {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.amountLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.amountValue {
+  font-weight: 800;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.owesLabel {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.owesValue {
+  font-weight: 900;
+  font-size: 16px;
+}
+
+.owesValue.overdue { color: #dc2626; }
+.owesValue.warning { color: #ea580c; }
+
+.settledAmtBadge {
+  margin-top: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--success-dark);
+  background: #dcfce7;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Payment Progress ────────────────────────────────────────────────── */
+.progressSection { }
+
+.progressLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+
+.progressTrack {
+  height: 6px;
+  background: var(--bg-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--primary);
+  border-radius: 999px;
+  transition: width 0.4s ease;
+  min-width: 3px;
+}
+
+.progressOverdue { background: #dc2626; }
+
+/* ── Meta Row (dates + items) ────────────────────────────────────────── */
+.metaRow {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.metaDates {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.metaItem { font-size: 11px; color: var(--text-muted); }
+
+.itemTags {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.itemTag {
+  font-size: 11px;
+  padding: 2px 8px;
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
+
+.receiptRef {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+/* ── Card footer ─────────────────────────────────────────────────────── */
+.cardFooter {
+  margin-top: 2px;
+  border-top: 1px solid var(--border-soft);
+  padding-top: 10px;
+}
+
+.recordBtn {
+  width: 100%;
+  padding: 9px 16px;
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.recordBtn:hover { background: var(--primary-dark); }
+
+.recordBtnOverdue { background: #dc2626; }
+.recordBtnOverdue:hover { background: #b91c1c; }
+
+.settledTag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--success);
+}
+
+/* ── Repayment Modal ─────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.modal {
+  background: var(--bg-card);
+  border-radius: var(--radius-xl);
+  padding: 24px;
+  width: 100%;
+  max-width: 380px;
+  box-shadow: var(--shadow-dropdown);
+}
+
+.modalTitle {
+  font-weight: 700;
+  font-size: 17px;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.modalSubtitle {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-bottom: 18px;
+}
+
+.warningBox {
+  padding: 10px 12px;
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+  background: var(--warning-light);
+  border: 1px solid #fde68a;
+}
+
+.warningText {
+  font-size: 12px;
+  color: var(--warning-dark);
+  font-weight: 600;
+}
+
+.formLabel {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.formInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  outline: none;
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+
+.formInput:focus { border-color: var(--primary); }
+.formInput.error { border-color: var(--danger); }
+.formInput.notes { font-weight: 400; font-size: 14px; }
+
+.errorMsg { color: var(--danger); font-size: 12px; margin-top: 4px; }
+
+.quickAmounts {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 8px 0 12px;
+}
+
+.quickAmt {
+  padding: 5px 10px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.quickAmt:hover { background: var(--bg-muted); }
+.quickAmt.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+
+.quickAmtFull {
+  padding: 5px 10px;
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  background: transparent;
+  color: var(--primary);
+  font-family: inherit;
+  transition: all 0.15s;
+}
+
+.quickAmtFull.active { background: var(--primary); color: #fff; }
+
+.modalFooter {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.modalBtnCancel {
+  flex: 1;
+  padding: 11px;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 14px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.modalBtnCancel:hover { background: var(--bg-muted); }
+
+.modalBtnConfirm {
+  flex: 2;
+  padding: 11px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+  background: var(--primary);
+  color: #fff;
+  transition: background 0.15s;
+}
+
+.modalBtnConfirm:hover:not(:disabled) { background: var(--primary-dark); }
+.modalBtnConfirm:disabled { background: var(--primary-muted); cursor: not-allowed; }
+
+/* ── Toast ───────────────────────────────────────────────────────────── */
+.toast {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 2000;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 14px;
+  color: #fff;
+  box-shadow: var(--shadow-dropdown);
+}
+
+.toast.success { background: var(--success); }
+.toast.error   { background: var(--danger); }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Collapsible cards ───────────────────────────────────────────────── */
+
+/* Override list to single column — snapshots scan better stacked */
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.saleCard {
+  padding: 0;
+  gap: 0;
+  border-top: 3px solid var(--primary);
+  overflow: hidden;
+}
+
+.saleCardOpen {
+  box-shadow: var(--shadow-dropdown);
+}
+
+/* ── Snapshot row ── */
+.snapshot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  transition: background 0.12s;
+}
+
+.snapshot:hover { background: var(--bg-muted); }
+
+.snapshotLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.snapshotInfo {
+  min-width: 0;
+  flex: 1;
+}
+
+.snapshotRight {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.chevron {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.amountSub {
+  font-size: 10px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+/* ── Progress bar (slim, always visible) ── */
+.progressSection {
+  padding: 0 14px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 4px;
+  background: var(--bg-muted);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progressHint {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* ── Expanded body ── */
+.expandedBody {
+  padding: 12px 14px 14px;
+  border-top: 1px solid var(--border-soft);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--bg-muted);
+}
+
+.paidDetail {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  background: var(--bg-card);
+  padding: 6px 10px;
+  border-radius: var(--radius-sm);
+}
+
+.metaDates {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* ── Expand all button ── */
+.expandAllBtn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid var(--border-soft);
+  background: transparent;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  margin-left: auto;
+  transition: all 0.15s;
+}
+
+.expandAllBtn:hover {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border-color: var(--text-muted);
+}

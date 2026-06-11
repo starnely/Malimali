@@ -12,11 +12,23 @@
 
 /* Variants */
 .primary {
-  @apply bg-blue-700 text-white border-blue-700 hover:bg-blue-800;
+  background-color: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+.primary:hover {
+  background-color: var(--primary-dark);
+  border-color: var(--primary-dark);
 }
 
 .success {
-  @apply bg-green-700 text-white border-green-700 hover:bg-green-800;
+  background-color: var(--success);
+  color: #ffffff;
+  border-color: var(--success);
+}
+.success:hover {
+  background-color: var(--success-dark);
+  border-color: var(--success-dark);
 }
 
 .danger {
@@ -24,7 +36,8 @@
 }
 
 .secondary {
-  @apply bg-white text-gray-700 border-gray-300 hover:bg-gray-100;
+  @apply bg-white border-gray-300 hover:bg-gray-100;
+  color: var(--text-secondary);
 }
 
 .disabled {

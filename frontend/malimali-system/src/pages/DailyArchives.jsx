@@ -1,131 +1,152 @@
 import { useState, useMemo } from 'react'
-import { MdArchive } from 'react-icons/md'
+import { MdArchive, MdStorefront } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import ArchiveCard from '@/components/cards/ArchiveCard'
 import DebtorPanel from '@/components/panels/DebtorPanel'
 import { buildLiveSummary } from '@/utils/utils'
 
 export default function DailyArchives() {
-  // 1. Update useApp to include isOwner and currentUser
-  const { sales, products, today, isOwner, currentUser } = useApp()
+  const { sales, products, today, isOwner, currentUser, stores } = useApp()
 
-  // 2. Define the missing state
-  const [selectedStore, setSelectedStore] = useState(isOwner ? "All" : currentUser.store)
-
-  const [expanded, setExpanded] = useState(null)
-  const [search, setSearch] = useState('')
-  const [debtorPanel, setDebtorPanel] = useState(null)
+  const [selectedStore, setSelectedStore] = useState(isOwner ? 'All' : currentUser?.store)
+  const [expanded,      setExpanded]      = useState(null)
+  const [search,        setSearch]        = useState('')
+  const [debtorPanel,   setDebtorPanel]   = useState(null)
 
   const todayStr = today?.slice(0, 10)
 
-  // ✅ Fix: build a summary for EVERY unique date found in sales
-  // This is why past dates weren't showing — we were only building today's summary
-  // and relying on backend archives for past days which were never saved
   const allSummaries = useMemo(() => {
-    // 1. First, filter sales by the selected store
     const filteredSalesByStore = sales.filter(s =>
-      selectedStore === "All" || s.store === selectedStore
-    );
-
-    // 2. Get unique dates ONLY from those filtered sales
+      selectedStore === 'All' || s.store === selectedStore
+    )
     const uniqueDates = [...new Set(
       filteredSalesByStore
         .map(s => s.date ? String(s.date).slice(0, 10) : null)
         .filter(Boolean)
-    )];
-
-    // 3. Build summaries using the filtered list
+    )]
     return uniqueDates
       .map(date => {
-        const summary = buildLiveSummary(date, filteredSalesByStore, products);
-        if (!summary) return null;
-        return { ...summary, isLive: date === todayStr };
+        const summary = buildLiveSummary(date, filteredSalesByStore, products)
+        if (!summary) return null
+        return { ...summary, isLive: date === todayStr }
       })
       .filter(Boolean)
-      .sort((a, b) => b.date.localeCompare(a.date));
-  }, [sales, products, todayStr, selectedStore]);
+      .sort((a, b) => b.date.localeCompare(a.date))
+  }, [sales, products, todayStr, selectedStore])
 
-  // Apply date filter
   const filtered = search
     ? allSummaries.filter(a => a.date === search)
     : allSummaries
 
   return (
-    <div className="p-6 bg-gray-100 min-h-screen">
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
       {debtorPanel && (
         <DebtorPanel date={debtorPanel} onClose={() => setDebtorPanel(null)} />
       )}
 
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-xl font-bold flex items-center gap-2 text-gray-800">
-          <MdArchive className="text-blue-700 text-2xl" /> Daily Archives
-        </h1>
-
-        {/* Add the Store Switcher here */}
-        {isOwner && (
-          <select
-            value={selectedStore}
-            onChange={(e) => setSelectedStore(e.target.value)}
-            className="p-2 border border-gray-300 rounded-lg text-xs bg-white shadow-sm outline-none"
-          >
-            <option value="All">All Locations</option>
-            <option value="Store One">Store One</option>
-            <option value="Store Two">Store Two</option>
-            <option value="Headquarters">Headquarters</option>
-          </select>
-        )}
-        
-        <p className="text-sm text-gray-500">
-          Today shows live data · Past dates show archived snapshots from sales history
-        </p>
-      </div>
-
-      {/* Date filter */}
-      <div className="flex items-center gap-2 mb-4">
-        <input
-          type="date"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-md text-sm
-                     focus:ring-2 focus:ring-blue-500 hover:border-blue-500 transition-colors"
-        />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="px-3 py-2 rounded-md text-sm bg-red-100 text-red-700
-                       border border-red-400 hover:bg-red-200 transition-colors"
-          >
-            Clear
-          </button>
-        )}
-      </div>
-
-      {/* Empty state */}
-      {filtered.length === 0 && (
-        <div className="bg-white border border-gray-200 rounded-lg p-12 text-center shadow">
-          <MdArchive className="text-5xl text-gray-300 mb-2 mx-auto" />
-          <div className="text-gray-400 font-medium">
-            {search ? `No sales found for ${search}` : 'No sales data yet'}
+      {/* ── Fixed header ───────────────────────────────── */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-5">
+          <div>
+            <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <MdArchive style={{ color: 'var(--primary)', fontSize: '24px' }} />
+              Daily Archives
+            </h1>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              Today shows live data · Past dates show archived snapshots from sales history
+            </p>
           </div>
-          <div className="text-xs text-gray-400 mt-1">
-            {search ? 'Try a different date or clear the filter' : 'Make sales to see daily summaries here'}
-          </div>
+
+          {/* Store switcher */}
+          {isOwner && (
+            <div
+              className="flex items-center gap-2 px-3 py-2 rounded-xl transition-all"
+              style={{
+                background: 'var(--bg-card)',
+                border: '1px solid var(--primary-muted)',
+                boxShadow: 'var(--shadow-card)',
+              }}
+            >
+              <MdStorefront style={{ color: 'var(--primary)', fontSize: '18px' }} />
+              <span
+                className="text-xs font-bold uppercase tracking-wider hidden sm:inline"
+                style={{ color: 'var(--text-muted)' }}
+              >
+                Branch:
+              </span>
+              <select
+                value={selectedStore}
+                onChange={e => setSelectedStore(e.target.value)}
+                className="bg-transparent text-sm font-semibold outline-none cursor-pointer pr-2"
+                style={{ color: 'var(--text-primary)' }}
+              >
+                <option value="All">✨ All Locations</option>
+                {stores?.map(st => (
+                  <option key={st._id} value={st.name}>📍 {st.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
-      )}
 
-      {/* Archive cards */}
-      {filtered.map(archive => (
-        <ArchiveCard
-          key={archive.date}
-          archive={archive}
-          isExpanded={expanded === archive.date}
-          onToggle={() =>
-            setExpanded(prev => prev === archive.date ? null : archive.date)
-          }
-          onViewDebtors={() => setDebtorPanel(archive.date)}
-        />
-      ))}
+        {/* Date filter */}
+        <div className="flex items-center gap-2">
+          <input
+            type="date"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="px-3 py-2 rounded-lg text-sm outline-none transition-all"
+            style={{
+              border: '1px solid var(--border-medium)',
+              background: 'var(--bg-muted)',
+              color: 'var(--text-primary)',
+            }}
+            onFocus={e => { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 3px var(--primary-light)' }}
+            onBlur={e  => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="px-3 py-2 rounded-lg text-sm font-semibold transition"
+              style={{
+                background: 'var(--danger-light)',
+                color: 'var(--danger-dark)',
+                border: '1px solid var(--danger)',
+              }}
+            >
+              Clear
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* ── Scrollable content ──────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
+        {filtered.length === 0 ? (
+          <div
+            className="rounded-xl p-12 text-center"
+            style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}
+          >
+            <MdArchive className="text-5xl mx-auto mb-3" style={{ color: 'var(--border-medium)' }} />
+            <div className="font-semibold text-base" style={{ color: 'var(--text-secondary)' }}>
+              {search ? `No sales found for ${search}` : 'No sales data yet'}
+            </div>
+            <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              {search ? 'Try a different date or clear the filter' : 'Make sales to see daily summaries here'}
+            </div>
+          </div>
+        ) : (
+          filtered.map(archive => (
+            <ArchiveCard
+              key={archive.date}
+              archive={archive}
+              isExpanded={expanded === archive.date}
+              onToggle={() => setExpanded(prev => prev === archive.date ? null : archive.date)}
+              onViewDebtors={() => setDebtorPanel(archive.date)}
+            />
+          ))
+        )}
+      </div>
     </div>
   )
 }

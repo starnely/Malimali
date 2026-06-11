@@ -1,44 +1,47 @@
-import React from 'react';
-
 const AuthLayout = ({ children }) => {
   return (
-    <div className="flex min-h-screen bg-white">
-      {/* LEFT SIDE: Your Developer Branding */}
-      <div className="hidden lg:flex w-1/2 bg-gray-50 flex-col items-center justify-center border-r p-12">
+    <div className="flex min-h-screen" style={{ background: 'var(--bg-card)' }}>
+
+      {/* LEFT — Developer branding */}
+      <div
+        className="hidden lg:flex w-1/2 flex-col items-center justify-center p-12"
+        style={{ background: 'var(--bg-page)', borderRight: '1px solid var(--border-soft)' }}
+      >
         <div className="text-center">
-          {/* Your Dev Logo */}
-          <div className="bg-black text-white w-12 h-12 flex items-center justify-center rounded-md mx-auto mb-6 text-xl font-bold">
+          {/* Dev logo */}
+          <div
+            className="w-12 h-12 flex items-center justify-center rounded-md mx-auto mb-6 text-xl font-bold"
+            style={{ background: 'var(--sidebar-bg)', color: '#fff' }}
+          >
             MKD
           </div>
-          
-          <h1 className="text-blue-500 font-bold text-3xl mb-2">
+
+          <h1 className="font-bold text-3xl mb-2" style={{ color: 'var(--primary)' }}>
             POS (Point Of Sales) v2.0
           </h1>
-          
-          {/* Illustration Placeholder */}
+
           <div className="my-8">
-             <img 
-               src="/pos.jpg" 
-               alt="POS System" 
-               className="w-full max-w-md mx-auto"
-             />
+            <img src="/pos.jpg" alt="POS System" className="w-full max-w-md mx-auto" />
           </div>
 
-          <div className="mt-12 text-gray-400 text-sm">
+          <div className="mt-12 text-sm" style={{ color: 'var(--text-muted)' }}>
             <p>© 2026 - 2050 POS (Point Of Sales) v2.0.</p>
-            <p>Designed & Developed by: <span className="text-blue-400 font-medium">NthigaERPTech</span></p>
+            <p>
+              Designed & Developed by:{' '}
+              <span className="font-medium" style={{ color: 'var(--primary-muted)' }}>NthigaERPTech</span>
+            </p>
           </div>
         </div>
       </div>
 
-      {/* RIGHT SIDE: Dynamic Content */}
+      {/* RIGHT — Dynamic content */}
       <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           {children}
         </div>
       </div>
     </div>
-  );
-};
+  )
+}
 
-export default AuthLayout;
+export default AuthLayout

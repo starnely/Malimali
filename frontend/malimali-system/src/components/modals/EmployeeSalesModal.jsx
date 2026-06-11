@@ -1,176 +1,118 @@
-import React, { useMemo } from 'react';
-import { MdClose, MdPerson } from 'react-icons/md';
+import { useMemo } from 'react'
+import { MdClose, MdPerson, MdPrint } from 'react-icons/md'
 
 export default function EmployeeSalesModal({ employee, sales, products = [], date, onClose }) {
-  // 1. Optimize calculations with useMemo so they don't re-run on every small state change
   const { employeeSales, totalItems, totalRevenue, totalProfit, productMap } = useMemo(() => {
-    const pMap = {};
-    products.forEach(p => { pMap[String(p._id)] = p.buyPrice || 0; });
+    const pMap = {}
+    products.forEach(p => { pMap[String(p._id)] = p.buyPrice || 0 })
 
     const filtered = sales.filter(s =>
-      s.cashier === employee &&
-      s.date?.startsWith(date) &&
-      !s.returned
-    );
+      s.cashier === employee && s.date?.startsWith(date) && !s.returned && !s.voided
+    )
 
-    let itemsCount = 0;
-    let revenue = 0;
-    let profit = 0;
+    const activeQty = (item) => {
+      if (item.voidStatus === 'voided') return 0
+      return Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+    }
 
+    let itemsCount = 0, revenue = 0, profit = 0
     filtered.forEach(sale => {
-      revenue += (sale.total || 0);
       sale.items?.forEach(item => {
-        itemsCount += (item.qty || 0);
-        const buy = pMap[String(item.productId?._id || item.productId)] || 0;
-        profit += (item.price - buy) * item.qty;
-      });
-    });
+        if (item.voidStatus === 'voided') return
+        const qty = activeQty(item)
+        if (qty <= 0) return
+        itemsCount += qty
+        revenue    += (item.price || 0) * qty
+        const buy   = pMap[String(item.productId?._id || item.productId)] || 0
+        profit     += (item.price - buy) * qty
+      })
+    })
 
-    return { employeeSales: filtered, totalItems: itemsCount, totalRevenue: revenue, totalProfit: profit, productMap: pMap };
-  }, [employee, sales, products, date]);
+    return { employeeSales: filtered, totalItems: itemsCount, totalRevenue: revenue, totalProfit: profit, productMap: pMap }
+  }, [employee, sales, products, date])
 
   const displayDate = new Date(date + 'T00:00:00').toLocaleDateString('en-KE', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
-  });
+  })
+
+  const activeQty = (item) => {
+    if (item.voidStatus === 'voided') return 0
+    return Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
+  }
 
   return (
     <>
-      <style>
-        {`
-          @media print {
-            .no-print { display: none !important; }
-            .print-only { display: block !important; }
-            * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-            .modal-overlay { background: white !important; position: static !important; padding: 0 !important; }
-            .modal-container { 
-              box-shadow: none !important; 
-              border: none !important; 
-              width: 100% !important; 
-              max-width: none !important; 
-              max-height: none !important;
-            }
-            .scroll-area { overflow: visible !important; height: auto !important; }
-            table { width: 100% !important; border: 1px solid #eee !important; }
-          }
-        `}
-      </style>
-
-      <div className="modal-overlay" style={{
-        position: 'fixed', inset: 0,
-        background: 'rgba(0,0,0,0.45)',
-        display: 'flex', alignItems: 'center',
-        justifyContent: 'center', zIndex: 1000, padding: '1rem'
-      }}>
-        <div className="modal-container" style={{
-          background: '#fff', borderRadius: '12px',
-          width: '100%', maxWidth: '640px',
-          maxHeight: '85vh', overflow: 'hidden',
-          display: 'flex', flexDirection: 'column', boxShadow: '0 20px 25px -5px rgba(0,0,0,0.1)'
-        }}>
-          {/* Header */}
-          <div style={{
-            padding: '1.25rem 1.5rem',
-            borderBottom: '0.5px solid #eee',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <div style={{
-                width: '36px', height: '36px', borderRadius: '50%',
-                background: '#E6F1FB', display: 'flex', alignItems: 'center', justifyContent: 'center'
-              }}>
-                <MdPerson style={{ color: '#185FA5', fontSize: '20px' }} />
-              </div>
-              <div>
-                <div style={{ fontSize: '15px', fontWeight: '600', color: '#333' }}>{employee}</div>
-                <div style={{ fontSize: '12px', color: '#888' }}>{displayDate}</div>
-              </div>
+      <style>{`@media print { .no-print { display: none !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .modal-overlay { background: white !important; position: static !important; padding: 0 !important; } .modal-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; max-height: none !important; } .scroll-area { overflow: visible !important; height: auto !important; } table { width: 100% !important; border: 1px solid #eee !important; } }`}</style>
+      <div className="modal-overlay fixed inset-0 flex items-center justify-center z-[1000] p-4" style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}>
+        <div className="modal-container w-full rounded-xl overflow-hidden flex flex-col" style={{ background: 'var(--bg-card)', maxWidth: '640px', maxHeight: '85vh', boxShadow: 'var(--shadow-dropdown)' }}>
+          <div className="flex-shrink-0 px-5 py-4 flex justify-between items-center" style={{ background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}>
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--primary-light)' }}><MdPerson style={{ color: 'var(--primary)', fontSize: '20px' }} /></div>
+              <div><div className="text-white text-sm font-bold">{employee}</div><div className="text-xs" style={{ color: 'var(--primary-muted)' }}>{displayDate}</div></div>
             </div>
-            <MdClose className="no-print" onClick={onClose} style={{ fontSize: '22px', color: '#aaa', cursor: 'pointer' }} />
+            <button className="no-print w-7 h-7 flex items-center justify-center rounded-lg transition" onClick={onClose} style={{ color: 'rgba(255,255,255,0.6)' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><MdClose size={18} /></button>
           </div>
 
-          {/* Summary Cards */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)',
-            gap: '12px', padding: '1rem 1.5rem',
-            borderBottom: '0.5px solid #eee'
-          }}>
+          <div className="flex-shrink-0 grid grid-cols-4 gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border-soft)' }}>
             {[
-              { label: 'Transactions', value: employeeSales.length, color: '#185FA5', bg: '#E6F1FB' },
-              { label: 'Items sold', value: totalItems, color: '#3B6D11', bg: '#EAF3DE' },
-              { label: 'Revenue', value: `KSh ${totalRevenue.toLocaleString()}`, color: '#BA7517', bg: '#FAEEDA' },
-              { label: 'Profit', value: `KSh ${totalProfit.toLocaleString()}`, color: '#533AB7', bg: '#EEEDFE' },
+              { label: 'Transactions', value: employeeSales.length, color: 'var(--primary)', bg: 'var(--primary-light)' },
+              { label: 'Items Sold', value: totalItems, color: 'var(--success-dark)', bg: 'var(--success-light)' },
+              { label: 'Revenue', value: `KSh ${totalRevenue.toLocaleString()}`, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
+              { label: 'Profit', value: `KSh ${totalProfit.toLocaleString()}`, color: 'var(--info-dark)', bg: 'var(--info-light)' },
             ].map((card, i) => (
-              <div key={i} style={{ background: card.bg, borderRadius: '8px', padding: '10px 12px', textAlign: 'center' }}>
-                <div style={{ fontSize: '10px', textTransform: 'uppercase', letterSpacing: '0.5px', color: card.color, marginBottom: '4px' }}>{card.label}</div>
-                <div style={{ fontSize: '14px', fontWeight: '700', color: card.color }}>{card.value}</div>
+              <div key={i} className="rounded-lg p-2.5 text-center" style={{ background: card.bg }}>
+                <div className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: card.color }}>{card.label}</div>
+                <div className="text-sm font-black" style={{ color: card.color }}>{card.value}</div>
               </div>
             ))}
           </div>
 
-          {/* Sales list */}
-          <div className="scroll-area" style={{ overflowY: 'auto', flex: 1 }}>
+          <div className="scroll-area flex-1 overflow-y-auto">
             {employeeSales.length === 0 ? (
-              <div style={{ padding: '3rem', textAlign: 'center', color: '#aaa', fontSize: '14px' }}>
-                No sales recorded for this date.
-              </div>
+              <div className="py-12 text-center" style={{ color: 'var(--text-muted)' }}><div className="text-3xl mb-2">📋</div><p className="text-sm">No sales recorded for this date.</p></div>
             ) : (
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
-                  <tr style={{ background: '#f9f9f9', position: 'sticky', top: 0, zIndex: 10 }}>
+                  <tr style={{ background: 'var(--bg-muted)', position: 'sticky', top: 0, zIndex: 10 }}>
                     {['#', 'Receipt', 'Items', 'Revenue', 'Profit', 'Time'].map(h => (
-                      <th key={h} style={{
-                        fontSize: '11px', color: '#999', fontWeight: '600', textTransform: 'uppercase',
-                        textAlign: 'left', padding: '12px 16px', borderBottom: '1px solid #eee'
-                      }}>{h}</th>
+                      <th key={h} style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase', textAlign: 'left', padding: '10px 14px', borderBottom: '1px solid var(--border-soft)', letterSpacing: '0.06em' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {employeeSales.map((sale, i) => {
-                    const saleItems = sale.items?.reduce((q, it) => q + it.qty, 0) || 0;
-                    const saleProfit = sale.items?.reduce((s2, item) => {
-                      const buy = productMap[String(item.productId?._id || item.productId)] || 0;
-                      return s2 + (item.price - buy) * item.qty;
-                    }, 0) || 0;
+                    const saleItems   = sale.items?.reduce((q, it) => { if (it.voidStatus === 'voided') return q; return q + activeQty(it) }, 0) || 0
+                    const saleRevenue = sale.items?.reduce((rv, it) => { if (it.voidStatus === 'voided') return rv; return rv + (it.price || 0) * activeQty(it) }, 0) || 0
+                    const saleProfit  = sale.items?.reduce((s2, item) => { if (item.voidStatus === 'voided') return s2; const buy = productMap[String(item.productId?._id || item.productId)] || 0; return s2 + (item.price - buy) * activeQty(item) }, 0) || 0
                     return (
-                      <tr key={sale._id} style={{ borderBottom: '0.5px solid #f5f5f5' }}>
-                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#bbb' }}>{i + 1}</td>
-                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#185FA5', fontWeight: '600' }}>{sale.receiptId || '—'}</td>
-                        <td style={{ padding: '10px 16px', fontSize: '13px', color: '#444' }}>{saleItems}</td>
-                        <td style={{ padding: '10px 16px', fontSize: '13px', color: '#333', fontWeight: '500' }}>KSh {sale.total?.toLocaleString()}</td>
-                        <td style={{ padding: '10px 16px', fontSize: '13px', color: '#3B6D11' }}>KSh {saleProfit.toLocaleString()}</td>
-                        <td style={{ padding: '10px 16px', fontSize: '12px', color: '#888' }}>{sale.time || '—'}</td>
+                      <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-soft)' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{i + 1}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>{sale.receiptId || '—'}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)' }}>{saleItems}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>KSh {saleRevenue.toLocaleString()}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--success-dark)', fontWeight: 600 }}>KSh {saleProfit.toLocaleString()}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{sale.time || '—'}</td>
                       </tr>
-                    );
+                    )
                   })}
                 </tbody>
-                <tfoot style={{ position: 'sticky', bottom: 0, background: '#fff' }}>
-                  <tr style={{ background: '#F8FAFC', borderTop: '2px solid #E2E8F0' }}>
-                    <td colSpan={2} style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700' }}>Totals</td>
-                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700' }}>{totalItems}</td>
-                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: '#185FA5' }}>KSh {totalRevenue.toLocaleString()}</td>
-                    <td style={{ padding: '12px 16px', fontSize: '13px', fontWeight: '700', color: '#3B6D11' }}>KSh {totalProfit.toLocaleString()}</td>
-                    <td></td>
+                <tfoot style={{ position: 'sticky', bottom: 0 }}>
+                  <tr style={{ background: 'var(--bg-muted)', borderTop: '2px solid var(--border-medium)' }}>
+                    <td colSpan={2} style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Totals</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{totalItems}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>KSh {totalRevenue.toLocaleString()}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--success-dark)' }}>KSh {totalProfit.toLocaleString()}</td>
+                    <td />
                   </tr>
                 </tfoot>
               </table>
             )}
           </div>
-          
-          {/* Footer Print Button */}
-          <div className="no-print" style={{ padding: '1rem', borderTop: '0.5px solid #eee', textAlign: 'right' }}>
-            <button 
-              onClick={() => window.print()}
-              style={{
-                padding: '8px 16px', background: '#185FA5', color: 'white', 
-                border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px'
-              }}
-            >
-              Print Report
-            </button>
+          <div className="no-print flex-shrink-0 px-5 py-3 flex justify-end" style={{ borderTop: '1px solid var(--border-soft)' }}>
+            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition" style={{ background: 'var(--primary)' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}><MdPrint /> Print Report</button>
           </div>
         </div>
       </div>
     </>
-  );
+  )
 }

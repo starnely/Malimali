@@ -1,230 +1,241 @@
-import { useState, useEffect } from 'react';
-import { MdCheckCircle } from 'react-icons/md';
-import ReturnModal from '@/components/modals/ReturnModal';
-import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel';
-import { useSocket } from '@/context/SocketContext';
-import { useApp } from '@/context/AppContext';
+import { useState, useEffect, useMemo } from 'react'
+import { MdCheckCircle } from 'react-icons/md'
+import ReturnModal from '@/components/modals/ReturnModal'
+import VoidModal from '@/components/modals/VoidModal'
+import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
+import { useSocket } from '@/context/SocketContext'
+import { useApp } from '@/context/AppContext'
 
-// Split components
-import SalesFilters from './SalesFilters';
-import SalesStats from './SalesStats';
-import OwnerView from './OwnerView';
-import EmployeeView from './EmployeeView';
+import SalesFilters from './SalesFilters'
+import SalesStats from './SalesStats'
+import OwnerView from './OwnerView'
+import EmployeeView from './EmployeeView'
 
-const categories = ['All', 'Furniture', 'Bedding', 'Utensils', 'Cleaning', 'Accessories'];
-
-// ── Sunday reset cutoff ────────────────────────────────────────────────
-function getLastSundayMidnight() {
-    const now = new Date();
-    const day = now.getDay();
-    const lastSunday = new Date(now);
-    lastSunday.setDate(now.getDate() - (day === 0 ? 7 : day));
-    lastSunday.setHours(0, 0, 0, 0);
-    return lastSunday;
+function getLast30DaysCutoff() {
+  const date = new Date()
+  date.setDate(date.getDate() - 30)
+  date.setHours(0, 0, 0, 0)
+  return date
 }
 
 export default function SalesHistory() {
-    const [search, setSearch] = useState('');
-    const [category, setCategory] = useState('All');
-    const [dateFrom, setDateFrom] = useState('');
-    const [dateTo, setDateTo] = useState('');
-    const [returnModal, setReturnModal] = useState(null);
-    const [returnSuccess, setReturnSuccess] = useState('');
-    const [expandedEmployee, setExpandedEmployee] = useState(null);
-    const [employeeDateFilter, setEmployeeDateFilter] = useState({});
+  const [search, setSearch] = useState('')
+  const [category, setCategory] = useState('All')
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
+  const [returnModal, setReturnModal] = useState(null)
+  const [voidModal, setVoidModal] = useState(null)
+  const [returnSuccess, setReturnSuccess] = useState('')
+  const [voidSuccess, setVoidSuccess] = useState('')
+  const [expandedEmployee, setExpandedEmployee] = useState(null)
+  const [employeeDateFilter, setEmployeeDateFilter] = useState({})
 
-    const socket = useSocket();
-    const { isOwner, currentUser, sales, fetchSales, fetchReturns, pendingReturns } = useApp();
+  const socket = useSocket()
+  const {
+    isOwner, currentUser, sales,
+    fetchSales, fetchReturns, fetchArchives,
+    pendingReturns, products, voidSale
+  } = useApp()
 
-    // const fetchSales = async () => {
-    // try {
-    // const user = JSON.parse(localStorage.getItem("malimali_current_user"));
-    // const res = await fetch("http://localhost:5000/sales", {
-    // headers: { Authorization: `Bearer ${user?.token}` }
-    // });
-    // const data = await res.json();
-    // setSales(Array.isArray(data) ? data : []);
-    // } catch (err) {
-    // console.error("Error fetching sales:", err);
-    // setSales([]);
-    // }
-    // };
+  const categories = useMemo(() => {
+    const cats = [...new Set(products.map(p => p.category).filter(Boolean))]
+    return ['All', ...cats.sort()]
+  }, [products])
 
-    // const fetchReturns = async () => {
-    // try {
-    // const user = JSON.parse(localStorage.getItem("malimali_current_user"));
-    // const res = await fetch("http://localhost:5000/returns?status=pending", {
-    // headers: { Authorization: `Bearer ${user?.token}` }
-    // });
-    // const data = await res.json();
-    // setPendingReturns(Array.isArray(data) ? data : []);
-    // } catch (err) {
-    // console.error("Error fetching returns:", err);
-    // setPendingReturns([]);
-    // }
-    // };
+  const visibleCategories = categories.slice(0, 4)
+  const dropdownCategories = categories.slice(4)
 
-    useEffect(() => {
-        fetchSales();
-        fetchReturns();
+  useEffect(() => {
+    fetchSales()
+    fetchReturns()
+    if (!socket) return
 
-        if (!socket) return;
+    socket.on('returnUpdated', () => { fetchReturns(); fetchSales() })
+    socket.on('adminShiftNotification', () => {
+      if (isOwner) { fetchSales(); fetchReturns(); fetchArchives() }
+    })
+    socket.on('sync_system_data', () => { fetchSales(); fetchReturns() })
 
-        // Listener for returns
-        socket.on("returnUpdated", () => {
-            fetchReturns();
-            fetchSales();
-        });
+    return () => {
+      socket.off('returnUpdated')
+      socket.off('adminShiftNotification')
+      socket.off('sync_system_data')
+    }
+  }, [socket, isOwner, fetchSales, fetchReturns, fetchArchives])
 
-        // ✅ ADD THIS: Listener for shift closures to refresh the history list
-        socket.on("adminShiftNotification", () => {
-            if (isOwner) {
-                console.log("Refreshing sales history due to shift closure...");
-                fetchSales();
-                fetchReturns();
+  const mySales = isOwner
+    ? sales
+    : sales.filter(s => s.cashier === (currentUser?.fullname || currentUser?.name || currentUser?.username))
+
+  const cutoff = getLast30DaysCutoff()
+  const visibleSales = isOwner ? mySales : mySales.filter(s => new Date(s.date) >= cutoff)
+
+  const filtered = visibleSales.filter(s => {
+    const matchSearch = !search || s.items?.some(i =>
+      i.productId?.name?.toLowerCase().includes(search.toLowerCase())
+    )
+    const matchCat = category === 'All' || s.items?.some(i => i.productId?.category === category)
+    const matchFrom = !dateFrom || new Date(s.date) >= new Date(dateFrom)
+    const matchTo = !dateTo || new Date(s.date) <= new Date(dateTo + 'T23:59:59')
+    return matchSearch && matchCat && matchFrom && matchTo
+  })
+
+  const groupedByCashier = filtered.reduce((groups, sale) => {
+    const cashier = sale.cashier || 'Unknown'
+    if (!groups[cashier]) groups[cashier] = []
+    groups[cashier].push(sale)
+    return groups
+  }, {})
+
+  const groupedByDate = filtered.reduce((groups, sale) => {
+    const d = new Date(sale.date)
+    if (isNaN(d)) return groups
+    const day = d.toLocaleDateString('en-CA')
+    if (!groups[day]) groups[day] = []
+    groups[day].push(sale)
+    return groups
+  }, {})
+
+  const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a))
+
+  // ── Handle void ────────────────────────────────────────────────────
+  const handleVoidSubmit = async ({ saleId, managerUsername, managerPassword, reason, voidType, items }) => {
+    if (voidType === 'items') {
+      // Per-item void — new endpoint
+      try {
+        const res = await fetch(`http://localhost:5000/api/sales/${saleId}/void-items`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${currentUser?.token}`,
+          },
+          body: JSON.stringify({ managerUsername, managerPassword, reason, items }),
+        })
+        const data = await res.json()
+        if (data.success) {
+          setVoidModal(null)
+          setVoidSuccess(
+            data.isPartialVoid
+              ? `${data.message} Receipt #${voidModal?.receiptId || ''}`
+              : `Sale #${voidModal?.receiptId || ''} fully voided.`
+          )
+          fetchSales()
+          setTimeout(() => setVoidSuccess(''), 6000)
+          return { success: true }
+        }
+        return { success: false, message: data.message }
+      } catch {
+        return { success: false, message: 'Network error' }
+      }
+    } else {
+      // Whole-sale void — existing voidSale from AppContext
+      const result = await voidSale(saleId, managerUsername, managerPassword, reason)
+      if (result.success) {
+        setVoidModal(null)
+        setVoidSuccess(`Sale #${voidModal?.receiptId || ''} voided successfully.`)
+        fetchSales()
+        setTimeout(() => setVoidSuccess(''), 6000)
+      }
+      return result
+    }
+  }
+
+
+  return (
+    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+
+      {/* ── Fixed header ───────────────────────────────── */}
+      <div className="flex-shrink-0 px-6 pt-6 pb-3">
+        <div className="mb-4">
+          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+            Sales History
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            {isOwner
+              ? 'All employee sales — click an employee to expand'
+              : `Your sales (last 30 days) — ${currentUser?.fullname || currentUser?.name || currentUser?.username}`
             }
-        });
-
-        return () => {
-            socket.off("returnUpdated");
-            socket.off("adminShiftNotification"); // Clean up
-        };
-    }, [socket, isOwner, fetchSales, fetchReturns]); // Added dependencies
-
-    // ── Role-based filtering ───────────────────────────────────────────────
-    const mySales = isOwner ? sales : sales.filter(s => s.cashier === currentUser?.name);
-
-    // Employee: only show current week (since last Sunday)
-    const lastSunday = getLastSundayMidnight();
-    const visibleSales = isOwner ? mySales : mySales.filter(s => new Date(s.date) >= lastSunday);
-
-    // Apply global filters
-    const filtered = visibleSales.filter(s => {
-        const matchSearch = !search || s.items?.some(i =>
-            i.productId?.name?.toLowerCase().includes(search.toLowerCase())
-        );
-        const matchCat = category === 'All' || s.items?.some(i => i.productId?.category === category);
-        const matchFrom = !dateFrom || new Date(s.date) >= new Date(dateFrom);
-        const matchTo = !dateTo || new Date(s.date) <= new Date(dateTo + 'T23:59:59');
-        return matchSearch && matchCat && matchFrom && matchTo;
-    });
-
-    // ✅ Uses qty=0 as fallback when isFullyReturned is not set on old data
-const totalRevenue = filtered
-    .filter(s => !s.returned)
-    .reduce((sum, s) =>
-        sum + (s.items?.reduce((iSum, i) =>
-            iSum + ((i.isFullyReturned || i.qty === 0) ? 0 : (i.qty * i.price)), 0) || 0)
-    , 0);
-
-const totalItemsSold = filtered
-    .filter(s => !s.returned)
-    .reduce((sum, s) =>
-        sum + (s.items?.reduce((q, i) =>
-            q + ((i.isFullyReturned || i.qty === 0) ? 0 : (i.qty || 0)), 0) || 0)
-    , 0);
-
-    // ── Owner: group by cashier ────────────────────────────────────────────
-    const groupedByCashier = filtered.reduce((groups, sale) => {
-        const cashier = sale.cashier || 'Unknown';
-        if (!groups[cashier]) groups[cashier] = [];
-        groups[cashier].push(sale);
-        return groups;
-    }, {});
-
-    // ── Employee: group by date ────────────────────────────────────────────
-    const groupedByDate = filtered.reduce((groups, sale) => {
-        const d = new Date(sale.date);
-        if (isNaN(d)) return groups;
-        const day = d.toLocaleDateString('en-CA');
-        if (!groups[day]) groups[day] = [];
-        groups[day].push(sale);
-        return groups;
-    }, {});
-    const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a));
-
-    return (
-        <div className="flex flex-col h-screen overflow-hidden bg-gray-100">
-            {/* Header */}
-            <div className="flex-shrink-0 px-6 pt-6 pb-3">
-                <div className="mb-4">
-                    <h1 className="text-lg font-semibold text-gray-800">Sales History</h1>
-                    <p className="text-sm text-gray-500 mt-1">
-                        {isOwner
-                            ? 'All employee sales — click an employee to expand'
-                            : `Your sales this week — ${currentUser?.name}`}
-                    </p>
-                </div>
-
-                {/* Return success */}
-                {returnSuccess && (
-                    <div className="bg-green-100 text-green-800 p-3 rounded-md text-sm mb-3 flex items-center gap-2">
-                        <MdCheckCircle className="text-lg flex-shrink-0" /> {returnSuccess}
-                    </div>
-                )}
-
-                {/* Pending returns panel — owner only */}
-                {isOwner && pendingReturns.length > 0 && (
-                    <PendingReturnsPanel pendingReturns={pendingReturns} refreshReturns={fetchReturns} />
-                )}
-
-                {/* Stats */}
-                <SalesStats
-                    isOwner={isOwner}
-                    totalRevenue={totalRevenue}
-                    filtered={filtered}
-                    totalItemsSold={totalItemsSold}
-                />
-
-                {/* Filters */}
-                <SalesFilters
-                    search={search}
-                    setSearch={setSearch}
-                    dateFrom={dateFrom}
-                    setDateFrom={setDateFrom}
-                    dateTo={dateTo}
-                    setDateTo={setDateTo}
-                    category={category}
-                    setCategory={setCategory}
-                    categories={categories}
-                />
-            </div>
-
-            {/* Scrollable list */}
-            <div className="flex-1 overflow-y-auto px-6 pb-6">
-                {isOwner ? (
-                    <OwnerView
-                        groupedByCashier={groupedByCashier}
-                        expandedEmployee={expandedEmployee}
-                        setExpandedEmployee={setExpandedEmployee}
-                        employeeDateFilter={employeeDateFilter}
-                        setEmployeeDateFilter={setEmployeeDateFilter}
-                        isOwner={isOwner}
-                        setReturnModal={setReturnModal}
-                    />
-                ) : (
-                    <EmployeeView
-                        sortedDates={sortedDates}
-                        groupedByDate={groupedByDate}
-                        isOwner={isOwner}
-                        setReturnModal={setReturnModal}
-                    />
-                )}
-            </div>
-
-            {/* Return modal */}
-            {returnModal && (
-                <ReturnModal
-                    sale={returnModal}
-                    onClose={() => setReturnModal(null)}
-                    onSuccess={(msg) => {
-                        setReturnSuccess(msg);
-                        fetchSales();
-                        fetchReturns();
-                        setTimeout(() => setReturnSuccess(''), 6000);
-                    }}
-                />
-            )}
+          </p>
         </div>
-    );
+
+        {/* Success toasts */}
+        {returnSuccess && (
+          <div className="p-3 rounded-lg text-sm mb-3 flex items-center gap-2"
+            style={{ background: 'var(--success-light)', border: '1px solid var(--success)', color: 'var(--success-dark)' }}>
+            <MdCheckCircle className="text-lg flex-shrink-0" /> {returnSuccess}
+          </div>
+        )}
+        {voidSuccess && (
+          <div className="p-3 rounded-lg text-sm mb-3 flex items-center gap-2"
+            style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--danger-dark)' }}>
+            <MdCheckCircle className="text-lg flex-shrink-0" /> {voidSuccess}
+          </div>
+        )}
+
+        {isOwner && pendingReturns.length > 0 && (
+          <PendingReturnsPanel pendingReturns={pendingReturns} refreshReturns={fetchReturns} />
+        )}
+
+        <SalesStats isOwner={isOwner} filtered={filtered} category={category} />
+
+        <SalesFilters
+          search={search} setSearch={setSearch}
+          dateFrom={dateFrom} setDateFrom={setDateFrom}
+          dateTo={dateTo} setDateTo={setDateTo}
+          category={category} setCategory={setCategory}
+          visibleCategories={visibleCategories}
+          dropdownCategories={dropdownCategories}
+        />
+      </div>
+
+      {/* ── Scrollable content ──────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-6 pb-6">
+        {isOwner ? (
+          <OwnerView
+            groupedByCashier={groupedByCashier}
+            expandedEmployee={expandedEmployee}
+            setExpandedEmployee={setExpandedEmployee}
+            employeeDateFilter={employeeDateFilter}
+            setEmployeeDateFilter={setEmployeeDateFilter}
+            isOwner={isOwner}
+            setReturnModal={setReturnModal}
+            setVoidModal={setVoidModal}
+            category={category}
+          />
+        ) : (
+          <EmployeeView
+            sortedDates={sortedDates}
+            groupedByDate={groupedByDate}
+            isOwner={isOwner}
+            setReturnModal={setReturnModal}
+            setVoidModal={setVoidModal}
+            category={category}
+          />
+        )}
+      </div>
+
+      {/* ── Return modal ────────────────────────────────── */}
+      {returnModal && (
+        <ReturnModal
+          sale={returnModal}
+          onClose={() => setReturnModal(null)}
+          onSuccess={(msg) => {
+            setReturnSuccess(msg)
+            fetchSales()
+            fetchReturns()
+            setTimeout(() => setReturnSuccess(''), 6000)
+          }}
+        />
+      )}
+
+      {/* ── Void modal ──────────────────────────────────── */}
+      {voidModal && (
+        <VoidModal
+          sale={voidModal}
+          onClose={() => setVoidModal(null)}
+          onVoid={handleVoidSubmit}
+        />
+      )}
+    </div>
+  )
 }
