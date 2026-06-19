@@ -39,6 +39,7 @@ export function SocketProvider({ children }) {
     }
 
     const newSocket = io("http://localhost:5000", {
+      auth: { token: currentUser.token },
       reconnectionAttempts: 5,
       reconnectionDelay:    1000,
     });
