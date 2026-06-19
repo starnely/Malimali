@@ -254,6 +254,20 @@ describe("POST /api/sales", () => {
     expect(updated.stock).toBe(45); // 50 - 5
   });
 
+  test("201 — price:0 is recorded as 0, not silently replaced by database sellPrice", async () => {
+    const res = await request(app)
+      .post("/api/sales")
+      .set("Authorization", `Bearer ${token}`)
+      .send({
+        items: [{ productId: product._id, qty: 1, price: 0 }],
+        total: 0,
+        paymentInfo: { paymentMethod: "cash", finalTotal: 0 },
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.sale.items[0].price).toBe(0);
+  });
+
   test("201 — paymentInfo fields persisted correctly", async () => {
     const res = await request(app)
       .post("/api/sales")

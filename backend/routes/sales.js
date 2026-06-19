@@ -66,7 +66,7 @@ router.post("/", async (req, res) => {
       resolvedItems.push({
         productId: updated._id,
         qty: parsedQty,
-        price: Number(item.price) || updated.sellPrice,
+        price: item.price != null ? Number(item.price) : updated.sellPrice,
         buyPrice: updated.buyPrice || 0,
         returnStatus: "none",
         voidStatus: "none",
