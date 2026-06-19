@@ -11,6 +11,15 @@ const Supplier = require("../models/Supplier")
 // not logged as expenses to avoid double-counting in P&L reports.
 const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/authMiddleware")
 
+function escHtml(str) {
+  return String(str ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 // ── Multer for invoice photo uploads ─────────────────────────────────
 const invoiceStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -455,8 +464,11 @@ router.get("/:id/pdf", async (req, res) => {
 
     doc.rect(0, 0, doc.page.width, 115).fill(C.dark)
     if (settings?.logo) {
-      const logoPath = path.join(__dirname, "../public", settings.logo)
-      if (fs.existsSync(logoPath)) { try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { } }
+      const publicDir = path.resolve(__dirname, "../public")
+      const logoPath = path.resolve(publicDir, settings.logo)
+      if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
+        try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { }
+      }
     }
     doc.fillColor("white").fontSize(17).font("Helvetica-Bold")
       .text(settings?.companyName || "Company", 190, 20, { width: 360, align: "right" })
@@ -629,8 +641,8 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
             <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.1em;color:#1E5FA5;margin-bottom:4px">Purchase Order</div>
             <div style="font-size:22px;font-weight:900;color:#0C3660;font-family:monospace">${po.poNumber}</div>
           </div>
-          <p style="color:#334155;margin:0 0 6px;font-size:14px">Dear <strong>${po.supplierName}</strong>,</p>
-          <p style="color:#64748B;line-height:1.65;margin:0 0 22px;font-size:13px">Please find below our purchase order. Kindly confirm receipt and advise on the expected delivery date.${customMessage ? `<br/><br/><span style="color:#0F172A">${customMessage}</span>` : ""}</p>
+          <p style="color:#334155;margin:0 0 6px;font-size:14px">Dear <strong>${escHtml(po.supplierName)}</strong>,</p>
+          <p style="color:#64748B;line-height:1.65;margin:0 0 22px;font-size:13px">Please find below our purchase order. Kindly confirm receipt and advise on the expected delivery date.${customMessage ? `<br/><br/><span style="color:#0F172A">${escHtml(customMessage)}</span>` : ""}</p>
           <table style="width:100%;border-collapse:collapse;margin-bottom:14px;border:1px solid #E2E8F0">
             <thead><tr style="background:#1E5FA5">
               <th style="padding:10px 14px;text-align:left;color:white;font-size:11px;text-transform:uppercase">Product</th>
@@ -646,7 +658,7 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
               <div style="font-size:20px;font-weight:900">KSh ${po.totalOrderedCost.toLocaleString()}</div>
             </div>
           </div>
-          ${po.notes ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;margin-bottom:22px"><div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;margin-bottom:4px">Notes</div><div style="font-size:13px;color:#78350F">${po.notes}</div></div>` : ""}
+          ${po.notes ? `<div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;padding:12px 16px;margin-bottom:22px"><div style="font-size:10px;font-weight:700;color:#92400E;text-transform:uppercase;margin-bottom:4px">Notes</div><div style="font-size:13px;color:#78350F">${escHtml(po.notes)}</div></div>` : ""}
           <div style="margin-top:22px;padding:14px 18px;background:#F5F7FF;border-radius:8px;text-align:center">
             <p style="margin:0;font-size:12px;color:#64748B">Please <strong>reply to this email</strong> to confirm receipt.<br/>${settings.companyName} · ${settings.email || settings.smtp.user}${settings.phone ? " · " + settings.phone : ""}</p>
           </div>
@@ -699,7 +711,8 @@ router.get("/supplier/:supplierId/statement", async (req, res) => {
 
     const doc = new PDFDocument({ margin: 50, size: "A4" })
     res.setHeader("Content-Type", "application/pdf")
-    res.setHeader("Content-Disposition", `attachment; filename="statement-${supplier.name.replace(/\s+/g, '-')}.pdf"`)
+    const safeName = supplier.name.replace(/[^a-zA-Z0-9_-]/g, "-").slice(0, 64)
+    res.setHeader("Content-Disposition", `attachment; filename="statement-${safeName}.pdf"`)
     doc.pipe(res)
 
     const C = { primary: "#1E5FA5", dark: "#0C3660", light: "#E6F1FB", muted: "#94A3B8", text: "#0F172A", border: "#E2E8F0", bg: "#F5F7FF", danger: "#EF4444", success: "#10B981" }
@@ -708,8 +721,11 @@ router.get("/supplier/:supplierId/statement", async (req, res) => {
 
     doc.rect(0, 0, doc.page.width, 115).fill(C.dark)
     if (settings?.logo) {
-      const logoPath = path.join(__dirname, "../public", settings.logo)
-      if (fs.existsSync(logoPath)) { try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { } }
+      const publicDir = path.resolve(__dirname, "../public")
+      const logoPath = path.resolve(publicDir, settings.logo)
+      if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
+        try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { }
+      }
     }
     doc.fillColor("white").fontSize(17).font("Helvetica-Bold").text(settings?.companyName || "Company", 190, 20, { width: 360, align: "right" })
     doc.fillColor("rgba(255,255,255,0.7)").fontSize(8.5).font("Helvetica")

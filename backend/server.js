@@ -3,6 +3,7 @@ const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
 const fs = require("fs");
+const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 require("dotenv").config();
 
@@ -33,7 +34,11 @@ requiredDirectories.forEach(dir => {
 });
 
 // ── 3. MIDDLEWARE ────────────────────────────────────────────────────
-const ALLOWED_ORIGIN = process.env.FRONTEND_URL || "*";
+if (!process.env.FRONTEND_URL) {
+  console.error("❌ CRITICAL: FRONTEND_URL is not defined in .env");
+  process.exit(1);
+}
+const ALLOWED_ORIGIN = process.env.FRONTEND_URL;
 
 app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
 app.use(require("helmet")({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
@@ -55,25 +60,38 @@ const io = new Server(server, {
 
 app.set("io", io);
 
+// ── 6. SOCKET AUTH MIDDLEWARE ─────────────────────────────────────────
+io.use((socket, next) => {
+  const token = socket.handshake.auth?.token;
+  if (!token) return next(new Error("Authentication required."));
+  try {
+    socket.user = jwt.verify(token, process.env.JWT_SECRET);
+    next();
+  } catch {
+    next(new Error("Invalid or expired token."));
+  }
+});
+
 // ── 6. SOCKET EVENTS ─────────────────────────────────────────────────
 io.on("connection", (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
 
   socket.on("join-room", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined room: ${room}`); } });
-  socket.on("join-owner-room", () => { socket.join("owner"); console.log(`👑 Socket ${socket.id} joined owner room`); });
+  socket.on("join-owner-room", () => {
+    if (socket.user?.role !== "owner") return;
+    socket.join("owner");
+    console.log(`👑 Socket ${socket.id} joined owner room`);
+  });
   socket.on("join", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
   socket.on("shift-closed", (data) => {
-    console.log(`📢 Shift closed: ${data.employeeName || "Unknown"}`);
-
-    // Debug — see who is in the owner room
-    const ownerRoom = io.sockets.adapter.rooms.get("owner");
-    console.log(`👑 Owner room has ${ownerRoom ? ownerRoom.size : 0} socket(s):`, ownerRoom);
-
+    // Use the server-verified identity; never trust the client-supplied name.
+    const employeeName = socket.user.name || socket.user.username || "Unknown";
+    console.log(`📢 Shift closed: ${employeeName}`);
     io.to("owner").emit("adminShiftNotification", {
-      employeeName: data.employeeName || "Unknown",
+      employeeName,
       time: data.time || new Date().toLocaleTimeString(),
-      revenue: data.revenue || 0,
-      store: data.store || "",
+      revenue: typeof data.revenue === "number" ? data.revenue : 0,
+      store: typeof data.store === "string" ? data.store : "",
     });
   });
   socket.on("disconnect", () => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
