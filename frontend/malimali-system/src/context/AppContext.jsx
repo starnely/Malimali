@@ -944,17 +944,6 @@ export function AppProvider({ children }) {
         if (exists) return prev;
         return [...prev, msg];
       });
-      const msgFrom = data.from || 'Someone';
-      if (msg.isBroadcast) {
-        const preview = msg.content?.slice(0, 50) || '';
-        const suffix = (msg.content?.length || 0) > 50 ? '...' : '';
-        addNotification(`📢 ${msgFrom}: ${preview}${suffix}`, 'info', 'all');
-      } else {
-        addNotification(
-          `💬 New message from ${msgFrom}`, 'info',
-          user?.role === 'owner' ? 'owner' : (user?.fullname || user?.username || 'employee')
-        );
-      }
     });
 
     return () => {
