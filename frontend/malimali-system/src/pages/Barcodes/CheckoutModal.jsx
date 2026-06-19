@@ -18,6 +18,14 @@ function getTomorrowDate() {
   return d.toISOString().split('T')[0]
 }
 
+// ── Kenyan phone number validator ─────────────────────────────────────
+// Accepts: 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, 2541XXXXXXXX,
+//          +2547XXXXXXXX, +2541XXXXXXXX
+const isValidKenyanPhone = (phone) => {
+  const cleaned = phone.trim().replace(/\s+/g, '')
+  return /^(07\d{8}|01\d{8}|2547\d{8}|2541\d{8}|\+2547\d{8}|\+2541\d{8})$/.test(cleaned)
+}
+
 export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
   const { currentUser, settings, checkCustomerCredit } = useApp()
 
@@ -42,14 +50,12 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
   const [bankReference,    setBankReference]    = useState('')
 
   // ── Blacklist check state ─────────────────────────────────────────
-  const [blacklistInfo,    setBlacklistInfo]    = useState(null)   // null | { name, reason, blacklistedBy }
-  const [blacklistAck,     setBlacklistAck]     = useState(false)  // cashier acknowledged warning
-  const [checkingBl,       setCheckingBl]       = useState(false)
+  const [blacklistInfo, setBlacklistInfo] = useState(null)
+  const [blacklistAck,  setBlacklistAck]  = useState(false)
+  const [checkingBl,    setCheckingBl]    = useState(false)
 
-  // ── Check blacklist whenever name/phone changes on credit ─────────
   useEffect(() => {
     let active = true
-
     const run = async () => {
       if (paymentMethod !== 'credit') {
         if (active) { setBlacklistInfo(null); setBlacklistAck(false) }
@@ -69,15 +75,14 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
         setBlacklistInfo({
           name:          customer.name,
           reason:        customer.blacklistReason || 'No reason given',
-          blacklistedBy: customer.blacklistedBy  || 'Owner',
-          balance:       customer.balance        || 0,
+          blacklistedBy: customer.blacklistedBy   || 'Owner',
+          balance:       customer.balance         || 0,
         })
         setBlacklistAck(false)
       } else {
         setBlacklistInfo(null)
       }
     }
-
     const timer = setTimeout(() => { run() }, 500)
     return () => { active = false; clearTimeout(timer) }
   }, [customerName, customerPhone, paymentMethod, checkCustomerCredit, currentUser])
@@ -95,7 +100,6 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
   const splitTotal   = cashPartNum + mpesaPartNum
   const splitChange  = splitTotal - finalTotal
 
-  // ── Credit valid: name + promiseDate + (if blacklisted must ack) ──
   const creditValid = paymentMethod === 'credit'
     ? customerName.trim().length > 0 &&
       promiseDate.trim().length > 0 &&
@@ -103,16 +107,16 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
     : true
 
   const canConfirm =
-    paymentMethod === 'cash'   ? cashGivenNum >= finalTotal && cashGiven !== ''                                                   :
-    paymentMethod === 'mpesa'  ? mpesaStep === 'confirmed'                                                                        :
-    paymentMethod === 'credit' ? creditValid                                                                                       :
-    paymentMethod === 'split'  ? splitTotal >= finalTotal && cashPartNum > 0 && mpesaPartNum > 0 && splitMpesaStep === 'confirmed' :
-    paymentMethod === 'card'   ? cardApprovalCode.trim().length > 0                                                               :
+    paymentMethod === 'cash'   ? cashGivenNum >= finalTotal && cashGiven !== ''                                                    :
+    paymentMethod === 'mpesa'  ? mpesaStep === 'confirmed'                                                                         :
+    paymentMethod === 'credit' ? creditValid                                                                                        :
+    paymentMethod === 'split'  ? splitTotal >= finalTotal && cashPartNum > 0 && mpesaPartNum > 0 && splitMpesaStep === 'confirmed'  :
+    paymentMethod === 'card'   ? cardApprovalCode.trim().length > 0                                                                :
     paymentMethod === 'bank'   ? bankReference.trim().length > 0
     : false
 
-  const handleSendSTK      = () => { if (mpesaPhone.trim().length      < 9) return; setMpesaStep('waiting') }
-  const handleSplitSendSTK = () => { if (splitMpesaPhone.trim().length < 9) return; setSplitMpesaStep('waiting') }
+  const handleSendSTK      = () => { if (!isValidKenyanPhone(mpesaPhone))      return; setMpesaStep('waiting') }
+  const handleSplitSendSTK = () => { if (!isValidKenyanPhone(splitMpesaPhone)) return; setSplitMpesaStep('waiting') }
 
   const handleCashPartChange = (val) => {
     setCashPart(val)
@@ -128,12 +132,11 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
 
   const handleConfirm = () => {
     const normalizePhone = (phone) => {
-      let p = phone.trim().replace(/\D/g, '')
-      if (p.startsWith('0')) p = '254' + p.substring(1)
-      if (p.startsWith('7')) p = '254' + p
-      return p
+      let ph = phone.trim().replace(/\D/g, '')
+      if (ph.startsWith('0')) ph = '254' + ph.substring(1)
+      if (ph.startsWith('7')) ph = '254' + ph
+      return ph
     }
-
     const now           = new Date()
     const formattedDate = now.toLocaleDateString('en-CA')
     const formattedTime = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -229,86 +232,40 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
             </div>
           )}
 
-          {/* ── BLACKLIST WARNING ── */}
+          {/* Blacklist warning */}
           {paymentMethod === 'credit' && checkingBl && (
-            <div style={{
-              padding: '10px 14px', borderRadius: 'var(--radius-md)',
-              background: 'var(--bg-muted)', marginBottom: '12px',
-              fontSize: '13px', color: 'var(--text-muted)'
-            }}>
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--bg-muted)', marginBottom: '12px', fontSize: '13px', color: 'var(--text-muted)' }}>
               Checking customer status...
             </div>
           )}
 
           {paymentMethod === 'credit' && blacklistInfo && !checkingBl && (
-            <div style={{
-              background: '#fef2f2',
-              border: '1.5px solid #fecaca',
-              borderRadius: 'var(--radius-md)',
-              padding: '14px 16px',
-              marginBottom: '12px',
-            }}>
-              {/* Header */}
+            <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                 <MdBlock style={{ color: '#dc2626', fontSize: '20px', flexShrink: 0 }} />
-                <span style={{ fontWeight: 800, fontSize: '14px', color: '#dc2626' }}>
-                  BLACKLISTED CUSTOMER
-                </span>
+                <span style={{ fontWeight: 800, fontSize: '14px', color: '#dc2626' }}>BLACKLISTED CUSTOMER</span>
               </div>
-
-              {/* Info */}
               <div style={{ fontSize: '13px', color: '#7f1d1d', marginBottom: '6px' }}>
                 <strong>{blacklistInfo.name}</strong> has been blacklisted by <strong>{blacklistInfo.blacklistedBy}</strong>.
               </div>
-              <div style={{ fontSize: '12px', color: '#991b1b', marginBottom: '2px' }}>
-                Reason: {blacklistInfo.reason}
-              </div>
+              <div style={{ fontSize: '12px', color: '#991b1b', marginBottom: '2px' }}>Reason: {blacklistInfo.reason}</div>
               {blacklistInfo.balance > 0 && (
                 <div style={{ fontSize: '12px', color: '#991b1b', marginBottom: '10px' }}>
                   Outstanding balance: <strong>KSh {blacklistInfo.balance.toLocaleString()}</strong>
                 </div>
               )}
-
-              {/* Accountability warning */}
-              <div style={{
-                background: '#fee2e2', borderRadius: 'var(--radius-sm)',
-                padding: '8px 10px', marginBottom: '12px',
-                fontSize: '12px', color: '#7f1d1d', fontWeight: 600,
-              }}>
+              <div style={{ background: '#fee2e2', borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: '12px', fontSize: '12px', color: '#7f1d1d', fontWeight: 600 }}>
                 ⚠️ If you proceed and this customer does not pay, <strong>you will be personally responsible</strong> for this debt.
               </div>
-
-              {/* Acknowledge checkbox */}
               {!blacklistAck ? (
-                <button
-                  onClick={() => setBlacklistAck(true)}
-                  style={{
-                    width: '100%', padding: '9px',
-                    background: 'transparent',
-                    border: '1.5px solid #dc2626',
-                    borderRadius: 'var(--radius-md)',
-                    color: '#dc2626', fontWeight: 700,
-                    fontSize: '13px', cursor: 'pointer',
-                    fontFamily: 'inherit',
-                  }}
-                >
+                <button onClick={() => setBlacklistAck(true)} style={{ width: '100%', padding: '9px', background: 'transparent', border: '1.5px solid #dc2626', borderRadius: 'var(--radius-md)', color: '#dc2626', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
                   I understand — proceed anyway
                 </button>
               ) : (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  fontSize: '12px', color: '#dc2626', fontWeight: 600,
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#dc2626', fontWeight: 600 }}>
                   <MdCheckCircle style={{ fontSize: '16px' }} />
                   Acknowledged — you are responsible if unpaid
-                  <button
-                    onClick={() => setBlacklistAck(false)}
-                    style={{ marginLeft: 'auto', background: 'none', border: 'none',
-                      cursor: 'pointer', fontSize: '11px', color: '#dc2626',
-                      textDecoration: 'underline', fontFamily: 'inherit' }}
-                  >
-                    Undo
-                  </button>
+                  <button onClick={() => setBlacklistAck(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#dc2626', textDecoration: 'underline', fontFamily: 'inherit' }}>Undo</button>
                 </div>
               )}
             </div>
@@ -318,21 +275,14 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
           <div className={s.formGroup}>
             <label className={s.formLabel}>Discount (optional)</label>
             <div className={s.discountRow}>
-              <select
-                value={discountType}
-                onChange={e => { setDiscountType(e.target.value); setDiscount('') }}
-                className={s.discountSelect}
-              >
+              <select value={discountType} onChange={e => { setDiscountType(e.target.value); setDiscount('') }} className={s.discountSelect}>
                 <option value="fixed">KSh</option>
                 <option value="percent">%</option>
               </select>
               <input
-                type="number"
-                min="0"
-                max={discountType === 'percent' ? 100 : cartTotal}
+                type="number" min="0" max={discountType === 'percent' ? 100 : cartTotal}
                 placeholder={discountType === 'percent' ? 'e.g. 10' : 'e.g. 500'}
-                value={discount}
-                onChange={e => setDiscount(e.target.value)}
+                value={discount} onChange={e => setDiscount(e.target.value)}
                 className={s.discountInput}
               />
             </div>
@@ -371,14 +321,11 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
                     {amount.toLocaleString()}
                   </button>
                 ))}
-                <button onClick={() => setCashGiven(String(finalTotal))} className={`${s.quickAmt} ${s.quickAmtExact}`}>
-                  Exact
-                </button>
+                <button onClick={() => setCashGiven(String(finalTotal))} className={`${s.quickAmt} ${s.quickAmtExact}`}>Exact</button>
               </div>
               {cashGiven !== '' && cashGivenNum >= finalTotal && (
                 <div className={`${s.changeBanner} ${cashGivenNum - finalTotal === 0 ? s.changeBannerExact : s.changeBannerChange}`}>
-                  <span className={s.changeBannerLabel}
-                    style={{ color: cashGivenNum - finalTotal === 0 ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
+                  <span className={s.changeBannerLabel} style={{ color: cashGivenNum - finalTotal === 0 ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
                     {cashGivenNum - finalTotal === 0 ? '✅ Exact amount' : '💰 Change to give'}
                   </span>
                   {cashGivenNum - finalTotal > 0 && (
@@ -403,12 +350,33 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
                   <label className={s.formLabel}>Customer M-Pesa Phone Number</label>
                   <div className={s.inputWrap}>
                     <MdPhone className={s.inputIcon} />
-                    <input type="tel" placeholder="e.g. 0712345678"
-                      value={mpesaPhone} onChange={e => setMpesaPhone(e.target.value)}
-                      autoFocus className={s.formInput} />
+                    <input
+                      type="tel"
+                      placeholder="e.g. 0712345678"
+                      value={mpesaPhone}
+                      onChange={e => setMpesaPhone(e.target.value)}
+                      autoFocus
+                      className={`${s.formInput} ${
+                        mpesaPhone && !isValidKenyanPhone(mpesaPhone) ? s.formInputError :
+                        mpesaPhone &&  isValidKenyanPhone(mpesaPhone) ? s.formInputSuccess : ''
+                      }`}
+                    />
                   </div>
-                  <button onClick={handleSendSTK} disabled={mpesaPhone.trim().length < 9}
-                    className={`${s.stkBtn} ${mpesaPhone.trim().length < 9 ? s.stkBtnDisabled : s.stkBtnActive}`}>
+                  {mpesaPhone && !isValidKenyanPhone(mpesaPhone) && (
+                    <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                      ✗ Enter a valid number — 07XXXXXXXX, 01XXXXXXXX or 2547XXXXXXXX
+                    </div>
+                  )}
+                  {mpesaPhone && isValidKenyanPhone(mpesaPhone) && (
+                    <div style={{ fontSize: 11, color: 'var(--success-dark)', marginTop: 4, fontWeight: 600 }}>
+                      ✓ Valid phone number
+                    </div>
+                  )}
+                  <button
+                    onClick={handleSendSTK}
+                    disabled={!isValidKenyanPhone(mpesaPhone)}
+                    className={`${s.stkBtn} ${!isValidKenyanPhone(mpesaPhone) ? s.stkBtnDisabled : s.stkBtnActive}`}
+                  >
                     📲 Send M-Pesa Request — KSh {finalTotal.toLocaleString()}
                   </button>
                 </>
@@ -469,13 +437,33 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
                       <>
                         <div className={s.inputWrap}>
                           <MdPhone className={s.inputIcon} />
-                          <input type="tel" placeholder="e.g. 0712345678"
-                            value={splitMpesaPhone} onChange={e => setSplitMpesaPhone(e.target.value)} className={s.formInput} />
+                          <input
+                            type="tel"
+                            placeholder="e.g. 0712345678"
+                            value={splitMpesaPhone}
+                            onChange={e => setSplitMpesaPhone(e.target.value)}
+                            className={`${s.formInput} ${
+                              splitMpesaPhone && !isValidKenyanPhone(splitMpesaPhone) ? s.formInputError :
+                              splitMpesaPhone &&  isValidKenyanPhone(splitMpesaPhone) ? s.formInputSuccess : ''
+                            }`}
+                          />
                         </div>
-                        <button onClick={handleSplitSendSTK}
-                          disabled={splitMpesaPhone.trim().length < 9 || splitTotal < finalTotal}
-                          className={`${s.stkBtn} ${(splitMpesaPhone.trim().length < 9 || splitTotal < finalTotal) ? s.stkBtnDisabled : s.stkBtnActive}`}
-                          style={{ marginTop: '8px' }}>
+                        {splitMpesaPhone && !isValidKenyanPhone(splitMpesaPhone) && (
+                          <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                            ✗ Enter a valid number — 07XXXXXXXX, 01XXXXXXXX or 2547XXXXXXXX
+                          </div>
+                        )}
+                        {splitMpesaPhone && isValidKenyanPhone(splitMpesaPhone) && (
+                          <div style={{ fontSize: 11, color: 'var(--success-dark)', marginTop: 4, fontWeight: 600 }}>
+                            ✓ Valid phone number
+                          </div>
+                        )}
+                        <button
+                          onClick={handleSplitSendSTK}
+                          disabled={!isValidKenyanPhone(splitMpesaPhone) || splitTotal < finalTotal}
+                          className={`${s.stkBtn} ${(!isValidKenyanPhone(splitMpesaPhone) || splitTotal < finalTotal) ? s.stkBtnDisabled : s.stkBtnActive}`}
+                          style={{ marginTop: '8px' }}
+                        >
                           📲 Send M-Pesa KSh {mpesaPartNum.toLocaleString()}
                         </button>
                       </>
@@ -517,9 +505,7 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
                   Payment Promise Date <span className={s.requiredStar}>*required</span>
                 </label>
                 <input
-                  type="date"
-                  min={getTomorrowDate()}
-                  value={promiseDate}
+                  type="date" min={getTomorrowDate()} value={promiseDate}
                   onChange={e => setPromiseDate(e.target.value)}
                   className={`${s.formInput} ${!promiseDate ? s.formInputError : s.formInputSuccess}`}
                   style={{ marginTop: '4px' }}
@@ -617,6 +603,7 @@ export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
               Confirm · KSh {finalTotal.toLocaleString()}
             </button>
           </div>
+
         </div>
       </div>
     </div>

@@ -36,9 +36,8 @@ export default function Receipt({ receipt, onClose }) {
   const discount = Number(payment.discount || receipt?.discount || 0)
   const total    = Number(receipt?.total || receipt?.finalTotal || (subtotal - discount))
 
-  // ── NEW: promise date for credit receipts ─────────────────────────
-  const promiseDate   = payment.promiseDate || ''
-  const isCredit      = payment.paymentMethod === 'credit'
+  const promiseDate      = payment.promiseDate || ''
+  const isCredit         = payment.paymentMethod === 'credit'
   const formattedPromise = promiseDate
     ? new Date(promiseDate + 'T00:00:00').toLocaleDateString('en-KE', {
         weekday: 'short', day: 'numeric', month: 'short', year: 'numeric'
@@ -69,7 +68,7 @@ export default function Receipt({ receipt, onClose }) {
     cardApprovalCode: payment.cardApprovalCode,
     bankReference:    payment.bankReference,
     customerName:     payment.customerName,
-    promiseDate:      promiseDate,           // ── NEW
+    promiseDate,
     cashier:          cashierName,
     receiptFooter,
     kraPin:           settings?.kraPin || '',
@@ -185,16 +184,29 @@ export default function Receipt({ receipt, onClose }) {
           <span>Qty</span><span>Description</span><span>Amount</span>
         </div>
 
-        {(receipt.items || []).map((item, i) => (
-          <div key={i} className={s.rRow}>
-            <span>{item.qty}</span>
-            <div className={s.rDesc}>
-              <div>{item.name}</div>
-              <div className={s.rSub}>@ KSh {Number(item.price || item.sellPrice || 0).toLocaleString()}</div>
+        {/* ── Item rows — handles both normal and weighed items ── */}
+        {(receipt.items || []).map((item, i) => {
+          const isWeighed   = !!item.isWeighed
+          const itemPrice   = Number(item.price || item.sellPrice || 0)
+          const itemTotal   = itemPrice * item.qty
+          const displayName = isWeighed && item.weightGrams
+            ? `${item.name} (${item.weightGrams}g)`
+            : item.name
+          const displaySub  = isWeighed
+            ? `${Number(item.weightKg || 0).toFixed(3)} kg × KSh ${Number(item.pricePerKg || 0).toLocaleString()}/kg`
+            : `@ KSh ${itemPrice.toLocaleString()}`
+
+          return (
+            <div key={i} className={s.rRow}>
+              <span>{item.qty}</span>
+              <div className={s.rDesc}>
+                <div>{displayName}</div>
+                <div className={s.rSub}>{displaySub}</div>
+              </div>
+              <span>KSh {itemTotal.toLocaleString()}</span>
             </div>
-            <span>KSh {(Number(item.price || item.sellPrice || 0) * item.qty).toLocaleString()}</span>
-          </div>
-        ))}
+          )
+        })}
 
         <div className={s.rDivider} />
 
@@ -242,7 +254,7 @@ export default function Receipt({ receipt, onClose }) {
           </>
         )}
 
-        {/* ── CREDIT NOTE — updated with promise date ── */}
+        {/* Credit note */}
         {isCredit && (
           <div className={s.rCreditNote}>
             <div>CREDIT SALE — UNPAID BALANCE</div>

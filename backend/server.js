@@ -1,20 +1,20 @@
-const express  = require("express");
-const cors     = require("cors");
+const express = require("express");
+const cors = require("cors");
 const mongoose = require("mongoose");
-const path     = require("path");
-const fs       = require("fs");
+const path = require("path");
+const fs = require("fs");
 const { Server } = require("socket.io");
 require("dotenv").config();
 
 const app = express();
 
 // ── 1. ENVIRONMENT GUARD ─────────────────────────────────────────────
-const MONGO_URI       = process.env.MONGO_URI;
-const JWT_SECRET      = process.env.JWT_SECRET;
+const MONGO_URI = process.env.MONGO_URI;
+const JWT_SECRET = process.env.JWT_SECRET;
 const ACTIVATION_CODE = process.env.ACTIVATION_CODE;
 
-if (!MONGO_URI)       { console.error("❌ CRITICAL: MONGO_URI is not defined in .env");       process.exit(1); }
-if (!JWT_SECRET)      { console.error("❌ CRITICAL: JWT_SECRET is not defined in .env");      process.exit(1); }
+if (!MONGO_URI) { console.error("❌ CRITICAL: MONGO_URI is not defined in .env"); process.exit(1); }
+if (!JWT_SECRET) { console.error("❌ CRITICAL: JWT_SECRET is not defined in .env"); process.exit(1); }
 if (!ACTIVATION_CODE) { console.error("❌ CRITICAL: ACTIVATION_CODE is not defined in .env"); process.exit(1); }
 
 // ── 2. DIRECTORY GUARD ───────────────────────────────────────────────
@@ -46,7 +46,7 @@ mongoose.connect(MONGO_URI)
   .catch(err => { console.error("❌ MongoDB connection failed:", err.message); process.exit(1); });
 
 // ── 5. HTTP SERVER + SOCKET.IO ───────────────────────────────────────
-const PORT   = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
 
 const io = new Server(server, {
@@ -59,59 +59,73 @@ app.set("io", io);
 io.on("connection", (socket) => {
   console.log(`🔌 Socket connected: ${socket.id}`);
 
-  socket.on("join-room",       (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined room: ${room}`); } });
-  socket.on("join-owner-room", ()     => { socket.join("owner"); console.log(`👑 Socket ${socket.id} joined owner room`); });
-  socket.on("join",            (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
-  socket.on("shift-closed",    (data) => { console.log(`📢 Shift closed: ${data.employeeName || "Unknown"}`); });
-  socket.on("disconnect",      ()     => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
+  socket.on("join-room", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined room: ${room}`); } });
+  socket.on("join-owner-room", () => { socket.join("owner"); console.log(`👑 Socket ${socket.id} joined owner room`); });
+  socket.on("join", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
+  socket.on("shift-closed", (data) => {
+    console.log(`📢 Shift closed: ${data.employeeName || "Unknown"}`);
+
+    // Debug — see who is in the owner room
+    const ownerRoom = io.sockets.adapter.rooms.get("owner");
+    console.log(`👑 Owner room has ${ownerRoom ? ownerRoom.size : 0} socket(s):`, ownerRoom);
+
+    io.to("owner").emit("adminShiftNotification", {
+      employeeName: data.employeeName || "Unknown",
+      time: data.time || new Date().toLocaleTimeString(),
+      revenue: data.revenue || 0,
+      store: data.store || "",
+    });
+  });
+  socket.on("disconnect", () => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
 });
 
 // ── 7. ROUTES ────────────────────────────────────────────────────────
-app.use("/api/setup",           require("./routes/setup"));
-app.use("/api/auth",            require("./routes/auth"));
-app.use("/api/products",        require("./routes/products"));
-app.use("/api/sales",           require("./routes/sales"));
-app.use("/api/returns",         require("./routes/returns"));
-app.use("/api/archives",        require("./routes/archives"));
-app.use("/api/stockin",         require("./routes/stockin"));
-app.use("/api/categories",      require("./routes/categories"));
-app.use("/api/suppliers",       require("./routes/suppliers"));
-app.use("/api/stores",          require("./routes/stores"));
-app.use("/api/expired",         require("./routes/expiredStock"));
-app.use("/api/messages",        require("./routes/messages"));
-app.use("/api/print",           require("./routes/print"));
-app.use("/api/customers",       require("./routes/customers"));
+app.use("/api/setup", require("./routes/setup"));
+app.use("/api/auth", require("./routes/auth"));
+app.use("/api/products", require("./routes/products"));
+app.use("/api/sales", require("./routes/sales"));
+app.use("/api/returns", require("./routes/returns"));
+app.use("/api/archives", require("./routes/archives"));
+app.use("/api/stockin", require("./routes/stockin"));
+app.use("/api/categories", require("./routes/categories"));
+app.use("/api/suppliers", require("./routes/suppliers"));
+app.use("/api/stores", require("./routes/stores"));
+app.use("/api/expired", require("./routes/expiredStock"));
+app.use("/api/messages", require("./routes/messages"));
+app.use("/api/print", require("./routes/print"));
+app.use("/api/customers", require("./routes/customers"));
+app.use("/api/weigh-station", require("./routes/weighStation"));
 
 // ── Phase 6 ──────────────────────────────────────────────────────────
 require("./models/SupplierPayment");
 app.use("/api/purchase-orders", require("./routes/purchaseOrders"));
-app.use("/api/expenses",        require("./routes/expenses"));
-app.use("/api/petty-cash",      require("./routes/pettyCash"));
+app.use("/api/expenses", require("./routes/expenses"));
+app.use("/api/petty-cash", require("./routes/pettyCash"));
 
 // ── 8. STARTUP: AUTO OVERDUE CHECK ───────────────────────────────────
 mongoose.connection.once("open", async () => {
   try {
     const Customer = require("./models/Customer");
-    const Sale     = require("./models/Sale");
-    const today    = new Date().toISOString().split("T")[0];
-    let flagged    = 0;
+    const Sale = require("./models/Sale");
+    const today = new Date().toISOString().split("T")[0];
+    let flagged = 0;
 
     const customers = await Customer.find({ blacklisted: false });
     for (const customer of customers) {
       const sales = await Sale.find({
-        "paymentInfo.customerId":    customer._id,
+        "paymentInfo.customerId": customer._id,
         "paymentInfo.paymentMethod": "credit",
-        voided:   { $ne: true },
+        voided: { $ne: true },
         returned: { $ne: true },
         "paymentInfo.promiseDate": { $lt: today, $gt: "" },
       });
 
       if (sales.length > 0) {
-        const Repayment  = require("./models/Repayment");
+        const Repayment = require("./models/Repayment");
         const repayments = await Repayment.find({ customerId: customer._id });
         const totalCredit = sales.reduce((s, sale) => s + (sale.paymentInfo.finalTotal || sale.total), 0);
-        const totalPaid   = repayments.reduce((s, r) => s + r.amount, 0);
-        const balance     = Math.max(0, totalCredit - totalPaid);
+        const totalPaid = repayments.reduce((s, r) => s + r.amount, 0);
+        const balance = Math.max(0, totalCredit - totalPaid);
 
         if (balance > 0 && !customer.overdue) {
           customer.overdue = true; await customer.save(); flagged++;
@@ -122,7 +136,7 @@ mongoose.connection.once("open", async () => {
     }
 
     if (flagged > 0) console.log(`⚠️  Startup overdue check: ${flagged} customer(s) flagged as overdue.`);
-    else             console.log("✅ Startup overdue check complete: no new overdue customers.");
+    else console.log("✅ Startup overdue check complete: no new overdue customers.");
 
   } catch (err) {
     console.error("❌ Startup overdue check failed:", err.message);
@@ -154,33 +168,33 @@ function scheduleAutoExpiryCheck() {
     try {
       console.log("⏰ Midnight: running auto-expiry check...");
 
-      const Product      = require("./models/Product");
+      const Product = require("./models/Product");
       const ExpiredStock = require("./models/ExpiredStock");
-      const today        = new Date();
+      const today = new Date();
       today.setHours(0, 0, 0, 0);
 
       const expiredProducts = await Product.find({
         expiryDate: { $lte: today },
-        isExpired:  { $ne: true },
-        stock:      { $gt: 0 }
+        isExpired: { $ne: true },
+        stock: { $gt: 0 }
       });
 
       const results = [];
       for (const product of expiredProducts) {
         const totalLoss = product.stock * product.buyPrice;
         await new ExpiredStock({
-          productId:   product._id,
+          productId: product._id,
           productName: product.name,
-          category:    product.category,
-          supplier:    product.supplier || "",
-          store:       product.store,
-          batch:       product.batch || "",
-          quantity:    product.stock,
-          buyPrice:    product.buyPrice,
+          category: product.category,
+          supplier: product.supplier || "",
+          store: product.store,
+          batch: product.batch || "",
+          quantity: product.stock,
+          buyPrice: product.buyPrice,
           totalLoss,
-          expiryDate:  product.expiryDate,
+          expiryDate: product.expiryDate,
           processedBy: "System (Midnight Auto-Check)",
-          notes:       "Automatically moved at midnight expiry check",
+          notes: "Automatically moved at midnight expiry check",
         }).save();
         await Product.findByIdAndUpdate(product._id, { $set: { stock: 0, isExpired: true } });
         results.push({ productName: product.name, quantity: product.stock, totalLoss });
@@ -215,7 +229,7 @@ function scheduleAutoExpiryCheck() {
         .toISOString().split("T")[0];
 
       const openRecords = await PettyCash.find({
-        date:     todayEAT,
+        date: todayEAT,
         isClosed: false,
       });
 
@@ -223,11 +237,11 @@ function scheduleAutoExpiryCheck() {
         console.log("✅ Petty cash auto-close: all records already closed.");
       } else {
         for (const record of openRecords) {
-          record.isClosed     = true;
+          record.isClosed = true;
           record.closingFloat = record.netBalance;   // use expected balance
-          record.closedBy     = "System (Auto-Close)";
-          record.closedAt     = new Date();
-          record.notes        = record.notes
+          record.closedBy = "System (Auto-Close)";
+          record.closedAt = new Date();
+          record.notes = record.notes
             ? `${record.notes} | Auto-closed at midnight — no physical count`
             : "Auto-closed at midnight — no physical count performed";
 
@@ -240,10 +254,10 @@ function scheduleAutoExpiryCheck() {
 
           // Notify owner so they know to verify tomorrow morning
           io.to("owner").emit("pettyCashAutoClosed", {
-            store:        record.store,
-            date:         record.date,
+            store: record.store,
+            date: record.date,
             closingFloat: record.netBalance,
-            time:         new Date().toLocaleTimeString(),
+            time: new Date().toLocaleTimeString(),
           });
         }
 
@@ -257,26 +271,26 @@ function scheduleAutoExpiryCheck() {
     try {
       console.log("⏰ Midnight: running overdue customer check...");
 
-      const Customer  = require("./models/Customer");
-      const Sale      = require("./models/Sale");
+      const Customer = require("./models/Customer");
+      const Sale = require("./models/Sale");
       const Repayment = require("./models/Repayment");
-      const todayStr  = new Date().toISOString().split("T")[0];
+      const todayStr = new Date().toISOString().split("T")[0];
       let overdueCount = 0;
 
       const allCustomers = await Customer.find({ blacklisted: false });
       for (const customer of allCustomers) {
         const cSales = await Sale.find({
-          "paymentInfo.customerId":    customer._id,
+          "paymentInfo.customerId": customer._id,
           "paymentInfo.paymentMethod": "credit",
-          voided:   { $ne: true },
+          voided: { $ne: true },
           returned: { $ne: true },
         });
         const totalCredit = cSales.reduce((s, sale) => s + (sale.paymentInfo.finalTotal || sale.total), 0);
-        const reps        = await Repayment.find({ customerId: customer._id });
-        const totalPaid   = reps.reduce((s, r) => s + r.amount, 0);
-        const balance     = Math.max(0, totalCredit - totalPaid);
-        const earliest    = cSales.find(s => s.paymentInfo.promiseDate);
-        const isOverdue   = balance > 0 && earliest && earliest.paymentInfo.promiseDate < todayStr;
+        const reps = await Repayment.find({ customerId: customer._id });
+        const totalPaid = reps.reduce((s, r) => s + r.amount, 0);
+        const balance = Math.max(0, totalCredit - totalPaid);
+        const earliest = cSales.find(s => s.paymentInfo.promiseDate);
+        const isOverdue = balance > 0 && earliest && earliest.paymentInfo.promiseDate < todayStr;
 
         if (isOverdue !== customer.overdue) {
           customer.overdue = isOverdue;
@@ -316,7 +330,7 @@ app.use((err, req, res, next) => {
   res.status(err.status || 500).json({
     success: false,
     message: "An unexpected server error occurred.",
-    error:   err.message || "Internal server error",
+    error: err.message || "Internal server error",
   });
 });
 
@@ -329,7 +343,7 @@ const gracefulExit = () => {
   });
 };
 
-process.on("SIGINT",  gracefulExit);
+process.on("SIGINT", gracefulExit);
 process.on("SIGTERM", gracefulExit);
 
 module.exports = app;

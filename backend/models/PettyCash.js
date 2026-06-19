@@ -18,6 +18,7 @@ const pettyCashTxSchema = new mongoose.Schema(
     amount:      { type: Number, required: true, min: [0.01, "Amount must be > 0"] },
     description: { type: String, trim: true, default: "" },
     recordedBy:  { type: String, default: "" },
+    expenseCategory: { type: String, default: "" },
     time:        { type: String, default: timeEAT },
   },
   { _id: true, timestamps: false }

@@ -13,74 +13,75 @@ const saleSchema = new mongoose.Schema(
           ref: "Product",
           required: true,
         },
-        qty:   { type: Number, required: true },
+        qty: { type: Number, required: true },
         price: { type: Number, required: true },
         buyPrice: { type: Number, default: 0 },
+        unit: { type: String, default: "pcs" },
         returnStatus: {
-          type:    String,
-          enum:    ["none", "pending", "approved", "rejected"],
+          type: String,
+          enum: ["none", "pending", "approved", "rejected"],
           default: "none",
         },
         returnedQty: { type: Number, default: 0 },
         // ── Per-item void fields ──────────────────────────────────────
         voidStatus: {
-          type:    String,
-          enum:    ["none", "voided"],
+          type: String,
+          enum: ["none", "voided"],
           default: "none",
         },
-        voidedQty:  { type: Number, default: 0 },   // how many units voided
-        voidedAt:   { type: Date },
-        voidedBy:   { type: String, default: "" },
+        voidedQty: { type: Number, default: 0 },   // how many units voided
+        voidedAt: { type: Date },
+        voidedBy: { type: String, default: "" },
         voidReason: { type: String, default: "" },
       },
     ],
     total: { type: Number, required: true },
 
     // ── Multi-store tracking ──────────────────────────────────────────
-    store:     { type: String, required: true, index: true },
+    store: { type: String, required: true, index: true },
     cashierId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    cashier:   { type: String, default: "Cashier" },
+    cashier: { type: String, default: "Cashier" },
 
     paymentInfo: {
       paymentMethod: {
-        type:    String,
-        enum:    ["cash", "mpesa", "split", "credit", "card", "bank"],
+        type: String,
+        enum: ["cash", "mpesa", "split", "credit", "card", "bank"],
         default: "cash",
       },
-      mpesaPhone:       { type: String },
-      customerName:     { type: String },
-      customerPhone:    { type: String, default: "" },
+      mpesaPhone: { type: String },
+      customerName: { type: String },
+      customerPhone: { type: String, default: "" },
       customerId: {
-        type:    mongoose.Schema.Types.ObjectId,
-        ref:     "Customer",
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Customer",
         default: null,
       },
-      promiseDate:      { type: String, default: "" },
-      cashPart:         { type: Number, default: 0 },
-      mpesaPart:        { type: Number, default: 0 },
-      discount:         { type: Number, default: 0 },
-      finalTotal:       { type: Number },
-      cashGiven:        { type: Number, default: 0 },
-      change:           { type: Number, default: 0 },
+      promiseDate: { type: String, default: "" },
+      cashPart: { type: Number, default: 0 },
+      mpesaPart: { type: Number, default: 0 },
+      discount: { type: Number, default: 0 },
+      finalTotal: { type: Number },
+      cashGiven: { type: Number, default: 0 },
+      change: { type: Number, default: 0 },
       cardApprovalCode: { type: String, default: "" },
-      bankReference:    { type: String, default: "" },
+      bankReference: { type: String, default: "" },
     },
 
-    date:         { type: String,  required: true, default: dateEAT },
-    time:         { type: String,  required: true, default: timeEAT },
-    receiptId:    { type: String,  unique: true, sparse: true },
-    returned:     { type: Boolean, default: false },
+    date: { type: String, required: true, default: dateEAT },
+    time: { type: String, required: true, default: timeEAT },
+    receiptId: { type: String, unique: true, sparse: true },
+    returned: { type: Boolean, default: false },
     returnStatus: {
-      type:    String,
-      enum:    ["none", "pending", "approved", "rejected"],
+      type: String,
+      enum: ["none", "pending", "approved", "rejected"],
       default: "none",
     },
     returnId: { type: mongoose.Schema.Types.ObjectId, ref: "Return" },
 
     // ── Whole-sale void fields ────────────────────────────────────────
-    voided:     { type: Boolean, default: false },
-    voidedAt:   { type: Date },
-    voidedBy:   { type: String, default: "" },
+    voided: { type: Boolean, default: false },
+    voidedAt: { type: Date },
+    voidedBy: { type: String, default: "" },
     voidReason: { type: String, default: "" },
   },
   { timestamps: true }
@@ -89,8 +90,8 @@ const saleSchema = new mongoose.Schema(
 saleSchema.pre("save", async function () {
   if (!this.receiptId) {
     const timestamp = Date.now().toString().slice(-6)
-    const random    = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
-    this.receiptId  = `RCP-${timestamp}-${random}`
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
+    this.receiptId = `RCP-${timestamp}-${random}`
   }
 })
 

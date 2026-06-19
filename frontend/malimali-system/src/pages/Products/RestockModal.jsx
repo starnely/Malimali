@@ -4,6 +4,7 @@ import FormInput from './FormInput'
 export default function RestockModal({ restockProduct, restockQty, setRestockQty, confirmRestock, setRestockProduct }) {
   if (!restockProduct) return null
 
+  const unit = restockProduct.unit || 'pcs'
   const newTotal = Number(restockProduct.stock) + (Number(restockQty) || 0)
 
   return (
@@ -52,14 +53,14 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 Current stock:
                 <span className="font-bold ml-1" style={{ color: 'var(--primary)' }}>
-                  {restockProduct.stock} units
+                  {restockProduct.stock} {unit}
                 </span>
               </span>
               {restockQty && Number(restockQty) > 0 && (
                 <>
                   <span style={{ color: 'var(--text-muted)' }}>→</span>
                   <span className="text-xs font-bold" style={{ color: 'var(--success-dark)' }}>
-                    {newTotal} units after restock
+                    {newTotal} {unit} after restock
                   </span>
                 </>
               )}
@@ -68,7 +69,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
 
           {/* Input */}
           <FormInput
-            label="Quantity to Add"
+            label={`Quantity to Add (${unit})`}
             type="number"
             placeholder="e.g. 50"
             value={restockQty}
@@ -81,7 +82,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
 
           {Number(restockQty) > 0 && (
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Max 10,000 units per restock. Current: {restockProduct.stock} → New: {Number(restockProduct.stock) + Number(restockQty)} units
+              Max 10,000 {unit} per restock. Current: {restockProduct.stock} → New: {Number(restockProduct.stock) + Number(restockQty)} {unit}
             </p>
           )}
 

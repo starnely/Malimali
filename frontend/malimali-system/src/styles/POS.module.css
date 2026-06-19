@@ -1,0 +1,892 @@
+/* ═══════════════════════════════════════════════════════════════════
+   POS.module.css — Cashier terminal styles
+   New standalone file. Import as: import p from '@/styles/POS.module.css'
+   ═══════════════════════════════════════════════════════════════════ */
+
+/* ── Page wrapper ─────────────────────────────────────────────────── */
+.posPage {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-page);
+  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+/* ── Tab bar ──────────────────────────────────────────────────────── */
+.posTabBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  height: 48px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+  gap: 12px;
+}
+
+.posTabBarLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.posTabBarTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.posTabBarStore {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary);
+  background: var(--primary-light);
+  padding: 3px 10px;
+  border-radius: 20px;
+  border: 1px solid var(--primary-light);
+}
+
+.posTabBarTabs {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.posTabBtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: inherit;
+  position: relative;
+  white-space: nowrap;
+}
+
+.posTabBtn:hover:not(.posTabBtnActive) {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.posTabBtnActive {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+}
+
+.posTabCartBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 10px;
+  font-weight: 900;
+  margin-left: 2px;
+}
+
+/* ── Tab content area ─────────────────────────────────────────────── */
+.posTabContent {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.posSubPage {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+/* ── Terminal grid ────────────────────────────────────────────────── */
+.posTerminal {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  flex: 1;
+  overflow: hidden;
+  height: 100%;
+  min-height: 0;
+}
+
+@media (max-width: 960px) {
+  .posTerminal {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr auto;
+  }
+}
+
+/* ── Hidden scanner input ─────────────────────────────────────────── */
+.hiddenScanInput {
+  position: fixed;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+  top: -9999px;
+  left: -9999px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   LEFT PANEL — Product browser
+   ═══════════════════════════════════════════════════════════════════ */
+
+.posLeft {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-right: 1px solid var(--border-soft);
+  background: var(--bg-page);
+}
+
+/* ── Search + scanner pill ── */
+.posLeftHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.posSearchWrap {
+  position: relative;
+  flex: 1;
+}
+
+.posSearchIcon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-muted);
+  font-size: 17px;
+  pointer-events: none;
+}
+
+.posSearchInput {
+  width: 100%;
+  padding: 8px 32px 8px 32px;
+  border: 1px solid var(--border-medium);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  outline: none;
+  background: var(--bg-muted);
+  color: var(--text-primary);
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: all 0.15s;
+}
+
+.posSearchInput:focus {
+  border-color: var(--primary);
+  background: var(--bg-card);
+  box-shadow: 0 0 0 3px var(--primary-light);
+}
+
+.posSearchClear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: var(--border-soft);
+  border: none;
+  border-radius: 50%;
+  width: 17px;
+  height: 17px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-muted);
+  transition: all 0.12s;
+}
+
+.posSearchClear:hover {
+  background: var(--border-medium);
+}
+
+.posScannerPill {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: var(--success-light);
+  border: 1px solid var(--success);
+}
+
+.posScannerDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  flex-shrink: 0;
+  animation: posPing 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+
+@keyframes posPing {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(1.4); }
+}
+
+.posScannerLabel {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--success-dark);
+  white-space: nowrap;
+}
+
+/* ── Manual entry bar — always visible ── */
+.posManualBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--primary-light);
+  border-bottom: 1px solid var(--primary-light);
+}
+
+.posManualBarContent {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+
+.posManualInput {
+  width: 100%;
+  padding: 7px 11px;
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  outline: none;
+  background: var(--bg-card);
+  color: var(--primary);
+  box-sizing: border-box;
+  transition: all 0.15s;
+}
+
+.posManualInput::placeholder {
+  font-family: 'DM Sans', system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.posManualInput:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(30, 95, 165, 0.15);
+}
+
+.posManualBarHint {
+  font-size: 11px;
+  color: var(--primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  opacity: 0.8;
+}
+
+.posKbd {
+  display: inline-block;
+  padding: 1px 5px;
+  background: var(--primary);
+  color: #fff;
+  border-radius: 3px;
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ── Alerts ── */
+.posErrorBanner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 14px 0;
+  padding: 9px 12px;
+  background: var(--danger-light);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger-dark);
+}
+
+.posLastScanned {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 8px 14px 0;
+  padding: 7px 11px;
+  background: var(--success-light);
+  border: 1px solid var(--success);
+  border-radius: var(--radius-md);
+}
+
+.posLastScannedName {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success-dark);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.posLastScannedPrice {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--success-dark);
+  flex-shrink: 0;
+}
+
+.posLastScannedStock {
+  font-size: 11px;
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+/* ── Category pills ── */
+.posCatBar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 6px;
+  padding: 8px 14px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--bg-card);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.posCatBar::-webkit-scrollbar { display: none; }
+
+.posCatPill {
+  flex-shrink: 0;
+  padding: 4px 13px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.13s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.posCatPill:hover:not(.posCatPillActive) {
+  border-color: var(--primary);
+  color: var(--primary);
+  background: var(--primary-light);
+}
+
+.posCatPillActive {
+  background: var(--primary) !important;
+  color: #fff !important;
+  border-color: var(--primary) !important;
+}
+
+/* ── Product grid ── */
+.posProductGrid {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 8px;
+  align-content: start;
+}
+
+.posGridEmpty {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 20px;
+}
+
+/* ── Product card ── */
+.posProductCard {
+  position: relative;
+  border: 1.5px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+  overflow: hidden;
+  transition: all 0.13s;
+  box-shadow: var(--shadow-card);
+  font-family: inherit;
+}
+
+.posProductCard:hover:not(.posProductCardDisabled) {
+  border-color: var(--primary);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-1px);
+}
+
+.posProductCard:active:not(.posProductCardDisabled) {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+.posProductCardDisabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+}
+
+.posProductCardInCart {
+  border-color: var(--primary) !important;
+  background: var(--primary-light) !important;
+}
+
+.posProductCardFlash {
+  animation: posCardFlash 0.6s ease;
+}
+
+@keyframes posCardFlash {
+  0%   { background: var(--success-light); border-color: var(--success); transform: scale(1.04); }
+  100% { background: var(--bg-card);       border-color: var(--border-soft); transform: scale(1); }
+}
+
+.posCartBadge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1;
+}
+
+.posProductCardBody { padding: 10px; }
+
+.posProductCat {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  margin-bottom: 3px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.posProductName {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1.3;
+  margin-bottom: 7px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.posProductPrice {
+  font-size: 14px;
+  font-weight: 900;
+  color: var(--primary);
+  margin-bottom: 5px;
+}
+
+.posStockBadge {
+  display: inline-block;
+  padding: 2px 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   RIGHT PANEL — Order & checkout
+   ═══════════════════════════════════════════════════════════════════ */
+
+.posRight {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--bg-card);
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.05);
+}
+
+.posOrderHeader {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px;
+  background: var(--sidebar-bg);
+}
+
+.posOrderTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.posOrderSub {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 1px;
+}
+
+.posClearBtn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.13s;
+  font-family: inherit;
+}
+
+.posClearBtn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: rgba(239, 68, 68, 0.4);
+  color: #fff;
+}
+
+.posOrderItems {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.posOrderEmpty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.posOrderRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border-soft);
+  transition: background 0.1s;
+}
+
+.posOrderRow:last-child { border-bottom: none; }
+
+.posOrderItemInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.posOrderItemName {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.posOrderItemUnit {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 1px;
+}
+
+.posQtyControls {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.posQtyBtn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: 1px solid var(--border-medium);
+  background: var(--bg-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.posQtyBtn:hover:not(:disabled) {
+  background: var(--primary-light);
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.posQtyValue {
+  min-width: 26px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.posOrderItemTotal {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--primary);
+  min-width: 72px;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.posOrderDeleteBtn {
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  border: none;
+  background: var(--danger-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--danger);
+  flex-shrink: 0;
+  transition: all 0.1s;
+}
+
+.posOrderDeleteBtn:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+/* ── Checkout footer ── */
+.posCheckoutFooter {
+  flex-shrink: 0;
+  padding: 12px 14px;
+  border-top: 2px solid var(--border-soft);
+  background: var(--bg-card);
+}
+
+.posTotalRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 10px;
+}
+
+.posTotalLabel {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.posTotalValue {
+  font-size: 24px;
+  font-weight: 900;
+  color: var(--primary);
+  line-height: 1;
+}
+
+.posChargeBtn {
+  width: 100%;
+  padding: 13px;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 800;
+  color: #fff;
+  background: var(--success);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: all 0.13s;
+  font-family: inherit;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+  letter-spacing: 0.01em;
+}
+
+.posChargeBtn:hover:not(.posChargeBtnDisabled) {
+  background: var(--success-dark);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.posChargeBtnDisabled {
+  background: var(--border-medium) !important;
+  cursor: not-allowed !important;
+  box-shadow: none !important;
+  transform: none !important;
+}
+
+.posChargeBtnHint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 7px;
+}
+
+/* ── Manual entry live match dropdown ────────────────────────────── */
+.posManualDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 50;
+  background: var(--bg-card);
+  border: 1.5px solid var(--primary);
+  border-radius: var(--radius-md);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  overflow: hidden;
+}
+
+.posManualMatchRow {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg-card);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  transition: background 0.12s;
+}
+
+.posManualMatchRow:hover:not(:disabled) {
+  background: var(--primary-light);
+}
+
+.posManualMatchRow:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.posManualMatchLeft {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.posManualMatchName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.posManualMatchMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+  font-family: 'Courier New', monospace;
+}
+
+.posManualMatchStock {
+  flex-shrink: 0;
+  padding: 3px 9px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.posManualNoMatch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--danger-dark);
+  background: var(--danger-light);
+}
+
+/* ── Owner store selector ─────────────────────────────────────────── */
+.posStoreSelector {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  border-radius: 20px;
+}
+
+.posStoreSelectorSelect {
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 0;
+  max-width: 160px;
+}
+
+.posStoreSelectorSelect option {
+  color: var(--text-primary);
+  background: var(--bg-card);
+  font-weight: 600;
+}
+
+.posStoreLoading {
+  font-size: 10px;
+  color: var(--primary);
+  font-style: italic;
+  opacity: 0.7;
+}

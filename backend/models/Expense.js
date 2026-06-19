@@ -11,6 +11,14 @@ function timeEAT() {
   return nowEAT().toISOString().slice(11, 19) + " EAT"
 }
 
+// NOTE: "supplier_payment" is intentionally NOT in this list.
+// Supplier stock costs are captured via COGS (buyPrice × qty at point of sale)
+// in buildLiveSummary. Adding supplier payments here would double-count the
+// same cost in P&L reports. Supplier payment history lives in SupplierPayment
+// collection and is visible on the Purchase Orders page.
+//
+// NOTE: "petty_cash" also removed — petty cash spend is auto-logged
+// via the Cash Out action in the Petty Cash module.
 const EXPENSE_CATEGORIES = [
   "rent",
   "utilities",
@@ -21,8 +29,6 @@ const EXPENSE_CATEGORIES = [
   "marketing",
   "taxes",
   "other",
-  // NOTE: "petty_cash" removed — petty cash spend is auto-logged
-  // via the Cash Out action in the Petty Cash module
 ]
 
 const expenseSchema = new mongoose.Schema(
@@ -34,7 +40,8 @@ const expenseSchema = new mongoose.Schema(
     },
     category: {
       type:    String,
-      enum:    [...EXPENSE_CATEGORIES, "petty_cash"], // keep petty_cash in enum for old records
+      // petty_cash kept in enum for backward compatibility with old records
+      enum:    [...EXPENSE_CATEGORIES, "petty_cash"],
       default: "other",
       required: true,
     },
@@ -64,8 +71,8 @@ const expenseSchema = new mongoose.Schema(
       default: timeEAT,
     },
     // ── Petty cash link ───────────────────────────────────────────────
-    // true = this expense was auto-created from a Petty Cash Cash Out
-    // false/undefined = manually logged expense
+    // true  = auto-created from a Petty Cash Cash Out
+    // false = manually logged expense
     fromPettyCash: {
       type:    Boolean,
       default: false,

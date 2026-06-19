@@ -11,7 +11,7 @@ import * as XLSX from 'xlsx'
 
 export default function DailySummaryModal({ onClose }) {
   const {
-    sales, products, currentUser, isCashier,
+    sales, products, currentUser, isCashier, isOwner,
     closeShift, hasClosedShiftToday,
     fetchExpenseSummary, fetchPettyCashToday,   // ★ Phase 6
   } = useApp()
@@ -55,8 +55,8 @@ export default function DailySummaryModal({ onClose }) {
     const load = async () => {
       setExpenseLoading(true)
       try {
-        const store = currentUser.store || 'Main Store'
-        const data = await fetchExpenseSummary({ store, date: todayEAT })
+        const store = isOwner ? null : (currentUser.store || null)
+        const data = await fetchExpenseSummary({ ...(store ? { store } : {}), date: todayEAT })
         if (active) {
           setExpenseSummary(data.summary || [])
           setExpenseTotal(data.grandTotal || 0)
@@ -66,7 +66,7 @@ export default function DailySummaryModal({ onClose }) {
     }
     load()
     return () => { active = false }
-  }, [currentUser, fetchExpenseSummary, todayEAT])
+  }, [currentUser, fetchExpenseSummary, todayEAT, isOwner])
 
   // ── Phase 6: Today's petty cash ──────────────────────────────────────
   const [pettyCash, setPettyCash] = useState(null)
@@ -78,15 +78,17 @@ export default function DailySummaryModal({ onClose }) {
     const load = async () => {
       setPettyCashLoading(true)
       try {
-        const store = currentUser.store || 'Main Store'
+        const store = isOwner ? null : (currentUser.store || null)
+        if (!store) { if (active) { setPettyCash(null); setPettyCashLoading(false) }; return }
         const data = await fetchPettyCashToday(store)
+
         if (active) setPettyCash(data.record || null)
       } catch { if (active) setPettyCash(null) }
       finally { if (active) setPettyCashLoading(false) }
     }
     load()
     return () => { active = false }
-  }, [currentUser, fetchPettyCashToday])
+  }, [currentUser, fetchPettyCashToday, isOwner])
 
   const EXPENSE_CAT_LABELS = {
     rent: '🏠 Rent', utilities: '💡 Utilities', wages: '👷 Wages',

@@ -233,7 +233,7 @@ export function AppProvider({ children }) {
 
   const fetchSuppliers = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/suppliers')
+      const res = await authFetchRef.current('http://localhost:5000/api/suppliers?all=true')
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setSuppliers(data.success && Array.isArray(data.suppliers) ? data.suppliers : [])
@@ -666,7 +666,12 @@ export function AppProvider({ children }) {
         body: JSON.stringify({
           store: currentUserRef.current?.store || 'Main Store',
           cashier: currentUserRef.current?.fullname || currentUserRef.current?.username || 'Unknown',
-          items: cartItems.map(item => ({ productId: item._id || item.id, qty: item.qty, price: item.sellPrice })),
+          items: cartItems.map(item => ({
+            productId: item.productId || item._id || item.id,
+            qty: item.qty,
+            price: item.sellPrice,
+            unit: item.unit || 'pcs',
+          })),
           total: cartItems.reduce((sum, i) => sum + i.total, 0),
           paymentInfo: {
             paymentMethod: paymentInfo.paymentMethod,
@@ -820,6 +825,7 @@ export function AppProvider({ children }) {
 
     socket.on('adminShiftNotification', (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      console.log('adminShiftNotification received, role:', role, 'data:', data)
       if (role !== 'owner') return;
       const name = data.employeeName || 'An employee';
       const time = data.time || new Date().toLocaleTimeString();
@@ -890,7 +896,7 @@ export function AppProvider({ children }) {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner' && role !== 'manager') return;
       addNotification(
-        `⚠️ Low stock: ${data.productName} — only ${data.stock} unit(s) left (reorder at ${data.reorderLevel})`,
+        `⚠️ Low stock: ${data.productName} — only ${data.stock} ${data.unit || 'pcs'} left (reorder at ${data.reorderLevel})`,
         'warning', 'owner'
       );
     });
@@ -931,10 +937,6 @@ export function AppProvider({ children }) {
       const currentId = String(user?._id || user?.id || '');
       if (senderId === currentId) { fetchConversations(); return; }
 
-      // Only count as new if message arrived in last 30 seconds
-      const msgAge = Date.now() - new Date(msg.createdAt || msg.timestamp || 0).getTime()
-      if (msgAge > 30000) { fetchConversations(); return; }
-
       setUnreadMsgCount(prev => prev + 1);
       fetchConversations();
       setMessages(prev => {
@@ -967,17 +969,18 @@ export function AppProvider({ children }) {
       socket.off('expenseLogged');
       socket.off('newReturnRequest')
       socket.off('returnUpdated')
+      socket.off('pettyCashAutoClosed');
     };
   }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns,
     fetchProducts, addShiftCloseNotif, fetchConversations]);
 
   // ── VOID SALE ──────────────────────────────────────────────────────────
-  const voidSale = async (saleId, managerUsername, managerPassword, reason) => {
+  const voidSale = async (saleId, managerUsername, managerPassword, reason, voidType = 'whole', items = []) => {
     try {
       const res = await authFetchRef.current(`http://localhost:5000/api/sales/${saleId}/void`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ managerUsername, managerPassword, reason })
+        body: JSON.stringify({ managerUsername, managerPassword, reason, voidType, items })
       })
       const data = await res.json()
       if (data.success) { fetchSales(); fetchProducts(); return { success: true } }
@@ -1017,6 +1020,17 @@ export function AppProvider({ children }) {
         fetchArchives();
         setShiftCloses(prev => [{ employeeName, date: today }, ...prev]);
         addNotification('✅ Your shift has been closed.', 'success', employeeName);
+
+        // Tell the server in real time so owner sees notification instantly
+        if (socket) {
+          socket.emit('shift-closed', {
+            employeeName,
+            time: new Date().toLocaleTimeString(),
+            revenue,
+            store: currentUserRef.current?.store || '',
+          });
+        }
+
         return { success: true, archive: data.archive };
       }
       return { success: false, message: data.message || 'Server refused to close shift' };

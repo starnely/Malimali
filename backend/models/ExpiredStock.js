@@ -32,6 +32,11 @@ const expiredStockSchema = new mongoose.Schema(
       trim: true,
       default: ""
     },
+    unit: {
+      type: String,
+      trim: true,
+      default: "pcs"
+    },
     // How many units expired
     quantity: {
       type: Number,

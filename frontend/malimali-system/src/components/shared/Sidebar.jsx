@@ -6,7 +6,7 @@ import {
   MdMenu, MdClose, MdPerson, MdDocumentScanner, MdCategory, MdLocalShipping, MdStorefront,
   MdWarning, MdPeopleAlt, MdCreditCard,
   MdShoppingCart, MdAttachMoney, MdAccountBalanceWallet,
-  MdExpandMore, MdExpandLess, MdLogout,
+  MdExpandMore, MdExpandLess, MdLogout, MdReceiptLong, MdScale
 } from 'react-icons/md'
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
@@ -24,6 +24,8 @@ const ownerLinks = [
   },
   { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
   { to: '/reports', label: 'Reports', icon: <MdBarChart /> },
+  { to: '/daily-report', label: 'Daily Z-Report', icon: <MdReceiptLong /> },
+  { to: '/weigh-station', label: 'Weigh Station', icon: <MdScale /> },
   { to: '/customers', label: 'Debtors', icon: <MdPeopleAlt /> },
   { to: '/employees', label: 'Staff Management', icon: <MdPerson /> },
   {
@@ -55,6 +57,8 @@ const managerLinks = [
   },
   { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
   { to: '/reports', label: 'Store Reports', icon: <MdBarChart /> },
+  { to: '/daily-report', label: 'Daily Z-Report', icon: <MdReceiptLong /> },
+  { to: '/weigh-station', label: 'Weigh Station', icon: <MdScale /> },
   { to: '/customers', label: 'Debtors', icon: <MdPeopleAlt /> },
   {
     label: 'Suppliers', icon: <MdLocalShipping />, key: 'suppliers',
@@ -78,7 +82,7 @@ const cashierLinks = [
   { to: '/stock-out', label: 'Record Sale', icon: <MdPointOfSale /> },
   { to: '/sales-history', label: 'My Sales', icon: <MdHistory /> },
   { to: '/my-credits', label: 'My Credits', icon: <MdCreditCard /> },
-  { to: '/expenses', label: 'Expenses', icon: <MdAttachMoney /> },
+  { to: '/weigh-station', label: 'Weigh Station', icon: <MdScale /> },
 ]
 
 // ── Collapsible group ─────────────────────────────────────────────────

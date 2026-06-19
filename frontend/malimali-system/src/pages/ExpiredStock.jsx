@@ -3,19 +3,19 @@ import { MdWarning, MdDelete, MdStorefront, MdRefresh, MdTrendingDown, MdClose }
 import { useApp } from '@/context/AppContext'
 
 export default function ExpiredStock() {
-  const { currentUser, products, fetchProducts, isOwner, isManager, stores} = useApp()
+  const { currentUser, products, fetchProducts, isOwner, isManager, stores } = useApp()
 
-  const [expiredStock,  setExpiredStock]  = useState([])
-  const [totalLoss,     setTotalLoss]     = useState(0)
-  const [loading,       setLoading]       = useState(true)
-  const [storeFilter,   setStoreFilter]   = useState('All')
-  const [moveModal,     setMoveModal]     = useState(null)
-  const [moveQty,       setMoveQty]       = useState('')
-  const [moveNotes,     setMoveNotes]     = useState('')
-  const [moving,        setMoving]        = useState(false)
-  const [checking,      setChecking]      = useState(false)
-  const [message,       setMessage]       = useState(null)
-  const [confirmId,     setConfirmId]     = useState(null)
+  const [expiredStock, setExpiredStock] = useState([])
+  const [totalLoss, setTotalLoss] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const [storeFilter, setStoreFilter] = useState('All')
+  const [moveModal, setMoveModal] = useState(null)
+  const [moveQty, setMoveQty] = useState('')
+  const [moveNotes, setMoveNotes] = useState('')
+  const [moving, setMoving] = useState(false)
+  const [checking, setChecking] = useState(false)
+  const [message, setMessage] = useState(null)
+  const [confirmId, setConfirmId] = useState(null)
 
   const token = currentUser?.token
 
@@ -23,7 +23,7 @@ export default function ExpiredStock() {
     try {
       setLoading(true)
       const params = storeFilter !== 'All' ? `?store=${encodeURIComponent(storeFilter)}` : ''
-      const res    = await fetch(`http://localhost:5000/api/expired${params}`, {
+      const res = await fetch(`http://localhost:5000/api/expired${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -48,7 +48,7 @@ export default function ExpiredStock() {
     return (products || []).filter(p => {
       if (!p.expiryDate || p.isExpired) return false
       if (storeFilter !== 'All' && p.store !== storeFilter) return false
-      const exp      = new Date(p.expiryDate)
+      const exp = new Date(p.expiryDate)
       const daysLeft = (exp - today) / (1000 * 60 * 60 * 24)
       return daysLeft <= 30 && daysLeft >= 0
     }).sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
@@ -62,7 +62,7 @@ export default function ExpiredStock() {
     }
     try {
       setMoving(true)
-      const res  = await fetch(`http://localhost:5000/api/expired/move/${moveModal._id}`, {
+      const res = await fetch(`http://localhost:5000/api/expired/move/${moveModal._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ quantity: qty, notes: moveNotes }),
@@ -85,7 +85,7 @@ export default function ExpiredStock() {
   const handleAutoCheck = async () => {
     try {
       setChecking(true)
-      const res  = await fetch('http://localhost:5000/api/expired/auto-check', {
+      const res = await fetch('http://localhost:5000/api/expired/auto-check', {
         method: 'POST', headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -94,7 +94,7 @@ export default function ExpiredStock() {
         fetchExpired(); fetchProducts()
       }
     } catch { setMessage({ type: 'error', text: 'Auto-check failed' }) }
-    finally  { setChecking(false) }
+    finally { setChecking(false) }
   }
 
   const handleDelete = async (id) => {
@@ -147,7 +147,7 @@ export default function ExpiredStock() {
             className="mb-4 p-3 rounded-lg text-sm font-medium flex justify-between items-center"
             style={message.type === 'success'
               ? { background: 'var(--success-light)', color: 'var(--success-dark)', border: '1px solid var(--success)' }
-              : { background: 'var(--danger-light)',  color: 'var(--danger-dark)',  border: '1px solid var(--danger)'  }
+              : { background: 'var(--danger-light)', color: 'var(--danger-dark)', border: '1px solid var(--danger)' }
             }
           >
             {message.text}
@@ -158,9 +158,9 @@ export default function ExpiredStock() {
         {/* Summary cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           {[
-            { label: 'Total Loss (Expired)',    value: `KSh ${totalLoss.toLocaleString()}`, color: 'var(--danger)',      bg: 'var(--danger-light)'  },
-            { label: 'Expired Records',          value: expiredStock.length,                color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
-            { label: 'Expiring Soon (≤30 days)', value: expiringProducts.length,            color: 'var(--info-dark)',    bg: 'var(--info-light)'    },
+            { label: 'Total Loss (Expired)', value: `KSh ${totalLoss.toLocaleString()}`, color: 'var(--danger)', bg: 'var(--danger-light)' },
+            { label: 'Expired Records', value: expiredStock.length, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
+            { label: 'Expiring Soon (≤30 days)', value: expiringProducts.length, color: 'var(--info-dark)', bg: 'var(--info-light)' },
           ].map((card, i) => (
             <div key={i} className="rounded-xl p-4" style={{ background: card.bg, border: `1px solid ${card.color}30` }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: card.color, opacity: 0.8 }}>
@@ -192,7 +192,7 @@ export default function ExpiredStock() {
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
               {expiringProducts.map(p => {
-                const today    = new Date(); today.setHours(0, 0, 0, 0)
+                const today = new Date(); today.setHours(0, 0, 0, 0)
                 const daysLeft = Math.ceil((new Date(p.expiryDate) - today) / (1000 * 60 * 60 * 24))
                 return (
                   <div
@@ -203,7 +203,7 @@ export default function ExpiredStock() {
                     <div>
                       <div className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{p.name}</div>
                       <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        {p.store} · Stock: {p.stock}
+                        {p.store} · Stock: {p.stock} {p.unit || 'pcs'}
                       </div>
                       <div className="text-xs font-bold mt-1" style={{ color: 'var(--warning-dark)' }}>
                         {daysLeft === 0 ? 'Expires today!' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`}
@@ -299,7 +299,7 @@ export default function ExpiredStock() {
                           <MdStorefront className="text-xs" /> {e.store}
                         </span>
                       </td>
-                      <td className="px-4 py-3 font-bold" style={{ color: 'var(--text-primary)' }}>{e.quantity}</td>
+                      <td className="px-4 py-3 font-bold" style={{ color: 'var(--text-primary)' }}>{e.quantity} {e.unit || 'pcs'}</td>
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>KSh {(e.buyPrice || 0).toLocaleString()}</td>
                       <td className="px-4 py-3 font-bold" style={{ color: 'var(--danger)' }}>KSh {(e.totalLoss || 0).toLocaleString()}</td>
                       <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{formatDate(e.expiryDate)}</td>
@@ -387,9 +387,9 @@ export default function ExpiredStock() {
             <div className="p-5 space-y-4">
               <div className="p-3 rounded-lg space-y-1.5" style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)' }}>
                 {[
-                  { label: 'Current Stock', value: `${moveModal.stock} units` },
-                  { label: 'Buy Price',     value: `KSh ${(moveModal.buyPrice || 0).toLocaleString()}` },
-                  { label: 'Expiry Date',   value: formatDate(moveModal.expiryDate) },
+                  { label: 'Current Stock', value: `${moveModal.stock} ${moveModal.unit || 'pcs'}` },
+                  { label: 'Buy Price', value: `KSh ${(moveModal.buyPrice || 0).toLocaleString()}` },
+                  { label: 'Expiry Date', value: formatDate(moveModal.expiryDate) },
                 ].map(row => (
                   <div key={row.label} className="flex justify-between text-sm">
                     <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
@@ -400,7 +400,7 @@ export default function ExpiredStock() {
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  Quantity to Move
+                  Quantity to Move ({moveModal.unit || 'pcs'})
                 </label>
                 <input
                   type="number"
@@ -411,7 +411,7 @@ export default function ExpiredStock() {
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
                   style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', color: 'var(--text-primary)' }}
                   onFocus={e => { e.target.style.borderColor = 'var(--danger)'; e.target.style.boxShadow = '0 0 0 3px var(--danger-light)' }}
-                  onBlur={e  => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
                 />
                 {moveQty && Number(moveQty) > 0 && (
                   <div className="text-xs font-bold mt-1" style={{ color: 'var(--danger)' }}>
@@ -432,7 +432,7 @@ export default function ExpiredStock() {
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
                   style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', color: 'var(--text-primary)' }}
                   onFocus={e => { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 3px var(--primary-light)' }}
-                  onBlur={e  => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
+                  onBlur={e => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
                 />
               </div>
 

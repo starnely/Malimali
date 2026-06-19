@@ -9,7 +9,7 @@ export default function DebtorPanel({ date, onClose }) {
     const targetDate = date?.slice(0, 10)
     return sales.filter(s => {
       const dateMatch  = s.date?.slice(0, 10) === targetDate
-      const hasCredit  = s.paymentInfo?.paymentMethod === 'credit' || s.paymentInfo?.paymentMethod === 'split'
+      const hasCredit  = s.paymentInfo?.paymentMethod === 'credit'
       const storeMatch = isOwner || s.store === currentUser?.store
       return dateMatch && hasCredit && storeMatch && !s.returned && !s.voided
     })
@@ -25,7 +25,7 @@ export default function DebtorPanel({ date, onClose }) {
   }, [creditSales])
 
   const totalCredit = creditSales.reduce((sum, s) => {
-    return sum + (s.paymentInfo?.creditPart ?? s.paymentInfo?.finalTotal ?? 0)
+    return sum + (s.paymentInfo?.finalTotal ?? 0)
   }, 0)
 
   const displayDate = new Date(date + 'T00:00:00').toLocaleDateString('en-KE', {
@@ -98,7 +98,7 @@ export default function DebtorPanel({ date, onClose }) {
           ) : (
             Object.entries(byEmployee).map(([employeeName, empSales]) => {
               const empTotalDebt = empSales.reduce((sum, s) =>
-                sum + (s.paymentInfo?.creditPart ?? s.paymentInfo?.finalTotal ?? 0), 0)
+                sum + (s.paymentInfo?.finalTotal ?? 0), 0)
 
               return (
                 <div
@@ -158,7 +158,7 @@ export default function DebtorPanel({ date, onClose }) {
                               className="text-xs font-black px-2 py-0.5 rounded"
                               style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)' }}
                             >
-                              KSh {(sale.paymentInfo?.creditPart ?? sale.paymentInfo?.finalTotal ?? 0).toLocaleString()}
+                              KSh {(sale.paymentInfo?.finalTotal ?? 0).toLocaleString()}
                             </span>
                           </div>
 

@@ -179,7 +179,7 @@ export default function StockOut() {
                         </td>
 
                         <td className="px-5 py-3 font-medium" style={{ color: 'var(--text-secondary)' }}>
-                          {itemsQty} units
+                          {itemsQty} item{itemsQty !== 1 ? 's' : ''}
                         </td>
 
                         <td className="px-5 py-3 font-bold"

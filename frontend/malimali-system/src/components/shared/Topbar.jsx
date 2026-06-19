@@ -11,26 +11,26 @@ import ChatModal from '@/components/modals/ChatModal'
 import DailySummaryModal from '@/components/modals/DailySummaryModal'
 
 const pageTitles = {
-  '/':               'Dashboard',
-  '/products':       'Products',
-  '/stock-in':       'Stock In',
-  '/stock-out':      'Stock Out',
-  '/barcodes':       'POS Terminal',
-  '/sales-history':  'Sales History',
-  '/reports':        'Reports',
-  '/employees':      'Employees',
+  '/': 'Dashboard',
+  '/products': 'Products',
+  '/stock-in': 'Stock In',
+  '/stock-out': 'Stock Out',
+  '/barcodes': 'POS Terminal',
+  '/sales-history': 'Sales History',
+  '/reports': 'Reports',
+  '/employees': 'Employees',
   '/daily-archives': 'Daily Archives',
-  '/settings':       'Settings',
+  '/settings': 'Settings',
   '/monthly-report': 'Monthly Report',
-  '/profile':        'My Profile',
-  '/categories':     'Categories',
-  '/expired-stock':  'Expired Stock',
-  '/suppliers':      'Suppliers',
-  '/purchase-orders':'Purchase Orders',
-  '/expenses':       'Expenses',
-  '/petty-cash':     'Petty Cash',
-  '/customers':      'Debtors',
-  '/stores':         'Stores',
+  '/profile': 'My Profile',
+  '/categories': 'Categories',
+  '/expired-stock': 'Expired Stock',
+  '/suppliers': 'Suppliers',
+  '/purchase-orders': 'Purchase Orders',
+  '/expenses': 'Expenses',
+  '/petty-cash': 'Petty Cash',
+  '/customers': 'Debtors',
+  '/stores': 'Stores',
 }
 
 // ── Notification Panel ────────────────────────────────────────────────
@@ -45,13 +45,13 @@ function NotificationPanel({ onClose }) {
 
   const allNotifications = isOwner
     ? [
-        ...(shiftCloseNotifs || []).map(n => ({
-          id: n.id,
-          message: `🔒 ${n.employeeName} closed shift at ${n.time} — KSh ${(n.revenue || 0).toLocaleString()}`,
-          type: 'info', read: n.read, date: n.date, time: n.time, isShiftClose: true,
-        })),
-        ...(myNotifications || []),
-      ]
+      ...(shiftCloseNotifs || []).map(n => ({
+        id: n.id,
+        message: `🔒 ${n.employeeName} closed shift at ${n.time} — KSh ${(n.revenue || 0).toLocaleString()}`,
+        type: 'info', read: n.read, date: n.date, time: n.time, isShiftClose: true,
+      })),
+      ...(myNotifications || []),
+    ]
     : (myNotifications || [])
 
   const handleMarkAllRead = () => {
@@ -69,9 +69,9 @@ function NotificationPanel({ onClose }) {
 
   const typeStyles = {
     success: { bg: 'var(--success-light)', border: 'var(--success)', color: 'var(--success-dark)' },
-    error:   { bg: 'var(--danger-light)',  border: 'var(--danger)',  color: 'var(--danger-dark)'  },
+    error: { bg: 'var(--danger-light)', border: 'var(--danger)', color: 'var(--danger-dark)' },
     warning: { bg: 'var(--warning-light)', border: 'var(--warning)', color: 'var(--warning-dark)' },
-    info:    { bg: 'var(--info-light)',    border: 'var(--info)',    color: 'var(--info-dark)'    },
+    info: { bg: 'var(--info-light)', border: 'var(--info)', color: 'var(--info-dark)' },
   }
 
   return (
@@ -143,18 +143,18 @@ export default function TopBar() {
     hasClosedShiftToday,
   } = useApp()
 
-  const socket   = useSocket()
+  const socket = useSocket()
   const location = useLocation()
   const navigate = useNavigate()
 
-  const [toasts,            setToasts]            = useState([])
-  const [currentTime,       setCurrentTime]       = useState(new Date())
-  const [showProfileMenu,   setShowProfileMenu]   = useState(false)
+  const [toasts, setToasts] = useState([])
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showDailySummary,  setShowDailySummary]  = useState(false)
-  const [showChat,          setShowChat]          = useState(false)
+  const [showDailySummary, setShowDailySummary] = useState(false)
+  const [showChat, setShowChat] = useState(false)
 
-  const backendUrl    = 'http://localhost:5000'
+  const backendUrl = 'http://localhost:5000'
   const alreadyClosed = hasClosedShiftToday?.() || false
 
   useEffect(() => {
@@ -184,9 +184,9 @@ export default function TopBar() {
 
   const toastStyles = {
     success: { border: 'var(--success)', icon: '✅', bg: 'var(--success-light)', color: 'var(--success-dark)' },
-    error:   { border: 'var(--danger)',  icon: '❌', bg: 'var(--danger-light)',  color: 'var(--danger-dark)'  },
-    return:  { border: 'var(--warning)', icon: '🔄', bg: 'var(--warning-light)', color: 'var(--warning-dark)' },
-    info:    { border: 'var(--info)',    icon: 'ℹ️', bg: 'var(--info-light)',    color: 'var(--info-dark)'    },
+    error: { border: 'var(--danger)', icon: '❌', bg: 'var(--danger-light)', color: 'var(--danger-dark)' },
+    return: { border: 'var(--warning)', icon: '🔄', bg: 'var(--warning-light)', color: 'var(--warning-dark)' },
+    info: { border: 'var(--info)', icon: 'ℹ️', bg: 'var(--info-light)', color: 'var(--info-dark)' },
   }
 
   // ── Socket listeners — TOASTS ONLY ───────────────────────────────
@@ -235,33 +235,33 @@ export default function TopBar() {
     }
 
     // Use named handlers so we can remove only our specific listeners
-    socket.on('newReturnRequest',        handleNewReturnRequest)
-    socket.on('returnUpdated',           handleReturnUpdated)
-    socket.on('newSale',                 handleNewSale)
+    socket.on('newReturnRequest', handleNewReturnRequest)
+    socket.on('returnUpdated', handleReturnUpdated)
+    socket.on('newSale', handleNewSale)
     socket.on('shiftClosedConfirmation', handleShiftClosedConfirmation)
-    socket.on('adminShiftNotification',  handleAdminShiftNotification)
+    socket.on('adminShiftNotification', handleAdminShiftNotification)
 
     return () => {
       // Remove only our specific handler functions — NOT socket.off(eventName)
       // which would remove ALL listeners including AppContext's
-      socket.off('newReturnRequest',        handleNewReturnRequest)
-      socket.off('returnUpdated',           handleReturnUpdated)
-      socket.off('newSale',                 handleNewSale)
+      socket.off('newReturnRequest', handleNewReturnRequest)
+      socket.off('returnUpdated', handleReturnUpdated)
+      socket.off('newSale', handleNewSale)
       socket.off('shiftClosedConfirmation', handleShiftClosedConfirmation)
-      socket.off('adminShiftNotification',  handleAdminShiftNotification)
+      socket.off('adminShiftNotification', handleAdminShiftNotification)
     }
   }, [socket, addToast, navigate, isOwner])
 
-  const pageTitle      = pageTitles[location.pathname] || 'Dashboard'
-  const businessName   = settings?.businessName || settings?.companyName || 'POS System'
-  const lowStockCount  = lowStockProducts?.length || 0
+  const pageTitle = pageTitles[location.pathname] || 'Dashboard'
+  const businessName = settings?.businessName || settings?.companyName || 'POS System'
+  const lowStockCount = lowStockProducts?.length || 0
   const canSeeSettings = isOwner || isManager
-  const avatarColor    = isOwner ? 'var(--primary)' : isManager ? 'var(--warning)' : 'var(--success)'
-  const avatarInitial  = (currentUser?.fullname || currentUser?.username || 'U').charAt(0).toUpperCase()
+  const avatarColor = isOwner ? 'var(--primary)' : isManager ? 'var(--warning)' : 'var(--success)'
+  const avatarInitial = (currentUser?.fullname || currentUser?.username || 'U').charAt(0).toUpperCase()
 
   const topbarShortcuts = (isOwner || isManager) ? [
-    { to: '/barcodes',       label: 'Barcodes', icon: <MdDocumentScanner size={15} /> },
-    { to: '/daily-archives', label: 'Archives', icon: <MdArchive size={15} />         },
+    { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner size={15} /> },
+    { to: '/daily-archives', label: 'Archives', icon: <MdArchive size={15} /> },
   ] : []
 
   return (
@@ -336,15 +336,16 @@ export default function TopBar() {
                 return (
                   <button key={s.to} onClick={() => navigate(s.to)} title={s.label}
                     style={{
-                      display: 'flex', alignItems: 'center', gap: 5,
-                      padding: '5px 11px', borderRadius: 20, fontSize: 11, fontWeight: 700,
+                      display: 'flex', alignItems: 'center', gap: 6,
+                      padding: '7px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700,
                       cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
-                      background: isActive ? 'var(--primary)' : 'var(--bg-muted)',
-                      color:      isActive ? '#fff'           : 'var(--text-secondary)',
-                      border:     `1px solid ${isActive ? 'var(--primary)' : 'var(--border-medium)'}`,
+                      background: isActive ? 'var(--primary)' : 'var(--bg-card)',
+                      color: isActive ? '#fff' : 'var(--primary)',
+                      border: `1.5px solid ${isActive ? 'var(--primary)' : 'var(--primary-muted)'}`,
+                      boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.06)',
                     }}
-                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--primary-light)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary)' } }}
-                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-muted)'; e.currentTarget.style.color = 'var(--text-secondary)'; e.currentTarget.style.borderColor = 'var(--border-medium)' } }}
+                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)' } }}
+                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary-muted)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)' } }}
                   >
                     {s.icon} {s.label}
                   </button>

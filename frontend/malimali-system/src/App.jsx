@@ -25,6 +25,8 @@ import PettyCash from '@/pages/PettyCash'
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
 import { SocketProvider } from '@/context/SocketContext'
+import DailyReport from '@/pages/DailyReport'
+import WeighStation from './pages/WeighStation';
 import '@/App.css'
 
 function App() {
@@ -86,13 +88,14 @@ function App() {
                       {(isOwner || isManager) && <Route path="/products"        element={<Products />} />}
                       {(isOwner || isManager) && <Route path="/reports"         element={<Reports />} />}
                       {(isOwner || isManager) && <Route path="/categories"      element={<Categories />} />}
+                      {(isOwner || isManager) && <Route path="/daily-report"   element={<DailyReport />} />}
                       {(isOwner || isManager) && <Route path="/suppliers"       element={<Suppliers />} />}
                       {(isOwner || isManager) && <Route path="/stores"          element={<Stores />} />}
                       {(isOwner || isManager) && <Route path="/expired-stock"   element={<ExpiredStock />} />}
                       {(isOwner || isManager) && <Route path="/settings"        element={<Settings />} />}
                       {(isOwner || isManager) && <Route path="/customers"       element={<Customers />} />}
                       {(isOwner || isManager) && <Route path="/purchase-orders" element={<PurchaseOrders />} />}
-                      {(isOwner || isManager) && <Route path="/petty-cash"      element={<PettyCash />} />}
+                      {(isOwner || isManager) && <Route path="/petty-cash"      element={<PettyCash />} />}       
 
                       {/* ── CASHIER ONLY ── */}
                       {isCashier && <Route path="/my-credits" element={<MyCredits />} />}
@@ -103,6 +106,7 @@ function App() {
                       <Route path="/sales-history" element={<SalesHistory />} />
                       <Route path="/profile"       element={<Profile />} />
                       <Route path="/expenses"      element={<Expenses />} />
+                      <Route path="/weigh-station" element={<WeighStation />} />
 
                       {/* ── FALLBACK ── */}
                       <Route path="*" element={<Navigate to="/" />} />

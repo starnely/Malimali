@@ -1,9 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   MdAttachMoney, MdAdd, MdClose, MdDelete,
-  MdPieChart, MdCalendarToday, MdRefresh, MdFilterList,
+  MdPieChart, MdCalendarToday, MdRefresh,
   MdTrendingDown, MdReceiptLong, MdCategory,
-  MdExpandMore, MdExpandLess,
+  MdExpandMore, MdExpandLess, MdStorefront,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/Expenses.module.css'
@@ -18,11 +18,8 @@ const CATEGORIES = [
   { value: 'marketing',   label: 'Marketing',      emoji: '📢' },
   { value: 'taxes',       label: 'Taxes & Levies', emoji: '📋' },
   { value: 'other',       label: 'Other',          emoji: '📎' },
-  // petty_cash is intentionally excluded — petty cash spend is
-  // auto-logged as an expense when you do a Cash Out in Petty Cash
 ]
 
-// For display only — includes petty_cash for rendering old records
 const CAT_MAP_DISPLAY = {
   ...Object.fromEntries([
     { value: 'rent',        label: 'Rent',          emoji: '🏠' },
@@ -38,7 +35,7 @@ const CAT_MAP_DISPLAY = {
   ].map(c => [c.value, c])),
 }
 
-const CAT_MAP = CAT_MAP_DISPLAY  // alias for backward compat
+const CAT_MAP = CAT_MAP_DISPLAY
 
 const BAR_COLORS = [
   'var(--primary)', '#10B981', '#F59E0B', '#EF4444',
@@ -46,28 +43,30 @@ const BAR_COLORS = [
   '#84CC16', '#6B7280',
 ]
 
-// Compute once at module load — EAT today string
 const TODAY_EAT = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
 
 export default function Expenses() {
   const {
     fetchExpenses, fetchExpenseSummary, logExpense, deleteExpense,
-    currentUser, isOwner, isManager,
+    currentUser, isOwner, isManager, stores,
   } = useApp()
 
-  const [expenses, setExpenses]     = useState([])
-  const [summary, setSummary]       = useState([])
-  const [grandTotal, setGrandTotal] = useState(0)
-  const [filterDate, setFilterDate] = useState(TODAY_EAT)
-  const [filterCat, setFilterCat]   = useState('')
-  const [loading, setLoading]       = useState(true)
-  const [showModal, setShowModal]   = useState(false)
-  const [confirmId, setConfirmId]   = useState(null)
-  const [showBreakdown, setShowBreakdown] = useState(true)
-  const [toast, setToast]           = useState(null)
+  const [expenses,      setExpenses]      = useState([])
+  const [summary,       setSummary]       = useState([])
+  const [grandTotal,    setGrandTotal]    = useState(0)
+  const [filterDate,    setFilterDate]    = useState(TODAY_EAT)
+  const [filterCat,     setFilterCat]     = useState('')
+  const [filterStore,   setFilterStore]   = useState('')   // owner view filter
+  const [loading,       setLoading]       = useState(true)
+  const [showModal,     setShowModal]     = useState(false)
+  const [confirmId,     setConfirmId]     = useState(null)
+  const [showBreakdown, setShowBreakdown] = useState(false)
+  const [toast,         setToast]         = useState(null)
 
-  // ── FIX: owners see all stores, non-owners filter by their store ──
-  const store = isOwner ? null : (currentUser?.store || null)
+  // owners: null = all stores (unless they pick one); non-owners: always their store
+  const effectiveStore = isOwner
+    ? (filterStore || null)
+    : (currentUser?.store || null)
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -79,13 +78,13 @@ export default function Expenses() {
   const load = useCallback(async () => {
     setLoading(true)
     const filters = {}
-    if (store)      filters.store    = store
-    if (filterDate) filters.date     = filterDate
-    if (filterCat)  filters.category = filterCat
+    if (effectiveStore) filters.store    = effectiveStore
+    if (filterDate)     filters.date     = filterDate
+    if (filterCat)      filters.category = filterCat
 
     const sumFilters = {}
-    if (store)      sumFilters.store = store
-    if (filterDate) sumFilters.date  = filterDate
+    if (effectiveStore) sumFilters.store = effectiveStore
+    if (filterDate)     sumFilters.date  = filterDate
 
     const [expData, sumData] = await Promise.all([
       fetchExpenses(filters),
@@ -95,22 +94,18 @@ export default function Expenses() {
     setSummary(sumData.summary || [])
     setGrandTotal(sumData.grandTotal || 0)
     setLoading(false)
-  }, [fetchExpenses, fetchExpenseSummary, store, filterDate, filterCat])
+  }, [fetchExpenses, fetchExpenseSummary, effectiveStore, filterDate, filterCat])
 
   loadRef.current = load
 
   useEffect(() => {
     loadRef.current()
-  }, [store, filterDate, filterCat, fetchExpenses, fetchExpenseSummary])
+  }, [effectiveStore, filterDate, filterCat, fetchExpenses, fetchExpenseSummary])
 
   const handleDelete = async (id) => {
     const res = await deleteExpense(id)
     if (res.success) {
-      if (res.warning) {
-        showToast(res.warning, 'warning')
-      } else {
-        showToast('Expense removed — petty cash balance restored')
-      }
+      showToast(res.warning ? res.warning : 'Expense removed — petty cash balance restored', res.warning ? 'warning' : 'success')
       load()
     } else {
       showToast(res.message || 'Failed to delete', 'error')
@@ -120,7 +115,6 @@ export default function Expenses() {
 
   const maxCat = summary.reduce((m, c) => Math.max(m, c.total), 0)
 
-  // Group expenses by date for display
   const grouped = expenses.reduce((acc, exp) => {
     const key = exp.date || 'Unknown'
     if (!acc[key]) acc[key] = []
@@ -147,10 +141,7 @@ export default function Expenses() {
       {/* ── Header ── */}
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <h1>
-            <MdAttachMoney style={{ color: 'var(--danger)' }} />
-            Expenses
-          </h1>
+          <h1><MdAttachMoney style={{ color: 'var(--danger)' }} /> Expenses</h1>
           <p>Track daily business expenses and view category breakdowns</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
@@ -166,6 +157,22 @@ export default function Expenses() {
 
       {/* ── Filters ── */}
       <div className={styles.filtersBar}>
+
+        {/* Owner: store filter for viewing */}
+        {isOwner && stores.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <MdStorefront style={{ color: 'var(--primary)', fontSize: 16, flexShrink: 0 }} />
+            <select
+              className={styles.filterSelect}
+              value={filterStore}
+              onChange={e => setFilterStore(e.target.value)}
+            >
+              <option value=''>All Stores</option>
+              {stores.map(s => <option key={s._id} value={s.name}>{s.name}</option>)}
+            </select>
+          </div>
+        )}
+
         <input
           type='date'
           value={filterDate}
@@ -174,25 +181,24 @@ export default function Expenses() {
         />
         <select className={styles.filterSelect} value={filterCat} onChange={e => setFilterCat(e.target.value)}>
           <option value=''>All Categories</option>
-          {CATEGORIES.map(c => (
-            <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
-          ))}
+          {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
         </select>
         {filterDate && (
           <button className={styles.btnSecondary} onClick={() => setFilterDate('')}>
             <MdCalendarToday /> All Dates
           </button>
         )}
-        {(filterDate || filterCat) && (
-          <button className={styles.btnSecondary} onClick={() => { setFilterDate(TODAY_EAT); setFilterCat('') }}>
+        {(filterDate || filterCat || filterStore) && (
+          <button className={styles.btnSecondary} onClick={() => { setFilterDate(TODAY_EAT); setFilterCat(''); setFilterStore('') }}>
             Reset
           </button>
         )}
       </div>
 
+      {/* ── Fixed content above table ── */}
       <div className={styles.content}>
 
-        {/* ── Summary cards ── */}
+        {/* Summary cards */}
         <div className={styles.summaryRow}>
           <div className={`${styles.summaryCard} ${styles.summaryDanger}`}>
             <div className={styles.summaryIconWrap} style={{ background: '#fee2e2' }}>
@@ -200,10 +206,8 @@ export default function Expenses() {
             </div>
             <div>
               <div className={styles.label}>Total Expenses</div>
-              <div className={styles.value} style={{ color: 'var(--danger)' }}>
-                KSh {grandTotal.toLocaleString()}
-              </div>
-        {filterDate && <div className={styles.summaryMeta}>{filterDate}</div>}
+              <div className={styles.value} style={{ color: 'var(--danger)' }}>KSh {grandTotal.toLocaleString()}</div>
+              {filterDate && <div className={styles.summaryMeta}>{filterDate}</div>}
             </div>
           </div>
 
@@ -214,9 +218,7 @@ export default function Expenses() {
             <div>
               <div className={styles.label}>Transactions</div>
               <div className={styles.value}>{expenses.length}</div>
-              <div className={styles.summaryMeta}>
-                {expenses.length === 0 ? 'None recorded' : `${expenses.length} expense${expenses.length !== 1 ? 's' : ''}`}
-              </div>
+              <div className={styles.summaryMeta}>{expenses.length === 0 ? 'None recorded' : `${expenses.length} expense${expenses.length !== 1 ? 's' : ''}`}</div>
             </div>
           </div>
 
@@ -227,9 +229,7 @@ export default function Expenses() {
             <div>
               <div className={styles.label}>Categories Used</div>
               <div className={styles.value}>{summary.length}</div>
-              <div className={styles.summaryMeta}>
-                {summary.length === 0 ? 'None' : `of ${CATEGORIES.length} categories`}
-              </div>
+              <div className={styles.summaryMeta}>{summary.length === 0 ? 'None' : `of ${CATEGORIES.length} categories`}</div>
             </div>
           </div>
 
@@ -240,44 +240,36 @@ export default function Expenses() {
               </div>
               <div>
                 <div className={styles.label}>Highest Category</div>
-                <div className={styles.value} style={{ fontSize: 14, color: '#ea580c' }}>
-                  {CAT_MAP[summary[0]._id]?.label || summary[0]._id}
-                </div>
+                <div className={styles.value} style={{ fontSize: 14, color: '#ea580c' }}>{CAT_MAP[summary[0]._id]?.label || summary[0]._id}</div>
                 <div className={styles.summaryMeta}>KSh {summary[0].total.toLocaleString()}</div>
               </div>
             </div>
           )}
         </div>
 
-        {/* ── Category breakdown (collapsible) ── */}
+        {/* Category breakdown (collapsible) */}
         {summary.length > 0 && (
           <div className={styles.breakdown}>
             <div
               className={styles.breakdownHeader}
               onClick={() => setShowBreakdown(v => !v)}
-              role="button"
-              tabIndex={0}
+              role="button" tabIndex={0}
               onKeyDown={e => e.key === 'Enter' && setShowBreakdown(v => !v)}
             >
-              <h2>
-                <MdPieChart style={{ color: 'var(--primary)' }} />
-                Category Breakdown
-              </h2>
+              <h2><MdPieChart style={{ color: 'var(--primary)' }} /> Category Breakdown</h2>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
                   {summary.length} categor{summary.length !== 1 ? 'ies' : 'y'}
                 </span>
                 {showBreakdown
                   ? <MdExpandLess style={{ color: 'var(--text-muted)', fontSize: 20 }} />
-                  : <MdExpandMore style={{ color: 'var(--text-muted)', fontSize: 20 }} />
-                }
+                  : <MdExpandMore style={{ color: 'var(--text-muted)', fontSize: 20 }} />}
               </div>
             </div>
-
             {showBreakdown && (
               <div className={styles.breakdownBody}>
                 {summary.map((cat, i) => {
-                  const pct = maxCat ? Math.round((cat.total / maxCat) * 100) : 0
+                  const pct      = maxCat    ? Math.round((cat.total / maxCat)    * 100) : 0
                   const grandPct = grandTotal ? Math.round((cat.total / grandTotal) * 100) : 0
                   return (
                     <div key={cat._id} className={styles.catRow}>
@@ -287,16 +279,11 @@ export default function Expenses() {
                       </div>
                       <div className={styles.catBarWrap}>
                         <div className={styles.catBar}>
-                          <div
-                            className={styles.catFill}
-                            style={{ width: `${pct}%`, background: BAR_COLORS[i % BAR_COLORS.length] }}
-                          />
+                          <div className={styles.catFill} style={{ width: `${pct}%`, background: BAR_COLORS[i % BAR_COLORS.length] }} />
                         </div>
                         <span className={styles.catPct}>{grandPct}%</span>
                       </div>
-                      <div className={styles.catAmount}>
-                        KSh {cat.total.toLocaleString()}
-                      </div>
+                      <div className={styles.catAmount}>KSh {cat.total.toLocaleString()}</div>
                     </div>
                   )
                 })}
@@ -305,7 +292,7 @@ export default function Expenses() {
           </div>
         )}
 
-        {/* ── Expenses list ── */}
+        {/* ── Scrollable table area ── */}
         <div className={styles.tableWrap}>
           {loading ? (
             <div className={styles.empty}>
@@ -321,7 +308,6 @@ export default function Expenses() {
               </button>
             </div>
           ) : filterDate ? (
-            // Single date — plain table
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -329,6 +315,7 @@ export default function Expenses() {
                   <th>Category</th>
                   <th>Description</th>
                   <th>Recorded By</th>
+                  {isOwner && <th>Store</th>}
                   <th>Amount</th>
                   {(isOwner || isManager) && <th style={{ textAlign: 'center' }}>Actions</th>}
                 </tr>
@@ -338,6 +325,7 @@ export default function Expenses() {
                   <ExpenseRow
                     key={exp._id} exp={exp}
                     canDelete={isOwner || isManager}
+                    showStore={isOwner}
                     confirmId={confirmId}
                     setConfirmId={setConfirmId}
                     handleDelete={handleDelete}
@@ -346,7 +334,6 @@ export default function Expenses() {
               </tbody>
             </table>
           ) : (
-            // All dates — grouped by date
             sortedDates.map(date => (
               <div key={date} className={styles.dateGroup}>
                 <div className={styles.dateGroupHeader}>
@@ -363,6 +350,7 @@ export default function Expenses() {
                       <th>Category</th>
                       <th>Description</th>
                       <th>Recorded By</th>
+                      {isOwner && <th>Store</th>}
                       <th>Amount</th>
                       {(isOwner || isManager) && <th style={{ textAlign: 'center' }}>Actions</th>}
                     </tr>
@@ -372,6 +360,7 @@ export default function Expenses() {
                       <ExpenseRow
                         key={exp._id} exp={exp}
                         canDelete={isOwner || isManager}
+                        showStore={isOwner}
                         confirmId={confirmId}
                         setConfirmId={setConfirmId}
                         handleDelete={handleDelete}
@@ -401,7 +390,7 @@ export default function Expenses() {
 }
 
 // ── Expense table row ─────────────────────────────────────────────────
-function ExpenseRow({ exp, canDelete, confirmId, setConfirmId, handleDelete }) {
+function ExpenseRow({ exp, canDelete, showStore, confirmId, setConfirmId, handleDelete }) {
   return (
     <tr>
       <td style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
@@ -422,6 +411,9 @@ function ExpenseRow({ exp, canDelete, confirmId, setConfirmId, handleDelete }) {
         {exp.description || <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>No description</span>}
       </td>
       <td style={{ fontSize: 12 }}>{exp.recordedBy}</td>
+      {showStore && (
+        <td style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{exp.store || '—'}</td>
+      )}
       <td>
         <div style={{ fontWeight: 800, fontSize: 14, color: 'var(--danger)' }}>
           KSh {exp.amount.toLocaleString()}
@@ -449,18 +441,17 @@ function ExpenseRow({ exp, canDelete, confirmId, setConfirmId, handleDelete }) {
 // ── Log Expense Modal ─────────────────────────────────────────────────
 function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
   const { stores } = useApp()
-  const [amount, setAmount]           = useState('')
-  const [category, setCategory]       = useState('other')
-  const [description, setDescription] = useState('')
+  const [amount,        setAmount]        = useState('')
+  const [category,      setCategory]      = useState('other')
+  const [description,   setDescription]   = useState('')
   const [selectedStore, setSelectedStore] = useState(store || '')
-  const [saving, setSaving]           = useState(false)
-  const [error, setError]             = useState('')
+  const [saving,        setSaving]        = useState(false)
+  const [error,         setError]         = useState('')
 
   const handleSave = async () => {
     setError('')
     if (!amount || Number(amount) <= 0) { setError('Enter a valid amount.'); return }
-    if (isOwner && !selectedStore) { setError('Select a store.'); return }
-
+    if (isOwner && !selectedStore)      { setError('Select a store.'); return }
     setSaving(true)
     const res = await logExpense({
       amount: Number(amount),
@@ -484,15 +475,13 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
         </div>
         <div className={styles.modalBody}>
 
-          {/* Owner: pick store */}
-          {isOwner && stores.length > 0 && (
+          {/* Owner must pick which store this expense is for */}
+          {isOwner && (
             <div className={styles.formGroup}>
-              <label>Store</label>
+              <label>Store *</label>
               <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)}>
                 <option value=''>— Select store —</option>
-                {stores.map(s => (
-                  <option key={s._id} value={s.name}>{s.name}</option>
-                ))}
+                {stores.map(s => <option key={s._id} value={s.name}>{s.name}</option>)}
               </select>
             </div>
           )}
@@ -500,9 +489,7 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
           <div className={styles.formGroup}>
             <label>Category</label>
             <select value={category} onChange={e => setCategory(e.target.value)}>
-              {CATEGORIES.map(c => (
-                <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>
-              ))}
+              {CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.emoji} {c.label}</option>)}
             </select>
           </div>
 
@@ -513,7 +500,7 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
               value={amount}
               onChange={e => setAmount(e.target.value)}
               placeholder='0.00'
-              autoFocus
+              autoFocus={!isOwner}
             />
           </div>
 
@@ -526,7 +513,7 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
             />
           </div>
 
-          {amount > 0 && (
+          {Number(amount) > 0 && (
             <div style={{
               padding: '12px 14px', background: 'var(--danger-light)',
               border: '1px solid #fecaca', borderRadius: 'var(--radius-md)',

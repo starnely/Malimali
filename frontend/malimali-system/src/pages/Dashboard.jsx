@@ -58,7 +58,7 @@ export default function Dashboard() {
     const load = async () => {
       setStockLoading(true)
       try {
-        const store = currentUser.store || 'Main Store'
+        const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
         const res = await fetch(`http://localhost:5000/api/products/low-stock?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
         if (active) setLowStockCount(data.count ?? data.products?.length ?? 0)
@@ -75,8 +75,8 @@ export default function Dashboard() {
     const load = async () => {
       setExpenseLoading(true)
       try {
-        const store = currentUser.store || 'Main Store'
-        const data = await fetchExpenseSummary({ store, date: todayEAT })
+        const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
+        const data = await fetchExpenseSummary({ ...(store ? { store } : {}), date: todayEAT })
         if (active) { setExpenseTotal(data.grandTotal ?? 0); setExpenseCats(data.summary?.length ?? 0) }
       } catch { if (active) setExpenseTotal(0) }
       finally { if (active) setExpenseLoading(false) }
@@ -91,7 +91,7 @@ export default function Dashboard() {
     const load = async () => {
       setSupplierDebtLoading(true)
       try {
-        const store = currentUser.store || 'Main Store'
+        const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
         const res = await fetch(`http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
         if (active) { setSupplierDebt(data.totalOutstanding || 0); setSupplierDebtCount(data.count || 0) }
@@ -110,7 +110,7 @@ export default function Dashboard() {
       socket.on('adminShiftNotification', () => fetchArchives())
       socket.on('supplierPaymentMade', () => {
         if (!currentUser?.token) return
-        const store = currentUser.store || 'Main Store'
+        const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
         fetch(`http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
           .then(r => r.json()).then(d => { setSupplierDebt(d.totalOutstanding || 0); setSupplierDebtCount(d.count || 0) }).catch(() => { })
       })

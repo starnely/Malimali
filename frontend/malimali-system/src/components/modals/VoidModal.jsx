@@ -6,17 +6,17 @@ import {
 } from 'react-icons/md'
 
 export default function VoidModal({ sale, onClose, onVoid }) {
-  const [mode,             setMode]            = useState('items')  // 'items' | 'whole'
-  const [selectedItems,    setSelectedItems]   = useState({})       // { itemId: voidQty }
-  const [reason,           setReason]          = useState('')
-  const [managerUsername,  setManagerUsername] = useState('')
-  const [managerPassword,  setManagerPassword] = useState('')
-  const [showPassword,     setShowPassword]    = useState(false)
-  const [loading,          setLoading]         = useState(false)
-  const [error,            setError]           = useState('')
+  const [mode, setMode] = useState('items')  // 'items' | 'whole'
+  const [selectedItems, setSelectedItems] = useState({})       // { itemId: voidQty }
+  const [reason, setReason] = useState('')
+  const [managerUsername, setManagerUsername] = useState('')
+  const [managerPassword, setManagerPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
 
   const total = sale?.paymentInfo?.finalTotal || sale?.total || 0
-  const pm    = sale?.paymentInfo?.paymentMethod || 'cash'
+  const pm = sale?.paymentInfo?.paymentMethod || 'cash'
 
   // Only items that are not already fully voided
   const voidableItems = sale?.items?.filter(item =>
@@ -36,20 +36,20 @@ export default function VoidModal({ sale, onClose, onVoid }) {
 
   const setItemQty = (itemId, qty, maxQty, alreadyVoided) => {
     const remaining = maxQty - (alreadyVoided || 0)
-    const clamped   = Math.max(1, Math.min(Number(qty) || 1, remaining))
+    const clamped = Math.max(1, Math.min(Number(qty) || 1, remaining))
     setSelectedItems(prev => ({ ...prev, [itemId]: clamped }))
   }
 
-  const selectedCount   = Object.keys(selectedItems).length
-  const voidedValue     = voidableItems.reduce((sum, item) => {
+  const selectedCount = Object.keys(selectedItems).length
+  const voidedValue = voidableItems.reduce((sum, item) => {
     const qty = selectedItems[item._id]
     return qty ? sum + qty * item.price : sum
   }, 0)
 
   const handleVoid = async () => {
-    if (!reason.trim())          { setError('Please enter a void reason.'); return }
+    if (!reason.trim()) { setError('Please enter a void reason.'); return }
     if (!managerUsername.trim()) { setError('Manager username is required.'); return }
-    if (!managerPassword)        { setError('Manager password is required.'); return }
+    if (!managerPassword) { setError('Manager password is required.'); return }
 
     if (mode === 'items') {
       if (selectedCount === 0) { setError('Select at least one item to void.'); return }
@@ -95,7 +95,7 @@ export default function VoidModal({ sale, onClose, onVoid }) {
       onKeyDown={opts.onKeyDown}
       style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: '1.5px solid var(--border-medium)', fontSize: 13, outline: 'none', background: 'var(--bg-muted)', color: 'var(--text-primary)', boxSizing: 'border-box', fontFamily: 'inherit' }}
       onFocus={e => { e.target.style.borderColor = 'var(--danger)'; e.target.style.boxShadow = '0 0 0 3px var(--danger-light)' }}
-      onBlur={e  => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
+      onBlur={e => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
     />
   )
 
@@ -125,12 +125,12 @@ export default function VoidModal({ sale, onClose, onVoid }) {
             <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 8 }}>Sale to Void</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
               {[
-                { label: 'Receipt',  value: sale?.receiptId || 'N/A', mono: true },
-                { label: 'Total',    value: `KSh ${total.toLocaleString()}`, danger: true },
-                { label: 'Cashier',  value: sale?.cashier || '—' },
-                { label: 'Payment',  value: pm.charAt(0).toUpperCase() + pm.slice(1) },
-                { label: 'Date',     value: sale?.date || '—' },
-                { label: 'Items',    value: `${voidableItems.length} voidable` },
+                { label: 'Receipt', value: sale?.receiptId || 'N/A', mono: true },
+                { label: 'Total', value: `KSh ${total.toLocaleString()}`, danger: true },
+                { label: 'Cashier', value: sale?.cashier || '—' },
+                { label: 'Payment', value: pm.charAt(0).toUpperCase() + pm.slice(1) },
+                { label: 'Date', value: sale?.date || '—' },
+                { label: 'Items', value: `${voidableItems.length} voidable` },
               ].map(r => (
                 <div key={r.label}>
                   <div style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>{r.label}</div>
@@ -145,8 +145,8 @@ export default function VoidModal({ sale, onClose, onVoid }) {
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 8 }}>Void Type</div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               {[
-                { value: 'items', label: '📦 Specific Items',  desc: 'Void selected items or partial quantities' },
-                { value: 'whole', label: '🚫 Entire Sale',     desc: 'Void all items in this sale at once'       },
+                { value: 'items', label: '📦 Specific Items', desc: 'Void selected items or partial quantities' },
+                { value: 'whole', label: '🚫 Entire Sale', desc: 'Void all items in this sale at once' },
               ].map(opt => (
                 <button key={opt.value} onClick={() => { setMode(opt.value); setSelectedItems({}) }}
                   style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `2px solid ${mode === opt.value ? 'var(--danger)' : 'var(--border-medium)'}`, background: mode === opt.value ? 'var(--danger-light)' : 'var(--bg-muted)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
@@ -169,9 +169,9 @@ export default function VoidModal({ sale, onClose, onVoid }) {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {voidableItems.map(item => {
-                    const isSelected    = selectedItems[item._id] !== undefined
+                    const isSelected = selectedItems[item._id] !== undefined
                     const alreadyVoided = item.voidedQty || 0
-                    const remaining     = item.qty - alreadyVoided
+                    const remaining = item.qty - alreadyVoided
 
                     return (
                       <div key={item._id}
@@ -192,7 +192,7 @@ export default function VoidModal({ sale, onClose, onVoid }) {
                                 {item.productId?.category || '—'} ·
                                 KSh {item.price?.toLocaleString()} each ·
                                 {alreadyVoided > 0 && <span style={{ color: 'var(--danger)' }}> {alreadyVoided} already voided ·</span>}
-                                {' '}{remaining} remaining
+                                {' '}{remaining} {item.unit || 'pcs'} remaining
                               </div>
                             </div>
                           </div>

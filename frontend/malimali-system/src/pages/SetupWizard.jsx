@@ -5,13 +5,13 @@ import AuthLayout from '@/components/shared/AuthLayout'
 
 const SetupWizard = () => {
   const { setupOwner } = useApp()
-  const [step,    setStep]    = useState(1)
+  const [step, setStep] = useState(1)
   const [loading, setLoading] = useState(false)
   const [uiError, setUiError] = useState('')
 
-  const [showPassword,        setShowPassword]        = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
-  const [confirmPassword,     setConfirmPassword]     = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
 
   const [formData, setFormData] = useState({
     companyName: '', phone: '', email: '', location: '', logo: null,
@@ -32,7 +32,7 @@ const SetupWizard = () => {
     } else if (step === 2) {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
       if (!emailRegex.test(formData.ownerEmail)) { setUiError('Please provide a valid email address (e.g., name@domain.com).'); return }
-      if (formData.ownerPassword.length < 6)     { setUiError('For your security, the password must be at least 6 characters long.'); return }
+      if (formData.ownerPassword.length < 6) { setUiError('For your security, the password must be at least 6 characters long.'); return }
       if (formData.ownerPassword !== confirmPassword) { setUiError('Password confirmation mismatch. Please check your entries.'); return }
       setStep(3)
     } else if (step === 3) {
@@ -61,13 +61,13 @@ const SetupWizard = () => {
     fontSize: '13px', color: 'var(--text-primary)', boxSizing: 'border-box',
   }
   const onFocus = (e) => { e.target.style.borderColor = 'var(--primary)'; e.target.style.boxShadow = '0 0 0 3px var(--primary-light)'; e.target.style.background = 'var(--bg-card)' }
-  const onBlur  = (e) => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-muted)' }
+  const onBlur = (e) => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-muted)' }
 
   const getConfirmBorderStyle = () => {
     if (!confirmPassword) return {}
     return formData.ownerPassword === confirmPassword
       ? { borderColor: 'var(--success)', background: 'var(--success-light)' }
-      : { borderColor: 'var(--danger)',  background: 'var(--danger-light)'  }
+      : { borderColor: 'var(--danger)', background: 'var(--danger-light)' }
   }
 
   const stepLabels = ['Business', 'Admin', 'Activate']
@@ -151,13 +151,14 @@ const SetupWizard = () => {
                 </div>
                 {[
                   { name: 'companyName', label: 'Company name *', placeholder: 'e.g. Maison Café', required: true },
-                  { name: 'phone',       label: 'Business phone',  placeholder: '+254 XX XXX XXX'  },
-                  { name: 'location',    label: 'Address / city',  placeholder: 'Nairobi, Kenya'   },
+                  { name: 'phone', label: 'Business phone', placeholder: '+254 XX XXX XXX' },
+                  { name: 'email', label: 'Business email', placeholder: 'info@company.com', type: 'email' },
+                  { name: 'location', label: 'Address / city', placeholder: 'Nairobi, Kenya' },
                 ].map(f => (
                   <div key={f.name} className="space-y-1">
                     <label className="text-xs font-semibold ml-0.5" style={{ color: 'var(--text-muted)' }}>{f.label}</label>
-                    <input name={f.name} value={formData[f.name]} placeholder={f.placeholder} onChange={handleChange}
-                      style={inputBase} onFocus={onFocus} onBlur={onBlur} required={f.required} />
+                    <input name={f.name} type={f.type || 'text'} value={formData[f.name]} placeholder={f.placeholder}
+                      onChange={handleChange} style={inputBase} onFocus={onFocus} onBlur={onBlur} required={f.required} />
                   </div>
                 ))}
                 <div className="space-y-1">

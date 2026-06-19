@@ -1,4 +1,4 @@
-import { MdEdit, MdDelete, MdStorefront, MdCalendarToday, MdWarning } from 'react-icons/md'
+import { MdEdit, MdDelete, MdStorefront, MdCalendarToday, MdWarning, MdScale } from 'react-icons/md'
 import styles from '@/styles/Products.module.css'
 
 export default function ProductCardRow({ product, stockBadge, openEdit, setRestockProduct, setDeleteConfirm }) {
@@ -21,15 +21,36 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
       ? styles.expiringSoonBadge
       : styles.freshBadge
 
+  const isWeighed = !!product.isWeighed
+  const unit = product.unit || 'pcs'
+
   return (
     <tr className={`${styles.tableRow} ${isExpired ? styles.tableRowExpired : ''}`}>
 
       {/* ── Product Info ─────────────────────────────────── */}
       <td className="p-3 w-5/12">
         <div className="flex flex-col gap-0.5">
-          <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
-            {product.name}
-          </span>
+
+          {/* Name + weighed badge */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+              {product.name}
+            </span>
+            {isWeighed && (
+              <span
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 3,
+                  fontSize: 9, fontWeight: 800, padding: '1px 6px',
+                  borderRadius: 20, textTransform: 'uppercase', letterSpacing: '0.06em',
+                  background: 'var(--primary-light)', color: 'var(--primary)',
+                  border: '1px solid var(--primary)',
+                }}
+              >
+                <MdScale size={9} /> Weighed
+              </span>
+            )}
+          </div>
+
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
             {product.category}
           </span>
@@ -41,6 +62,13 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
           {product.batch && (
             <span className="text-[10px] font-semibold" style={{ color: 'var(--primary)' }}>
               Batch: {product.batch}
+            </span>
+          )}
+
+          {/* PLU number for weighed items */}
+          {isWeighed && product.pluNumber && (
+            <span className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+              PLU: {product.pluNumber}
             </span>
           )}
 
@@ -86,6 +114,9 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
         <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
           {product.stock}
         </span>
+        <span className="text-[10px] block" style={{ color: 'var(--text-muted)' }}>
+          {unit}
+        </span>
       </td>
 
       {/* ── Prices ───────────────────────────────────────── */}
@@ -98,10 +129,16 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
             </span>
           </span>
           <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            Sell:{' '}
+            {isWeighed ? 'Per KG:' : 'Sell:'}{' '}
             <span className="font-bold" style={{ color: 'var(--primary)' }}>
-              KSh {(product.sellPrice || 0).toLocaleString()}
+              KSh {(isWeighed
+                ? (product.pricePerKg || product.sellPrice || 0)
+                : (product.sellPrice || 0)
+              ).toLocaleString()}
             </span>
+            {isWeighed && (
+              <span style={{ fontSize: 9, color: 'var(--text-muted)', marginLeft: 2 }}>/kg</span>
+            )}
           </span>
         </div>
       </td>

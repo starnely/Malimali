@@ -6,7 +6,7 @@ import {
   MdLocalShipping, MdWarning, MdEdit,
   MdPictureAsPdf, MdMarkEmailRead,
   MdPayments, MdReceipt, MdAccountBalance,
-  MdPhoneAndroid, MdMoney,
+  MdPhoneAndroid, MdMoney, MdStore,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/PurchaseOrders.module.css'
@@ -33,7 +33,7 @@ function getTodayEAT() {
 
 export default function PurchaseOrders() {
   const {
-    suppliers, fetchSuppliers, products,
+    suppliers, fetchSuppliers, products, stores, fetchStores,
     fetchPurchaseOrders, createPurchaseOrder, updatePurchaseOrder,
     sendPurchaseOrder, receivePurchaseOrder,
     cancelPurchaseOrder, deletePurchaseOrder,
@@ -45,6 +45,7 @@ export default function PurchaseOrders() {
   const [filterStatus, setFilterStatus] = useState('')
   const [filterSupplier, setFilterSupplier] = useState('')
   const [filterPayment, setFilterPayment] = useState('')
+  const [filterStore, setFilterStore] = useState('')
   const [showCreate, setShowCreate] = useState(false)
   const [viewingPO, setViewingPO] = useState(null)
   const [receivingPO, setReceivingPO] = useState(null)
@@ -54,7 +55,7 @@ export default function PurchaseOrders() {
   const [payingPO, setPayingPO] = useState(null)
   const [toast, setToast] = useState(null)
 
-  const store = currentUser?.store || 'Main Store'
+  const defaultStore = currentUser?.store || 'Main Store'
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
@@ -63,17 +64,24 @@ export default function PurchaseOrders() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const filters = { store }
+    const filters = {}
+    // Owners can filter by any store; staff always see their own store
+    if (isOwner) {
+      if (filterStore) filters.store = filterStore
+    } else {
+      filters.store = defaultStore
+    }
     if (filterStatus) filters.status = filterStatus
     if (filterSupplier) filters.supplierId = filterSupplier
     if (filterPayment) filters.paymentStatus = filterPayment
     const data = await fetchPurchaseOrders(filters)
     setOrders(data)
     setLoading(false)
-  }, [fetchPurchaseOrders, store, filterStatus, filterSupplier, filterPayment])
+  }, [fetchPurchaseOrders, defaultStore, isOwner, filterStore, filterStatus, filterSupplier, filterPayment])
 
   useEffect(() => { load() }, [load])
   useEffect(() => { fetchSuppliers() }, [fetchSuppliers])
+  useEffect(() => { if (fetchStores) fetchStores() }, [fetchStores])
 
   const stats = useMemo(() => ({
     total: orders.length,
@@ -108,6 +116,13 @@ export default function PurchaseOrders() {
   const handleDownloadPDF = (po) => {
     window.open(`http://localhost:5000/api/purchase-orders/${po._id}/pdf?token=${currentUser?.token}`, '_blank')
   }
+
+  // Derive store list: prefer context stores array, fall back to unique stores from orders
+  const storeOptions = useMemo(() => {
+    if (Array.isArray(stores) && stores.length > 0) return stores.map(s => (typeof s === 'string' ? s : s.name))
+    const fromOrders = [...new Set(orders.map(o => o.store).filter(Boolean))]
+    return fromOrders.length > 0 ? fromOrders : [defaultStore]
+  }, [stores, orders, defaultStore])
 
   return (
     <div className={styles.page}>
@@ -154,7 +169,15 @@ export default function PurchaseOrders() {
         )}
       </div>
 
+      {/* ── Filters bar ── */}
       <div className={styles.filtersBar}>
+        {/* Store filter — owners only */}
+        {isOwner && (
+          <select className={styles.filterSelect} value={filterStore} onChange={e => setFilterStore(e.target.value)}>
+            <option value=''>All Stores</option>
+            {storeOptions.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
+        )}
         <select className={styles.filterSelect} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value=''>All Statuses</option>
           {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v.icon} {v.label}</option>)}
@@ -163,9 +186,10 @@ export default function PurchaseOrders() {
           <option value=''>All Suppliers</option>
           {suppliers
             .filter(s => {
+              if (s.isActive === false) return false
               const supStores = Array.isArray(s.stores) && s.stores.length > 0
                 ? s.stores : s.store ? [s.store] : []
-              return supStores.length === 0 || supStores.includes(store)
+              return supStores.length === 0 || supStores.includes(filterStore || defaultStore)
             })
             .map(s => <option key={s._id} value={s._id}>{s.name} — {s.company}</option>)
           }
@@ -193,6 +217,7 @@ export default function PurchaseOrders() {
                 <tr>
                   <th>PO Number</th>
                   <th>Supplier</th>
+                  <th>Store</th>
                   <th>Items</th>
                   <th>Order Value</th>
                   <th>Invoice / Payment</th>
@@ -213,6 +238,11 @@ export default function PurchaseOrders() {
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{po.supplierName}</div>
                         {po.supplierPhone && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{po.supplierPhone}</div>}
+                      </td>
+                      <td>
+                        <div style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <MdStore size={13} style={{ color: 'var(--text-muted)' }} />{po.store || '—'}
+                        </div>
                       </td>
                       <td style={{ textAlign: 'center' }}>
                         <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--primary)' }}>{po.items?.length}</span>
@@ -263,19 +293,415 @@ export default function PurchaseOrders() {
         </div>
       </div>
 
-      {showCreate && <CreatePOModal suppliers={suppliers} products={products} store={store} onClose={() => setShowCreate(false)} onSaved={() => { setShowCreate(false); load(); showToast('Purchase order created') }} createPurchaseOrder={createPurchaseOrder} />}
-      {viewingPO && <ViewPOModal po={viewingPO} currentUser={currentUser} onClose={() => setViewingPO(null)} onDownloadPDF={() => handleDownloadPDF(viewingPO)} onEmail={() => { setViewingPO(null); setEmailPO(viewingPO) }} onPay={() => { setViewingPO(null); setPayingPO(viewingPO) }} onInvoice={() => { setViewingPO(null); setInvoicePO(viewingPO) }} />}
-      {receivingPO && <ReceiveModal po={receivingPO} onClose={() => setReceivingPO(null)} onReceived={() => { setReceivingPO(null); load(); showToast('Stock received and inventory updated') }} receivePurchaseOrder={receivePurchaseOrder} />}
-      {editingPO && <CreatePOModal suppliers={suppliers} products={products} store={store} editingPO={editingPO} onClose={() => setEditingPO(null)} onSaved={() => { setEditingPO(null); load(); showToast('Purchase order updated') }} createPurchaseOrder={createPurchaseOrder} updatePurchaseOrder={updatePurchaseOrder} />}
-      {emailPO && <EmailPOModal po={emailPO} currentUser={currentUser} onClose={() => setEmailPO(null)} onSent={() => { setEmailPO(null); load(); showToast('Email sent to supplier') }} />}
-      {invoicePO && <InvoiceModal po={invoicePO} currentUser={currentUser} onClose={() => setInvoicePO(null)} onSaved={() => { setInvoicePO(null); load(); showToast('Invoice recorded') }} />}
-      {payingPO && <PaymentModal po={payingPO} currentUser={currentUser} onClose={() => setPayingPO(null)} onPaid={() => { setPayingPO(null); load(); showToast('Payment recorded successfully') }} />}
+      {showCreate && (
+        <CreatePOModal
+          suppliers={suppliers} products={products}
+          defaultStore={defaultStore} storeOptions={storeOptions}
+          onClose={() => setShowCreate(false)}
+          onSaved={() => { setShowCreate(false); load(); showToast('Purchase order created') }}
+          createPurchaseOrder={createPurchaseOrder}
+        />
+      )}
+      {viewingPO && (
+        <ViewPOModal po={viewingPO} currentUser={currentUser}
+          onClose={() => setViewingPO(null)}
+          onDownloadPDF={() => handleDownloadPDF(viewingPO)}
+          onEmail={() => { setViewingPO(null); setEmailPO(viewingPO) }}
+          onPay={() => { setViewingPO(null); setPayingPO(viewingPO) }}
+          onInvoice={() => { setViewingPO(null); setInvoicePO(viewingPO) }}
+        />
+      )}
+      {receivingPO && (
+        <ReceiveModal po={receivingPO}
+          onClose={() => setReceivingPO(null)}
+          onReceived={() => { setReceivingPO(null); load(); showToast('Stock received and inventory updated') }}
+          receivePurchaseOrder={receivePurchaseOrder}
+        />
+      )}
+      {editingPO && (
+        <CreatePOModal
+          suppliers={suppliers} products={products}
+          defaultStore={defaultStore} storeOptions={storeOptions}
+          editingPO={editingPO}
+          onClose={() => setEditingPO(null)}
+          onSaved={() => { setEditingPO(null); load(); showToast('Purchase order updated') }}
+          createPurchaseOrder={createPurchaseOrder}
+          updatePurchaseOrder={updatePurchaseOrder}
+        />
+      )}
+      {emailPO && (
+        <EmailPOModal po={emailPO} currentUser={currentUser}
+          onClose={() => setEmailPO(null)}
+          onSent={() => { setEmailPO(null); load(); showToast('Email sent to supplier') }}
+        />
+      )}
+      {invoicePO && (
+        <InvoiceModal po={invoicePO} currentUser={currentUser}
+          onClose={() => setInvoicePO(null)}
+          onSaved={() => { setInvoicePO(null); load(); showToast('Invoice recorded') }}
+        />
+      )}
+      {payingPO && (
+        <PaymentModal po={payingPO} currentUser={currentUser}
+          onClose={() => setPayingPO(null)}
+          onPaid={() => { setPayingPO(null); load(); showToast('Payment recorded successfully') }}
+        />
+      )}
     </div>
   )
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  INVOICE MODAL
+//  CREATE / EDIT PO MODAL
+// ══════════════════════════════════════════════════════════════════════
+function CreatePOModal({
+  suppliers, products,
+  defaultStore, storeOptions,
+  editingPO, onClose, onSaved,
+  createPurchaseOrder, updatePurchaseOrder,
+}) {
+  const isEdit = !!editingPO
+
+  // ── Store ──────────────────────────────────────────────────────────
+  const [selectedStore, setSelectedStore] = useState(editingPO?.store || defaultStore || '')
+
+  // ── Supplier ──────────────────────────────────────────────────────
+  const [supplierId, setSupplierId] = useState(editingPO?.supplierId?._id || '')
+  const [supplierName, setSupplierName] = useState(editingPO?.supplierName || '')
+  const [supplierPhone, setSupplierPhone] = useState(editingPO?.supplierPhone || '')
+
+  // ── Other fields ──────────────────────────────────────────────────
+  const [expectedDate, setExpectedDate] = useState(editingPO?.expectedDate || '')
+  const [notes, setNotes] = useState(editingPO?.notes || '')
+
+  // ── Items ─────────────────────────────────────────────────────────
+  const [items, setItems] = useState(
+    editingPO?.items?.map(i => ({
+      productId: i.productId?._id || i.productId,
+      productName: i.productName,
+      qtyOrdered: i.qtyOrdered,
+      unitCost: i.unitCost,
+    })) || [{ productId: '', productName: '', qtyOrdered: 1, unitCost: 0 }]
+  )
+
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  // ── Derived: products filtered to the selected store ──────────────
+  const storeProducts = useMemo(() => {
+    if (!selectedStore) return products
+    return products.filter(p => {
+      const pStores = Array.isArray(p.stores) && p.stores.length > 0
+        ? p.stores
+        : p.store ? [p.store] : []
+      return pStores.length === 0 || pStores.includes(selectedStore)
+    })
+  }, [products, selectedStore])
+
+  // ── Derived: suppliers filtered to the selected store ────────────
+  const storeSuppliers = useMemo(() => {
+    return suppliers.filter(s => {
+      if (s.isActive === false) return false
+      const supStores = Array.isArray(s.stores) && s.stores.length > 0
+        ? s.stores : s.store ? [s.store] : []
+      return supStores.length === 0 || supStores.includes(selectedStore || defaultStore)
+    })
+  }, [suppliers, selectedStore, defaultStore])
+
+  // ── When store changes, clear any items whose product is no longer available ──
+  const handleStoreChange = (newStore) => {
+    setSelectedStore(newStore)
+    // Reset supplier since they may be store-specific
+    setSupplierId('')
+    setSupplierName('')
+    setSupplierPhone('')
+    // Keep only items whose product exists in the new store
+    setItems(prev =>
+      prev.map(item => {
+        if (!item.productId) return item
+        const stillAvailable = products.some(p => {
+          if (p._id !== item.productId) return false
+          const pStores = Array.isArray(p.stores) && p.stores.length > 0
+            ? p.stores : p.store ? [p.store] : []
+          return pStores.length === 0 || pStores.includes(newStore)
+        })
+        return stillAvailable ? item : { productId: '', productName: '', qtyOrdered: 1, unitCost: 0 }
+      })
+    )
+  }
+
+  // ── Supplier selection → auto-fill name + phone ───────────────────
+  const onSupplierChange = (id) => {
+    setSupplierId(id)
+    const sup = storeSuppliers.find(s => s._id === id)
+    if (sup) {
+      setSupplierName(sup.name)
+      setSupplierPhone(sup.phone || '')
+    } else {
+      setSupplierName('')
+      setSupplierPhone('')
+    }
+  }
+
+  // ── Product selection → auto-fill name + buyPrice; duplicate guard ─
+  const onProductChange = (index, productId) => {
+    // Duplicate guard
+    const alreadyUsed = items.some((item, i) => i !== index && item.productId === productId)
+    if (alreadyUsed && productId) {
+      setError(`That product is already in the order. Adjust the quantity on the existing row instead.`)
+      return
+    }
+    setError('')
+    const product = storeProducts.find(p => p._id === productId)
+    const updated = [...items]
+    updated[index] = {
+      ...updated[index],
+      productId,
+      productName: product?.name || '',
+      unitCost: product?.buyPrice ?? product?.costPrice ?? 0,
+    }
+    setItems(updated)
+  }
+
+  const updateItem = (index, field, value) => {
+    const u = [...items]
+    u[index] = { ...u[index], [field]: value }
+    setItems(u)
+  }
+
+  const removeItem = (index) => {
+    if (items.length > 1) setItems(items.filter((_, i) => i !== index))
+  }
+
+  const addItem = () => {
+    setItems([...items, { productId: '', productName: '', qtyOrdered: 1, unitCost: 0 }])
+  }
+
+  const totalCost = items.reduce((s, i) => s + Number(i.qtyOrdered) * Number(i.unitCost), 0)
+
+  const handleSave = async () => {
+    setError('')
+    if (!selectedStore) { setError('Please select a store.'); return }
+    const validItems = items.filter(i => i.productId && i.qtyOrdered > 0)
+    if (!validItems.length) { setError('Add at least one product.'); return }
+
+    setSaving(true)
+    const payload = {
+      supplierId: supplierId || null,
+      supplierName: supplierId ? undefined : supplierName || 'Manual / Walk-in',
+      supplierPhone: supplierId ? undefined : supplierPhone,
+      store: selectedStore,
+      items: validItems,
+      notes,
+      expectedDate,
+    }
+    const res = isEdit
+      ? await updatePurchaseOrder(editingPO._id, payload)
+      : await createPurchaseOrder(payload)
+    setSaving(false)
+    if (res.success) onSaved()
+    else setError(res.message || 'Failed to save')
+  }
+
+  return (
+    <div className={styles.overlay}>
+      <div className={`${styles.modal} ${styles.modalWide}`}>
+        <div className={styles.modalHeader}>
+          <h2>{isEdit ? `Edit PO — ${editingPO.poNumber}` : 'Create New Purchase Order'}</h2>
+          <button className={styles.modalClose} onClick={onClose}><MdClose /></button>
+        </div>
+        <div className={styles.modalBody}>
+
+          {/* ── Store selector (required) ── */}
+          <div style={{ marginBottom: 16, padding: '12px 14px', background: 'var(--primary-light)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-md)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <MdStore size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+              <div style={{ flex: 1 }}>
+                <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--primary)', display: 'block', marginBottom: 4 }}>
+                  Store <span style={{ color: 'var(--danger)' }}>*</span>
+                </label>
+                <select
+                  value={selectedStore}
+                  onChange={e => handleStoreChange(e.target.value)}
+                  style={{ width: '100%', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 13, outline: 'none', cursor: 'pointer' }}
+                >
+                  <option value=''>— Select store —</option>
+                  {storeOptions.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+            {selectedStore && (
+              <div style={{ marginTop: 6, fontSize: 11, color: 'var(--primary)', fontWeight: 600 }}>
+                Showing {storeProducts.length} product{storeProducts.length !== 1 ? 's' : ''} and {storeSuppliers.length} supplier{storeSuppliers.length !== 1 ? 's' : ''} for {selectedStore}
+              </div>
+            )}
+          </div>
+
+          {/* ── Supplier + meta ── */}
+          <div className={styles.formGrid}>
+            <div className={styles.formGroup}>
+              <label>Supplier <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
+              <select
+                value={supplierId}
+                onChange={e => onSupplierChange(e.target.value)}
+                disabled={!selectedStore}
+              >
+                <option value=''>— Manual / Walk-in —</option>
+                {storeSuppliers.map(s => (
+                  <option key={s._id} value={s._id}>{s.name}{s.company ? ` — ${s.company}` : ''}</option>
+                ))}
+              </select>
+              {!selectedStore && (
+                <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 4 }}>Select a store first to see its suppliers.</div>
+              )}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Supplier Name</label>
+              <input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder='Auto-filled or enter manually' />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Supplier Phone</label>
+              <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder='e.g. 0712 345 678' />
+              {supplierId && supplierPhone && (
+                <div style={{ fontSize: 11, color: 'var(--success-dark)', marginTop: 4 }}>✓ Auto-filled from supplier record</div>
+              )}
+            </div>
+            <div className={styles.formGroup}>
+              <label>Expected Delivery Date</label>
+              <input type='date' value={expectedDate} onChange={e => setExpectedDate(e.target.value)} />
+            </div>
+            <div className={`${styles.formGroup} ${styles.span2}`}>
+              <label>Notes <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 400 }}>(optional)</span></label>
+              <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder='Delivery instructions, payment terms...' />
+            </div>
+          </div>
+
+          {/* ── Order items ── */}
+          <div className={styles.itemsSection}>
+            <h3>Order Items</h3>
+            {!selectedStore && (
+              <div style={{ padding: '10px 14px', background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--warning-dark)', fontWeight: 600, marginBottom: 10 }}>
+                ⚠️ Select a store above to load its products.
+              </div>
+            )}
+            <table className={styles.itemsTable}>
+              <thead>
+                <tr>
+                  <th>Product</th>
+                  <th style={{ width: 90 }}>Qty</th>
+                  <th style={{ width: 120 }}>Cost per Unit (KSh)</th>
+                  <th style={{ width: 120 }}>Total</th>
+                  <th style={{ width: 40 }}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((item, i) => {
+                  const productMeta = storeProducts.find(p => p._id === item.productId)
+                  const reorderLevel = productMeta?.reorderLevel ?? productMeta?.reorderPoint ?? null
+                  const productUnit = productMeta?.unit || 'pcs'
+                  return (
+                    <tr key={i}>
+                      <td>
+                        <select
+                          value={item.productId}
+                          onChange={e => onProductChange(i, e.target.value)}
+                          disabled={!selectedStore}
+                          style={{ width: '100%', padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 12, outline: 'none' }}
+                        >
+                          <option value=''>— Select product —</option>
+                          {storeProducts.map(p => (
+                            <option
+                              key={p._id}
+                              value={p._id}
+                              disabled={items.some((it, idx) => idx !== i && it.productId === p._id)}
+                            >
+                              {p.name} (stock: {p.stock ?? p.quantity ?? 0} {p.unit || 'pcs'})
+                            </option>
+                          ))}
+                        </select>
+                        {/* Reorder level hint */}
+                        {reorderLevel != null && (
+                          <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <MdWarning size={11} /> Reorder at {reorderLevel} {productUnit}
+                          </div>
+                        )}
+                        {/* Duplicate inline indicator — shown on the blocked row */}
+                        {item.productId && items.filter(it => it.productId === item.productId).length > 1 && (
+                          <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 3 }}>⚠️ Duplicate — remove one row</div>
+                        )}
+                      </td>
+                      <td>
+                        <input
+                          type='number' min={1}
+                          value={item.qtyOrdered}
+                          onChange={e => updateItem(i, 'qtyOrdered', e.target.value)}
+                        />
+                        {item.productId && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                            {productUnit}
+                          </div>
+                        )}
+                      </td>
+                      <td>
+                        <input
+                          type='number' min={0} step='0.01'
+                          value={item.unitCost}
+                          onChange={e => updateItem(i, 'unitCost', e.target.value)}
+                        />
+                        {item.productId && productMeta?.buyPrice != null && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                            Buy price: KSh {productMeta.buyPrice.toLocaleString()} / {productUnit}
+                          </div>
+                        )}
+                      </td>
+                      <td style={{ fontWeight: 700, color: 'var(--primary)', fontSize: 12 }}>
+                        {(Number(item.qtyOrdered) * Number(item.unitCost)).toLocaleString()}
+                      </td>
+                      <td>
+                        <button
+                          onClick={() => removeItem(i)}
+                          style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 4 }}
+                        >
+                          <MdDelete size={16} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+            <div className={styles.addItemRow}>
+              <button className={styles.btnSecondary} onClick={addItem} disabled={!selectedStore}>
+                <MdAdd /> Add Item
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
+              <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-md)', padding: '10px 18px', textAlign: 'right' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Total Order Value</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--primary)' }}>KSh {totalCost.toLocaleString()}</div>
+              </div>
+            </div>
+          </div>
+
+          {error && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>
+              <MdWarning style={{ verticalAlign: 'middle', marginRight: 6 }} />{error}
+            </div>
+          )}
+        </div>
+        <div className={styles.modalFooter}>
+          <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>
+          <button className={styles.btnPrimary} onClick={handleSave} disabled={saving || !selectedStore}>
+            {saving ? 'Saving...' : isEdit ? 'Update PO' : 'Create PO'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════
+//  INVOICE MODAL  (unchanged)
 // ══════════════════════════════════════════════════════════════════════
 function InvoiceModal({ po, currentUser, onClose, onSaved }) {
   const [invoiceNumber, setInvoiceNumber] = useState(po.invoiceNumber || '')
@@ -316,27 +742,18 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
           <div style={{ padding: '10px 14px', background: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: 13, marginBottom: 16, color: 'var(--info-dark)', fontWeight: 600 }}>
             📋 Record the invoice the supplier brought with this delivery. The invoice amount may differ from the PO value.
           </div>
-          <div className={styles.formGroup}>
-            <label>Invoice Number (from supplier's document)</label>
-            <input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. INV-2026-089" />
-          </div>
+          <div className={styles.formGroup}><label>Invoice Number (from supplier's document)</label><input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. INV-2026-089" /></div>
           <div className={styles.formGroup}>
             <label>Invoice Amount (KSh) *</label>
             <input type='number' min={0} value={invoiceAmount} onChange={e => setInvoiceAmount(e.target.value)} placeholder="0.00" autoFocus />
             {po.totalOrderedCost > 0 && (
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-                PO value was KSh {po.totalOrderedCost.toLocaleString()} — adjust if supplier charged differently
-              </div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>PO value was KSh {po.totalOrderedCost.toLocaleString()} — adjust if supplier charged differently</div>
             )}
           </div>
-          <div className={styles.formGroup}>
-            <label>Invoice Date</label>
-            <input type='date' value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
-          </div>
+          <div className={styles.formGroup}><label>Invoice Date</label><input type='date' value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} /></div>
           <div className={styles.formGroup}>
             <label>Upload Invoice Photo (optional)</label>
-            <input type='file' accept='image/*,application/pdf' onChange={e => setPhotoFile(e.target.files[0])}
-              style={{ padding: '8px 0', fontSize: 13, color: 'var(--text-secondary)' }} />
+            <input type='file' accept='image/*,application/pdf' onChange={e => setPhotoFile(e.target.files[0])} style={{ padding: '8px 0', fontSize: 13, color: 'var(--text-secondary)' }} />
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>Photo of physical invoice. JPEG, PNG or PDF, max 5MB.</div>
           </div>
           {Number(invoiceAmount) > 0 && (
@@ -352,7 +769,9 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
         </div>
         <div className={styles.modalFooter}>
           <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>
-          <button className={styles.btnPrimary} onClick={handleSave} disabled={saving || !invoiceAmount}>{saving ? 'Saving...' : '📋 Record Invoice'}</button>
+          <button className={styles.btnPrimary} onClick={handleSave} disabled={saving || !invoiceAmount}>
+            {saving ? 'Saving...' : '📋 Record Invoice'}
+          </button>
         </div>
       </div>
     </div>
@@ -360,7 +779,7 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  PAYMENT MODAL
+//  PAYMENT MODAL  (unchanged)
 // ══════════════════════════════════════════════════════════════════════
 function PaymentModal({ po, currentUser, onClose, onPaid }) {
   const [amount, setAmount] = useState('')
@@ -375,15 +794,12 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
   const balance = po.balance || 0
   const token = currentUser?.token
 
-  // Load existing payments — async, no synchronous setState
   useEffect(() => {
     if (!token) return
     let cancelled = false
     async function loadPayments() {
       try {
-        const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/payments`, {
-          headers: { Authorization: `Bearer ${token}` }
-        })
+        const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/payments`, { headers: { Authorization: `Bearer ${token}` } })
         const data = await res.json()
         if (!cancelled && data.success) setPayments(data.payments || [])
       } catch { /* silent */ }
@@ -392,69 +808,40 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
     return () => { cancelled = true }
   }, [po._id, token])
 
-  // Load financial advisory — async, no synchronous setState
   useEffect(() => {
     if (!token) return
     let cancelled = false
     async function loadAdvisory() {
       try {
         const now = new Date(Date.now() + 3 * 60 * 60 * 1000)
-        const y = now.getFullYear()
-        const m = now.getMonth() + 1
-        const mm = String(m).padStart(2, '0')
-        const from = `${y}-${mm}-01`
-        const to = `${y}-${mm}-${new Date(y, m, 0).getDate()}`
-
+        const y = now.getFullYear(); const m = now.getMonth() + 1; const mm = String(m).padStart(2, '0')
+        const from = `${y}-${mm}-01`; const to = `${y}-${mm}-${new Date(y, m, 0).getDate()}`
         const [salesRes, expRes, outstandingRes, spRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/sales`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`http://localhost:5000/api/expenses/summary?from=${from}&to=${to}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`http://localhost:5000/api/purchase-orders/outstanding`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
-          fetch(`http://localhost:5000/api/purchase-orders/supplier-payments?from=${from}&to=${to}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          }),
+          fetch(`http://localhost:5000/api/sales`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`http://localhost:5000/api/expenses/summary?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`http://localhost:5000/api/purchase-orders/outstanding`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`http://localhost:5000/api/purchase-orders/supplier-payments?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } }),
         ])
-
         const [salesData, expData, outstandingData, spData] = await Promise.all([
           salesRes.json().catch(() => ({ sales: [] })),
           expRes.json().catch(() => ({ grandTotal: 0 })),
           outstandingRes.json().catch(() => ({ totalOutstanding: 0 })),
           spRes.json().catch(() => ({ total: 0 })),
         ])
-
         if (cancelled) return
-
-        // Revenue: filter to this month, exclude returns/voids
         const allSales = salesData.sales || []
         const revenue = allSales
           .filter(s => {
             if (s.returned || s.voided) return false
-            const saleDate = s.date
-              ? String(s.date).slice(0, 10)
-              : (s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : null)
+            const saleDate = s.date ? String(s.date).slice(0, 10) : (s.createdAt ? new Date(s.createdAt).toISOString().split('T')[0] : null)
             return saleDate && saleDate >= from && saleDate <= to
           })
           .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal || s.netTotal || s.total || 0), 0)
-
         const expenses = expData.grandTotal || 0
-        // All supplier payments made this month (including previous POs)
         const supplierPayments = spData.total || 0
         const totalOutstanding = outstandingData.totalOutstanding || 0
         const otherSupplierDebt = Math.max(0, totalOutstanding - (po.balance || 0))
-
-        setAdvisory({
-          revenue,
-          expenses,
-          supplierPayments,
-          otherSupplierDebt,
-          // Net = revenue minus expenses minus what's already been paid to suppliers this month
-          net: revenue - expenses - supplierPayments,
-        })
+        setAdvisory({ revenue, expenses, supplierPayments, otherSupplierDebt, net: revenue - expenses - supplierPayments })
       } catch { /* silent */ }
     }
     loadAdvisory()
@@ -467,12 +854,10 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
     if (Number(amount) > balance) { setError(`Amount exceeds balance. Maximum: KSh ${balance.toLocaleString()}`); return }
     if (method === 'mpesa' && !reference.trim()) { setError('M-Pesa transaction code is required.'); return }
     if (method === 'bank' && !reference.trim()) { setError('Bank reference number is required.'); return }
-
     setPaying(true)
     try {
       const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/payments`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: Number(amount), method, reference, notes }),
       })
       const data = await res.json()
@@ -496,8 +881,6 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
           <button className={styles.modalClose} onClick={onClose}><MdClose /></button>
         </div>
         <div className={styles.modalBody}>
-
-          {/* Invoice summary tiles */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
             {[
               { label: 'Invoice Amount', value: `KSh ${(po.invoiceAmount || 0).toLocaleString()}`, color: 'var(--text-primary)' },
@@ -510,15 +893,8 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
               </div>
             ))}
           </div>
-
-          {/* Financial advisory */}
           {advisory ? (
-            <div style={{
-              padding: '12px 14px',
-              background: advisory.net >= Number(amount || 0) ? 'var(--success-light)' : 'var(--warning-light)',
-              border: `1px solid ${advisory.net >= Number(amount || 0) ? 'var(--success)' : 'var(--warning)'}`,
-              borderRadius: 'var(--radius-md)', marginBottom: 16, fontSize: 12,
-            }}>
+            <div style={{ padding: '12px 14px', background: advisory.net >= Number(amount || 0) ? 'var(--success-light)' : 'var(--warning-light)', border: `1px solid ${advisory.net >= Number(amount || 0) ? 'var(--success)' : 'var(--warning)'}`, borderRadius: 'var(--radius-md)', marginBottom: 16, fontSize: 12 }}>
               <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>📊 This Month's Financial Position</div>
               {[
                 { label: 'Revenue this month', value: advisory.revenue, color: 'var(--success-dark)' },
@@ -535,19 +911,13 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
               {Number(amount) > 0 && (
                 <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: 6, marginTop: 6, borderTop: '2px solid var(--border-medium)', fontWeight: 700, fontSize: 13 }}>
                   <span style={{ color: 'var(--text-primary)' }}>After this payment</span>
-                  <span style={{ color: advisory.net - Number(amount) >= 0 ? 'var(--success-dark)' : 'var(--danger)' }}>
-                    KSh {(advisory.net - Number(amount)).toLocaleString()}
-                  </span>
+                  <span style={{ color: advisory.net - Number(amount) >= 0 ? 'var(--success-dark)' : 'var(--danger)' }}>KSh {(advisory.net - Number(amount)).toLocaleString()}</span>
                 </div>
               )}
             </div>
           ) : (
-            <div style={{ padding: '10px 14px', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)', marginBottom: 16, fontSize: 12, color: 'var(--text-muted)' }}>
-              📊 Loading financial position...
-            </div>
+            <div style={{ padding: '10px 14px', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)', marginBottom: 16, fontSize: 12, color: 'var(--text-muted)' }}>📊 Loading financial position...</div>
           )}
-
-          {/* Payment method */}
           <div className={styles.formGroup}>
             <label>Payment Method</label>
             <div style={{ display: 'flex', gap: 8 }}>
@@ -559,31 +929,25 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
               ))}
             </div>
           </div>
-
           <div className={styles.formGroup}>
             <label>Amount (KSh) *</label>
             <input type='number' min={0} max={balance} value={amount} onChange={e => setAmount(e.target.value)} placeholder={`Max: KSh ${balance.toLocaleString()}`} autoFocus />
             <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
-              {[balance, Math.round(balance / 2)].filter(v => v > 0).map((v, i) => (
-                <button key={i} onClick={() => setAmount(String(v))}
-                  style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, border: '1px solid var(--border-medium)', borderRadius: 20, background: 'var(--bg-muted)', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'inherit' }}>
+              {[balance, Math.round(balance / 2)].filter(v => v > 0).map((v, idx) => (
+                <button key={idx} onClick={() => setAmount(String(v))} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, border: '1px solid var(--border-medium)', borderRadius: 20, background: 'var(--bg-muted)', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'inherit' }}>
                   KSh {v.toLocaleString()}
                 </button>
               ))}
             </div>
           </div>
-
           <div className={styles.formGroup}>
             <label>{method === 'mpesa' ? 'M-Pesa Transaction Code *' : method === 'bank' ? 'Bank Reference Number *' : 'Receipt Number (optional)'}</label>
             <input value={reference} onChange={e => setReference(e.target.value)} placeholder={methodConfig[method].placeholder} />
           </div>
-
           <div className={styles.formGroup}>
             <label>Notes (optional)</label>
             <input value={notes} onChange={e => setNotes(e.target.value)} placeholder="Any additional notes..." />
           </div>
-
-          {/* Previous payments */}
           {payments.length > 0 && (
             <div style={{ marginTop: 4 }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Previous Payments</div>
@@ -599,7 +963,6 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
               ))}
             </div>
           )}
-
           {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
         </div>
         <div className={styles.modalFooter}>
@@ -614,13 +977,12 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  VIEW PO MODAL
+//  VIEW PO MODAL  (unchanged)
 // ══════════════════════════════════════════════════════════════════════
 function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) {
   const status = STATUS_LABELS[po.status] || {}
   const ps = PAYMENT_STATUS[po.paymentStatus]
   const hasInvoice = po.invoiceAmount > 0
-
   return (
     <div className={styles.overlay}>
       <div className={`${styles.modal} ${styles.modalWide}`}>
@@ -635,6 +997,7 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
               {[
                 { key: 'Supplier', val: po.supplierName },
                 { key: 'Phone', val: po.supplierPhone || '—' },
+                { key: 'Store', val: po.store || '—' },
                 { key: 'Order Date', val: po.date },
                 { key: 'Expected Delivery', val: po.expectedDate || '—' },
                 { key: 'Created By', val: po.createdBy || '—' },
@@ -647,7 +1010,6 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
               ))}
             </div>
           </div>
-
           <div className={styles.detailSection}>
             <h3>Items Ordered</h3>
             <table className={styles.itemsTable}>
@@ -681,7 +1043,6 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
               </tbody>
             </table>
           </div>
-
           {(po.status === 'received' || po.status === 'partial') && (
             <div className={styles.detailSection}>
               <h3>Invoice & Payment</h3>
@@ -708,7 +1069,6 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
               )}
             </div>
           )}
-
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, marginTop: 12 }}>
             <div style={{ textAlign: 'right', padding: '10px 16px', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)' }}>
               <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 700, textTransform: 'uppercase' }}>Order Value</div>
@@ -729,119 +1089,6 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
           {(po.status === 'received' || po.status === 'partial') && !hasInvoice && <button className={styles.btnSecondary} onClick={onInvoice}><MdReceipt size={15} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Record Invoice</button>}
           {hasInvoice && po.paymentStatus !== 'paid' && <button className={styles.btnSuccess} onClick={onPay}><MdPayments size={15} style={{ marginRight: 4, verticalAlign: 'middle' }} /> Pay Supplier</button>}
           <button className={styles.btnSecondary} onClick={onClose}>Close</button>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ══════════════════════════════════════════════════════════════════════
-//  CREATE / EDIT PO MODAL
-// ══════════════════════════════════════════════════════════════════════
-function CreatePOModal({ suppliers, products, store, editingPO, onClose, onSaved, createPurchaseOrder, updatePurchaseOrder }) {
-  const isEdit = !!editingPO
-  const [supplierId, setSupplierId] = useState(editingPO?.supplierId?._id || '')
-  const [supplierName, setSupplierName] = useState(editingPO?.supplierName || '')
-  const [supplierPhone, setSupplierPhone] = useState(editingPO?.supplierPhone || '')
-  const [expectedDate, setExpectedDate] = useState(editingPO?.expectedDate || '')
-  const [notes, setNotes] = useState(editingPO?.notes || '')
-  const [items, setItems] = useState(
-    editingPO?.items?.map(i => ({ productId: i.productId?._id || i.productId, productName: i.productName, qtyOrdered: i.qtyOrdered, unitCost: i.unitCost }))
-    || [{ productId: '', productName: '', qtyOrdered: 1, unitCost: 0 }]
-  )
-  const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
-
-  const onSupplierChange = (id) => {
-    setSupplierId(id)
-    const sup = suppliers.find(s => s._id === id)
-    if (sup) { setSupplierName(sup.name); setSupplierPhone(sup.phone) }
-    else { setSupplierName(''); setSupplierPhone('') }
-  }
-  const onProductChange = (index, productId) => {
-    const product = products.find(p => p._id === productId)
-    const updated = [...items]
-    updated[index] = { ...updated[index], productId, productName: product?.name || '', unitCost: product?.buyPrice || 0 }
-    setItems(updated)
-  }
-  const updateItem = (index, field, value) => { const u = [...items]; u[index] = { ...u[index], [field]: value }; setItems(u) }
-  const removeItem = (index) => { if (items.length > 1) setItems(items.filter((_, i) => i !== index)) }
-  const totalCost = items.reduce((s, i) => s + Number(i.qtyOrdered) * Number(i.unitCost), 0)
-
-  const handleSave = async () => {
-    setError('')
-    const validItems = items.filter(i => i.productId && i.qtyOrdered > 0)
-    if (!validItems.length) { setError('Add at least one product.'); return }
-    setSaving(true)
-    const payload = { supplierId: supplierId || null, supplierName: supplierId ? undefined : supplierName || 'Manual / Walk-in', supplierPhone: supplierId ? undefined : supplierPhone, store, items: validItems, notes, expectedDate }
-    const res = isEdit ? await updatePurchaseOrder(editingPO._id, payload) : await createPurchaseOrder(payload)
-    setSaving(false)
-    if (res.success) onSaved()
-    else setError(res.message || 'Failed to save')
-  }
-
-  return (
-    <div className={styles.overlay}>
-      <div className={`${styles.modal} ${styles.modalWide}`}>
-        <div className={styles.modalHeader}>
-          <h2>{isEdit ? `Edit PO — ${editingPO.poNumber}` : 'Create New Purchase Order'}</h2>
-          <button className={styles.modalClose} onClick={onClose}><MdClose /></button>
-        </div>
-        <div className={styles.modalBody}>
-          <div className={styles.formGrid}>
-            <div className={styles.formGroup}><label>Supplier (optional)</label>
-              <select value={supplierId} onChange={e => onSupplierChange(e.target.value)}>
-                <option value=''>— Manual / Walk-in —</option>
-                {suppliers
-                  .filter(s => {
-                    const supStores = Array.isArray(s.stores) && s.stores.length > 0
-                      ? s.stores : s.store ? [s.store] : []
-                    return supStores.length === 0 || supStores.includes(store)
-                  })
-                  .map(s => <option key={s._id} value={s._id}>{s.name} — {s.company}</option>)
-                }
-              </select>
-            </div>
-            <div className={styles.formGroup}><label>Supplier Name</label><input value={supplierName} onChange={e => setSupplierName(e.target.value)} placeholder='Auto-filled or enter manually' /></div>
-            <div className={styles.formGroup}><label>Supplier Phone</label><input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder='e.g. 0712 345 678' /></div>
-            <div className={styles.formGroup}><label>Expected Delivery Date</label><input type='date' value={expectedDate} onChange={e => setExpectedDate(e.target.value)} /></div>
-            <div className={`${styles.formGroup} ${styles.span2}`}><label>Notes (optional)</label><textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder='Delivery instructions, payment terms...' /></div>
-          </div>
-          <div className={styles.itemsSection}>
-            <h3>Order Items</h3>
-            <table className={styles.itemsTable}>
-              <thead><tr><th>Product</th><th style={{ width: 90 }}>Qty</th><th style={{ width: 110 }}>Unit Cost</th><th style={{ width: 120 }}>Total</th><th style={{ width: 40 }}></th></tr></thead>
-              <tbody>
-                {items.map((item, i) => (
-                  <tr key={i}>
-                    <td>
-                      <select value={item.productId} onChange={e => onProductChange(i, e.target.value)}
-                        style={{ width: '100%', padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 12, outline: 'none' }}>
-                        <option value=''>— Select product —</option>
-                        {products.map(p => <option key={p._id} value={p._id}>{p.name} (stock: {p.stock})</option>)}
-                      </select>
-                    </td>
-                    <td><input type='number' min={1} value={item.qtyOrdered} onChange={e => updateItem(i, 'qtyOrdered', e.target.value)} /></td>
-                    <td><input type='number' min={0} step='0.01' value={item.unitCost} onChange={e => updateItem(i, 'unitCost', e.target.value)} /></td>
-                    <td style={{ fontWeight: 700, color: 'var(--primary)', fontSize: 12 }}>{(Number(item.qtyOrdered) * Number(item.unitCost)).toLocaleString()}</td>
-                    <td><button onClick={() => removeItem(i)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--danger)', padding: 4 }}><MdDelete size={16} /></button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <div className={styles.addItemRow}><button className={styles.btnSecondary} onClick={() => setItems([...items, { productId: '', productName: '', qtyOrdered: 1, unitCost: 0 }])}><MdAdd /> Add Item</button></div>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 14 }}>
-              <div style={{ background: 'var(--primary-light)', border: '1px solid var(--primary)', borderRadius: 'var(--radius-md)', padding: '10px 18px', textAlign: 'right' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--primary)', textTransform: 'uppercase' }}>Total Order Value</div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--primary)' }}>KSh {totalCost.toLocaleString()}</div>
-              </div>
-            </div>
-          </div>
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
-        </div>
-        <div className={styles.modalFooter}>
-          <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>
-          <button className={styles.btnPrimary} onClick={handleSave} disabled={saving}>{saving ? 'Saving...' : isEdit ? 'Update PO' : 'Create PO'}</button>
         </div>
       </div>
     </div>
@@ -886,21 +1133,22 @@ function ReceiveModal({ po, onClose, onReceived, receivePurchaseOrder }) {
           {po.items.map(item => {
             const remaining = item.qtyOrdered - item.qtyReceived
             const pct = item.qtyOrdered ? Math.min(100, Math.round(item.qtyReceived / item.qtyOrdered * 100)) : 0
+            const itemUnit = item.unit || 'pcs'
             return (
               <div key={item._id} className={styles.receiveItem}>
                 <div>
                   <div className={styles.receiveItemName}>{item.productName}</div>
-                  <div className={styles.receiveItemSub}>Ordered: {item.qtyOrdered} · Received: {item.qtyReceived} · Remaining: {remaining}</div>
+                  <div className={styles.receiveItemSub}>Ordered: {item.qtyOrdered} {itemUnit} · Received: {item.qtyReceived} {itemUnit} · Remaining: {remaining} {itemUnit}</div>
                   <div className={styles.progressBar} style={{ marginTop: 6, width: 140 }}><div className={styles.progressFill} style={{ width: `${pct}%` }} /></div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Qty Now</div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Qty Now ({itemUnit})</div>
                   <input type='number' min={0} max={remaining} value={quantities[item._id] ?? ''} onChange={e => setQuantities({ ...quantities, [item._id]: e.target.value })} disabled={remaining <= 0}
                     style={{ width: 80, padding: '6px 8px', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-sm)', background: remaining <= 0 ? 'var(--bg-muted)' : 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 13, outline: 'none', textAlign: 'center' }} />
                 </div>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Unit Cost</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>KSh {item.unitCost?.toLocaleString()}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>KSh {item.unitCost?.toLocaleString()} / {itemUnit}</div>
                 </div>
                 <div>
                   <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Subtotal</div>
@@ -927,7 +1175,7 @@ function ReceiveModal({ po, onClose, onReceived, receivePurchaseOrder }) {
 }
 
 // ══════════════════════════════════════════════════════════════════════
-//  EMAIL PO MODAL
+//  EMAIL PO MODAL  (unchanged)
 // ══════════════════════════════════════════════════════════════════════
 function EmailPOModal({ po, currentUser, onClose, onSent }) {
   const supplierEmail = po.supplierId?.email || ''

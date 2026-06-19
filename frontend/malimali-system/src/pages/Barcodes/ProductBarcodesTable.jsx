@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react'
-import { MdSearch, MdPrint, MdQrCodeScanner } from 'react-icons/md'
+import { MdSearch, MdPrint, MdQrCodeScanner, MdScale } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import s from '@/styles/Barcodes.module.css'
 
@@ -10,10 +10,10 @@ export default function ProductBarcodesTable({ products = [], onGoToScan }) {
 
   const filtered = products.filter(p => {
     if (!p) return false
-    const nameMatch    = (p.name     || '').toLowerCase().includes(search.toLowerCase())
-    const barcodeMatch = (p.barcode  || '').toLowerCase().includes(search.toLowerCase())
-    const idMatch      = (p._id      || '').toLowerCase().includes(search.toLowerCase())
-    const catMatch     = (p.category || '').toLowerCase().includes(search.toLowerCase())
+    const nameMatch = (p.name || '').toLowerCase().includes(search.toLowerCase())
+    const barcodeMatch = (p.barcode || '').toLowerCase().includes(search.toLowerCase())
+    const idMatch = (p._id || '').toLowerCase().includes(search.toLowerCase())
+    const catMatch = (p.category || '').toLowerCase().includes(search.toLowerCase())
     return nameMatch || barcodeMatch || idMatch || catMatch
   })
 
@@ -93,9 +93,10 @@ export default function ProductBarcodesTable({ products = [], onGoToScan }) {
               ) : (
                 filtered.map((p, i) => {
                   if (!p) return null
-                  const isGenerated  = /^\d{13}$/.test(p.barcode || '') || /^\d{10,}$/.test(p.barcode || '')
+                  const isWeighed = !!p.isWeighed
+                  const isGenerated = !isWeighed && (/^\d{13}$/.test(p.barcode || '') || /^\d{10,}$/.test(p.barcode || ''))
                   const currentStock = p.stock || 0
-                  const stockClass   = currentStock <= 3
+                  const stockClass = currentStock <= 3
                     ? s.stockBadgeCritical
                     : currentStock <= 6
                       ? s.stockBadgeLow
@@ -104,17 +105,47 @@ export default function ProductBarcodesTable({ products = [], onGoToScan }) {
                   return (
                     <tr key={p._id || i}>
                       <td className={s.tdNum}>{i + 1}</td>
-                      <td className={s.tdName}><strong>{p.name || 'Unnamed Product'}</strong></td>
+                      <td className={s.tdName}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {isWeighed && (
+                            <MdScale size={13} style={{ color: 'var(--primary)', flexShrink: 0 }} />
+                          )}
+                          <strong>{p.name || 'Unnamed Product'}</strong>
+                        </div>
+                        {isWeighed && p.pluNumber && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                            PLU: {p.pluNumber}
+                          </div>
+                        )}
+                      </td>
                       <td className={s.tdCat}>{p.category || 'General'}</td>
                       <td><span className={s.barcodeChip}>{p.barcode || '—'}</span></td>
                       <td><span className={s.idChip}>{p._id || '—'}</span></td>
                       <td>
-                        <span className={`${s.typeBadge} ${isGenerated ? s.typeBadgeGenerated : s.typeBadgeIndustry}`}>
-                          {isGenerated ? 'Generated' : 'Industry'}
-                        </span>
+                        {isWeighed ? (
+                          <span
+                            className={s.typeBadge}
+                            style={{
+                              background: 'var(--primary-light)',
+                              color: 'var(--primary)',
+                              border: '1px solid var(--primary)',
+                            }}
+                          >
+                            ⚖ Weighed
+                          </span>
+                        ) : (
+                          <span className={`${s.typeBadge} ${isGenerated ? s.typeBadgeGenerated : s.typeBadgeIndustry}`}>
+                            {isGenerated ? 'Generated' : 'Industry'}
+                          </span>
+                        )}
                       </td>
-                      <td><span className={`${s.stockBadge} ${stockClass}`}>{currentStock}</span></td>
-                      <td className={s.tdPrice}>KSh {Number(p.sellPrice || 0).toLocaleString()}</td>
+                      <td><span className={`${s.stockBadge} ${stockClass}`}>{currentStock} {p.unit || 'pcs'}</span></td>
+                      <td className={s.tdPrice}>
+                        KSh {Number(isWeighed ? (p.pricePerKg || p.sellPrice || 0) : (p.sellPrice || 0)).toLocaleString()}
+                        {isWeighed && (
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 2 }}>/kg</span>
+                        )}
+                      </td>
                     </tr>
                   )
                 })
@@ -131,6 +162,7 @@ export default function ProductBarcodesTable({ products = [], onGoToScan }) {
           <span>
             At the POS terminal, scan the barcode or type the <strong>Barcode</strong> value.
             If unreadable, type the <strong>Product ID</strong> instead.
+            Weighed items (<MdScale size={11} style={{ verticalAlign: 'middle' }} />) must be scanned from a label printed at the Weigh Station.
           </span>
         </div>
         {onGoToScan && (

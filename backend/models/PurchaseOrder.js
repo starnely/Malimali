@@ -28,6 +28,7 @@ const poItemSchema = new mongoose.Schema(
   {
     productId:    { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
     productName:  { type: String, default: "" },
+    unit:         { type: String, default: "pcs" },
     qtyOrdered:   { type: Number, required: true, min: [1, "Quantity must be at least 1"] },
     qtyReceived:  { type: Number, default: 0, min: [0, "Received quantity cannot be negative"] },
     unitCost:     { type: Number, required: true, min: [0, "Unit cost cannot be negative"] },

@@ -1,16 +1,19 @@
 import { useRef } from 'react'
-import { MdDownload, MdPrint, MdQrCodeScanner } from 'react-icons/md'
+import { MdDownload, MdPrint, MdQrCodeScanner, MdScale } from 'react-icons/md'
 import BarcodeImage from './BarcodeImage'
 import s from '@/styles/Barcodes.module.css'
 
 export default function GenerateBarcodes({ products = [], searchQuery = '', setSearchQuery, handleDownload }) {
   const labelPrintRef = useRef(null)
 
-  const filteredProducts = products.filter(p => {
-    if (!p) return false
-    const name     = (p.name     || '').toLowerCase()
+  // ── Separate weighed from standard products ───────────────────────
+  const standardProducts = products.filter(p => p && !p.isWeighed)
+  const weighedCount = products.filter(p => p && p.isWeighed).length
+
+  const filteredProducts = standardProducts.filter(p => {
+    const name = (p.name || '').toLowerCase()
     const category = (p.category || 'General').toLowerCase()
-    const query    = (searchQuery || '').toLowerCase()
+    const query = (searchQuery || '').toLowerCase()
     return name.includes(query) || category.includes(query)
   })
 
@@ -45,7 +48,8 @@ export default function GenerateBarcodes({ products = [], searchQuery = '', setS
 
   return (
     <div className={s.generateWrap}>
-      {/* Toolbar */}
+
+      {/* ── Toolbar ── */}
       <div className={s.generateToolbar}>
         <div className={s.generateToolbarLeft}>
           <p className={s.generateHint}>Print these labels and stick them directly on your products.</p>
@@ -67,7 +71,23 @@ export default function GenerateBarcodes({ products = [], searchQuery = '', setS
         </div>
       </div>
 
-      {/* Empty state */}
+      {/* ── Weighed products notice ── */}
+      {weighedCount > 0 && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '10px 16px', marginBottom: 12,
+          borderRadius: 'var(--radius-md)',
+          background: 'var(--primary-light)',
+          border: '1px solid var(--primary)',
+          fontSize: 13, color: 'var(--primary)', fontWeight: 600,
+        }}>
+          <MdScale size={16} style={{ flexShrink: 0 }} />
+          {weighedCount} weighed product{weighedCount !== 1 ? 's are' : ' is'} not shown here.
+          Use the <strong style={{ marginLeft: 4 }}>Weigh Station</strong> page to print their labels.
+        </div>
+      )}
+
+      {/* ── Empty state ── */}
       {filteredProducts.length === 0 ? (
         <div className={s.generateEmptyState}>
           <MdQrCodeScanner className={s.generateEmptyIcon} />
@@ -80,18 +100,21 @@ export default function GenerateBarcodes({ products = [], searchQuery = '', setS
             const displayBarcode = product.barcode || product._id || '—'
             return (
               <div key={product._id} className={`${s.barcodeCard} label-card`}>
-                <div style={{ display: 'none' }}>
-                  <svg id={`barcode-dl-${product._id}`} />
-                </div>
                 <div className={s.barcodeImgWrap}>
                   <BarcodeImage value={displayBarcode} />
                 </div>
                 <div className={s.barcodeCardInfo}>
-                  <div className={`${s.barcodeCardName} title`}>{product.name || 'Unnamed Item'}</div>
-                  <div className={`${s.barcodeCardCat} meta`}>{product.category || 'General'}</div>
-                  <div className={`${s.barcodeCardPrice} price`}>KSh {Number(product.sellPrice || 0).toLocaleString()}</div>
+                  <div className={`${s.barcodeCardName} title`}>
+                    {product.name || 'Unnamed Item'}
+                  </div>
+                  <div className={`${s.barcodeCardCat} meta`}>
+                    {product.category || 'General'}
+                  </div>
+                  <div className={`${s.barcodeCardPrice} price`}>
+                    KSh {Number(product.sellPrice || 0).toLocaleString()}
+                  </div>
                   <div className={`${s.barcodeCardStock} ${product.stock <= 5 ? s.barcodeCardStockLow : s.barcodeCardStockOk}`}>
-                    Stock Units: {product.stock ?? 0}
+                    Stock: {product.stock ?? 0} {product.unit || 'pcs'}
                   </div>
                   <div className={`${s.barcodeCardBarcode} barcode-text`}>
                     BC: {product.barcode || 'System Assigned'}

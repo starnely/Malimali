@@ -282,6 +282,7 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
       existing.logo = `/uploads/logo/${req.file.filename}`;
     }
 
+    existing.markModified('smtp');
     await existing.save();
 
     // Strip password before returning

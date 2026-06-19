@@ -6,17 +6,18 @@ import {
 import { useApp } from '@/context/AppContext'
 import * as XLSX from 'xlsx'
 
-const XL_PRIMARY       = '185FA5'
-const XL_PRIMARY_DARK  = '0C447C'
+const XL_PRIMARY = '185FA5'
+const XL_PRIMARY_DARK = '0C447C'
 const XL_PRIMARY_LIGHT = 'E6F1FB'
 
 const CARD_CONFIG = [
-  { key: 'revenue',       label: 'Total Revenue',  icon: <MdAttachMoney />, colorVar: 'var(--primary)',      bgVar: 'var(--primary-light)'  },
-  { key: 'profit',        label: 'Total Profit',   icon: <MdTrendingUp />,  colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)'  },
-  { key: 'items',         label: 'Items Sold',     icon: <MdInventory />,   colorVar: 'var(--warning-dark)', bgVar: 'var(--warning-light)'  },
-  { key: 'txns',          label: 'Transactions',   icon: <MdReceiptLong />, colorVar: '#6B21A8',             bgVar: '#F3E8FF'               },
-  { key: 'debtCollected', label: 'Debt Collected', icon: <MdPeopleAlt />,  colorVar: '#0369a1',             bgVar: '#e0f2fe'               },
-  { key: 'expenses',      label: 'Total Expenses', icon: <MdAttachMoney />, colorVar: 'var(--danger)',       bgVar: 'var(--danger-light)'   },
+  { key: 'revenue', label: 'Total Revenue', icon: <MdAttachMoney />, colorVar: 'var(--primary)', bgVar: 'var(--primary-light)' },
+  { key: 'profit', label: 'Total Profit', icon: <MdTrendingUp />, colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)' },
+  { key: 'items', label: 'Items Sold', icon: <MdInventory />, colorVar: 'var(--warning-dark)', bgVar: 'var(--warning-light)' },
+  { key: 'txns', label: 'Transactions', icon: <MdReceiptLong />, colorVar: '#6B21A8', bgVar: '#F3E8FF' },
+  { key: 'debtCollected', label: 'Debt Collected', icon: <MdPeopleAlt />, colorVar: '#0369a1', bgVar: '#e0f2fe' },
+  { key: 'expenses', label: 'Total Expenses', icon: <MdAttachMoney />, colorVar: 'var(--danger)', bgVar: 'var(--danger-light)' },
+  { key: 'netProfit', label: 'Net Profit', icon: <MdTrendingUp />, colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)' },
 ]
 
 const EXPENSE_CAT_LABELS = {
@@ -38,18 +39,18 @@ export default function MonthlyReport() {
   const { sales, products, isOwner, currentUser, stores } = useApp()
   const [selectedStore, setSelectedStore] = useState(isOwner ? 'All' : currentUser.store)
   const now = new Date()
-  const [year,  setYear]  = useState(now.getFullYear())
+  const [year, setYear] = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth())
 
-  const [repayments,      setRepayments]      = useState([])
-  const [repayLoading,    setRepayLoading]    = useState(false)
+  const [repayments, setRepayments] = useState([])
+  const [repayLoading, setRepayLoading] = useState(false)
   const [monthlyExpenses, setMonthlyExpenses] = useState([])
-  const [expenseLoading,  setExpenseLoading]  = useState(false)
+  const [expenseLoading, setExpenseLoading] = useState(false)
   const [monthlyExpTotal, setMonthlyExpTotal] = useState(0)
 
-  const monthName      = new Date(year, month).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
-  const prevMonth      = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
-  const nextMonth      = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
+  const monthName = new Date(year, month).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
+  const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
+  const nextMonth = () => { if (month === 11) { setMonth(0); setYear(y => y + 1) } else setMonth(m => m + 1) }
   const isNextDisabled = year === now.getFullYear() && month === now.getMonth()
 
   // ── Fetch repayments ──────────────────────────────────────────────
@@ -62,7 +63,7 @@ export default function MonthlyReport() {
         if (!token) return
         const res = await fetch('http://localhost:5000/api/customers/repayments/month?' +
           new URLSearchParams({
-            year:  String(year),
+            year: String(year),
             month: String(month + 1),
             store: selectedStore === 'All' ? '' : selectedStore,
           }), { headers: { Authorization: `Bearer ${token}` } })
@@ -134,34 +135,35 @@ export default function MonthlyReport() {
   // ── Totals — all use activeQtyM ───────────────────────────────────
   const totalRevenue = monthSales.reduce((sum, s) =>
     sum + (s.items?.reduce((rv, item) => {
-      if (item.voidStatus === 'voided')     return rv
+      if (item.voidStatus === 'voided') return rv
       return rv + (item.price || 0) * activeQtyM(item)
     }, 0) || 0), 0)
 
   const totalProfit = monthSales.reduce((sum, sale) =>
     sum + (sale.items?.reduce((s2, item) => {
-      if (item.voidStatus === 'voided')     return s2
+      if (item.voidStatus === 'voided') return s2
       const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
       return s2 + (item.price - buy) * activeQtyM(item)
     }, 0) || 0), 0)
 
   const totalItems = monthSales.reduce((sum, s) =>
     sum + (s.items?.reduce((q, item) => {
-      if (item.voidStatus === 'voided')     return q
+      if (item.voidStatus === 'voided') return q
       return q + activeQtyM(item)
     }, 0) || 0), 0)
 
   const summaryValues = {
-    revenue:       totalRevenue,
-    profit:        totalProfit,
-    items:         totalItems,
-    txns:          monthSales.length,
+    revenue: totalRevenue,
+    profit: totalProfit,
+    items: totalItems,
+    txns: monthSales.length,
     debtCollected: totalDebtCollected,
-    expenses:      monthlyExpTotal,
+    expenses: monthlyExpTotal,
+    netProfit: totalProfit - monthlyExpTotal,
   }
 
   const formatCardValue = (key, val) => {
-    if (['revenue', 'profit', 'debtCollected', 'expenses'].includes(key)) return `KSh ${val.toLocaleString()}`
+    if (['revenue', 'profit', 'debtCollected', 'expenses', 'netProfit'].includes(key)) return `KSh ${val.toLocaleString()}`
     return val.toLocaleString()
   }
 
@@ -169,31 +171,31 @@ export default function MonthlyReport() {
 
   // ── Daily data — uses activeQtyM ──────────────────────────────────
   const dailyData = useMemo(() => Array.from({ length: daysInMonth }, (_, idx) => {
-    const day      = idx + 1
-    const dateStr  = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const day = idx + 1
+    const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const daySales = monthSales.filter(s => s.date?.startsWith(dateStr))
 
     const revenue = daySales.reduce((sum, s) =>
       sum + (s.items?.reduce((rv, item) => {
-        if (item.voidStatus === 'voided')     return rv
+        if (item.voidStatus === 'voided') return rv
         return rv + (item.price || 0) * activeQtyM(item)
       }, 0) || 0), 0)
 
     const profit = daySales.reduce((sum, sale) =>
       sum + (sale.items?.reduce((s2, item) => {
-        if (item.voidStatus === 'voided')     return s2
+        if (item.voidStatus === 'voided') return s2
         const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
         return s2 + (item.price - buy) * activeQtyM(item)
       }, 0) || 0), 0)
 
     const items = daySales.reduce((sum, s) =>
       sum + (s.items?.reduce((q, item) => {
-        if (item.voidStatus === 'voided')     return q
+        if (item.voidStatus === 'voided') return q
         return q + activeQtyM(item)
       }, 0) || 0), 0)
 
     const dayDebt = repayments.filter(r => r.date?.startsWith(dateStr)).reduce((s, r) => s + (r.amount || 0), 0)
-    const dayExp  = monthlyExpenses.filter(e => e.date === dateStr).reduce((s, e) => s + e.amount, 0)
+    const dayExp = monthlyExpenses.filter(e => e.date === dateStr).reduce((s, e) => s + e.amount, 0)
 
     return { day, date: dateStr, revenue, profit, items, transactions: daySales.length, debtCollected: dayDebt, expenses: dayExp }
   }), [monthSales, daysInMonth, year, month, productMap, repayments, monthlyExpenses])
@@ -205,13 +207,13 @@ export default function MonthlyReport() {
     const m = {}
     monthSales.forEach(sale => {
       sale.items?.forEach(item => {
-        if (item.voidStatus === 'voided')     return
+        if (item.voidStatus === 'voided') return
         const qty = activeQtyM(item)
         if (qty <= 0) return
-        const id   = String(item.productId?._id || item.productId)
+        const id = String(item.productId?._id || item.productId)
         const name = productMap[id]?.name || id
         if (!m[name]) m[name] = { qty: 0, revenue: 0 }
-        m[name].qty     += qty
+        m[name].qty += qty
         m[name].revenue += qty * item.price
       })
     })
@@ -233,12 +235,12 @@ export default function MonthlyReport() {
       }, 0) || 0
 
       m[name].revenue += saleRevenue
-      m[name].count   += 1
-      m[name].qty     += s.items?.reduce((q, item) => {
+      m[name].count += 1
+      m[name].qty += s.items?.reduce((q, item) => {
         if (item.voidStatus === 'voided') return q
         return q + activeQtyM(item)
       }, 0) || 0
-      m[name].profit  += s.items?.reduce((s2, item) => {
+      m[name].profit += s.items?.reduce((s2, item) => {
         if (item.voidStatus === 'voided') return s2
         const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
         return s2 + (item.price - buy) * activeQtyM(item)
@@ -248,7 +250,7 @@ export default function MonthlyReport() {
   }, [monthSales, productMap])
 
   const empPerformance = Object.entries(empMap).sort((a, b) => b[1].revenue - a[1].revenue)
-  const maxEmpRevenue  = Math.max(...empPerformance.map(e => e[1].revenue), 1)
+  const maxEmpRevenue = Math.max(...empPerformance.map(e => e[1].revenue), 1)
 
   const expenseByCategory = useMemo(() => {
     const m = {}
@@ -259,13 +261,13 @@ export default function MonthlyReport() {
   // ── XLSX Export ───────────────────────────────────────────────────
   const handleDownloadCSV = () => {
     const profitMarginPct = totalRevenue > 0 ? ((totalProfit / totalRevenue) * 100).toFixed(1) : '0.0'
-    const avgTxnValue     = monthSales.length > 0 ? Math.round(totalRevenue / monthSales.length) : 0
+    const avgTxnValue = monthSales.length > 0 ? Math.round(totalRevenue / monthSales.length) : 0
     const fmtDate = d => new Date(d + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' })
 
     const titleStyle = { font: { bold: true, sz: 14, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: XL_PRIMARY } }, alignment: { horizontal: 'left' } }
-    const secStyle   = { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: XL_PRIMARY_DARK } }, alignment: { horizontal: 'left' } }
-    const hdrStyle   = { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2D7DD2' } }, alignment: { horizontal: 'center' }, border: { top: { style: 'thin', color: { rgb: 'FFFFFF' } }, bottom: { style: 'thin', color: { rgb: 'FFFFFF' } }, left: { style: 'thin', color: { rgb: 'FFFFFF' } }, right: { style: 'thin', color: { rgb: 'FFFFFF' } } } }
-    const totStyle   = { font: { bold: true, sz: 10, color: { rgb: XL_PRIMARY_DARK } }, fill: { fgColor: { rgb: XL_PRIMARY_LIGHT } }, alignment: { horizontal: 'center' }, border: { top: { style: 'medium', color: { rgb: '2D7DD2' } }, bottom: { style: 'medium', color: { rgb: '2D7DD2' } }, left: { style: 'thin', color: { rgb: 'CCE0F5' } }, right: { style: 'thin', color: { rgb: 'CCE0F5' } } } }
+    const secStyle = { font: { bold: true, sz: 11, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: XL_PRIMARY_DARK } }, alignment: { horizontal: 'left' } }
+    const hdrStyle = { font: { bold: true, sz: 10, color: { rgb: 'FFFFFF' } }, fill: { fgColor: { rgb: '2D7DD2' } }, alignment: { horizontal: 'center' }, border: { top: { style: 'thin', color: { rgb: 'FFFFFF' } }, bottom: { style: 'thin', color: { rgb: 'FFFFFF' } }, left: { style: 'thin', color: { rgb: 'FFFFFF' } }, right: { style: 'thin', color: { rgb: 'FFFFFF' } } } }
+    const totStyle = { font: { bold: true, sz: 10, color: { rgb: XL_PRIMARY_DARK } }, fill: { fgColor: { rgb: XL_PRIMARY_LIGHT } }, alignment: { horizontal: 'center' }, border: { top: { style: 'medium', color: { rgb: '2D7DD2' } }, bottom: { style: 'medium', color: { rgb: '2D7DD2' } }, left: { style: 'thin', color: { rgb: 'CCE0F5' } }, right: { style: 'thin', color: { rgb: 'CCE0F5' } } } }
     const cel = (i) => ({ font: { sz: 10, color: { rgb: '333333' } }, fill: { fgColor: { rgb: i % 2 === 0 ? 'FFFFFF' : 'F0F6FD' } }, alignment: { horizontal: 'center' }, border: { top: { style: 'thin', color: { rgb: 'E0E0E0' } }, bottom: { style: 'thin', color: { rgb: 'E0E0E0' } }, left: { style: 'thin', color: { rgb: 'E0E0E0' } }, right: { style: 'thin', color: { rgb: 'E0E0E0' } } } })
     const lft = (i) => ({ ...cel(i), alignment: { horizontal: 'left' } })
     const grn = (i) => ({ ...cel(i), font: { sz: 10, color: { rgb: '2E7D32' }, bold: true } })
@@ -286,24 +288,24 @@ export default function MonthlyReport() {
     r++
 
     sc(r, 0, 'SUMMARY', secStyle); mc(r, 0, 6); r++
-    ;[
-      ['Total Revenue',  `KSh ${fmt(totalRevenue)}`,       'Items Sold',       fmt(totalItems)],
-      ['Total Profit',   `KSh ${fmt(totalProfit)}`,        'Transactions',     fmt(monthSales.length)],
-      ['Profit Margin',  `${profitMarginPct}%`,             'Avg. Txn Value',  `KSh ${fmt(avgTxnValue)}`],
-      ['Total Expenses', `KSh ${fmt(monthlyExpTotal)}`,    'Net Profit',       `KSh ${fmt(totalProfit - monthlyExpTotal)}`],
-      ['Debt Collected', `KSh ${fmt(totalDebtCollected)}`, 'Debt Collections', fmt(repayments.length)],
-    ].forEach(([l1, v1, l2, v2]) => {
-      sc(r, 0, l1, kvL); sc(r, 1, v1, kvV)
-      sc(r, 2, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
-      sc(r, 3, l2, kvL); sc(r, 4, v2, kvV)
-      sc(r, 5, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
-      sc(r, 6, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
-      r++
-    })
+      ;[
+        ['Total Revenue', `KSh ${fmt(totalRevenue)}`, 'Items Sold', fmt(totalItems)],
+        ['Total Profit', `KSh ${fmt(totalProfit)}`, 'Transactions', fmt(monthSales.length)],
+        ['Profit Margin', `${profitMarginPct}%`, 'Avg. Txn Value', `KSh ${fmt(avgTxnValue)}`],
+        ['Total Expenses', `KSh ${fmt(monthlyExpTotal)}`, 'Net Profit', `KSh ${fmt(totalProfit - monthlyExpTotal)}`],
+        ['Debt Collected', `KSh ${fmt(totalDebtCollected)}`, 'Debt Collections', fmt(repayments.length)],
+      ].forEach(([l1, v1, l2, v2]) => {
+        sc(r, 0, l1, kvL); sc(r, 1, v1, kvV)
+        sc(r, 2, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
+        sc(r, 3, l2, kvL); sc(r, 4, v2, kvV)
+        sc(r, 5, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
+        sc(r, 6, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
+        r++
+      })
     r++
 
     sc(r, 0, 'DAILY BREAKDOWN', secStyle); mc(r, 0, 6); r++
-    ;['Date', 'Transactions', 'Items Sold', 'Revenue (KSh)', 'Profit (KSh)', 'Debt In (KSh)', 'Expenses (KSh)'].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+      ;['Date', 'Transactions', 'Items Sold', 'Revenue (KSh)', 'Profit (KSh)', 'Debt In (KSh)', 'Expenses (KSh)'].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
     const activeDays = dailyData.filter(d => d.revenue > 0 || d.debtCollected > 0 || d.expenses > 0)
     activeDays.forEach((d, i) => {
       sc(r, 0, fmtDate(d.date), lft(i)); sc(r, 1, d.transactions, cel(i)); sc(r, 2, d.items, cel(i))
@@ -318,7 +320,7 @@ export default function MonthlyReport() {
     r++; r++
 
     sc(r, 0, 'TOP PRODUCTS', secStyle); mc(r, 0, 6); r++
-    ;['Rank', 'Product Name', 'Qty Sold', 'Revenue (KSh)', 'Revenue Share %', '', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+      ;['Rank', 'Product Name', 'Qty Sold', 'Revenue (KSh)', 'Revenue Share %', '', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
     topProducts.forEach(([name, d], i) => {
       const share = totalRevenue > 0 ? ((d.revenue / totalRevenue) * 100).toFixed(1) + '%' : '0.0%'
       sc(r, 0, `#${i + 1}`, cel(i)); sc(r, 1, name, lft(i)); sc(r, 2, d.qty, cel(i))
@@ -327,7 +329,7 @@ export default function MonthlyReport() {
     r++
 
     sc(r, 0, 'EMPLOYEE PERFORMANCE', secStyle); mc(r, 0, 6); r++
-    ;['Rank', 'Employee', 'Transactions', 'Items Sold', 'Revenue (KSh)', 'Profit (KSh)', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+      ;['Rank', 'Employee', 'Transactions', 'Items Sold', 'Revenue (KSh)', 'Profit (KSh)', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
     empPerformance.forEach(([name, d], i) => {
       sc(r, 0, `#${i + 1}`, cel(i)); sc(r, 1, name, lft(i)); sc(r, 2, d.count, cel(i))
       sc(r, 3, d.qty, cel(i)); sc(r, 4, d.revenue, cel(i)); sc(r, 5, d.profit, grn(i)); sc(r, 6, '', cel(i)); r++
@@ -336,7 +338,7 @@ export default function MonthlyReport() {
 
     if (repayments.length > 0) {
       sc(r, 0, 'DEBT COLLECTIONS', secStyle); mc(r, 0, 6); r++
-      ;['Rank', 'Recorded By', 'Collections', 'Total Collected (KSh)', '', '', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+        ;['Rank', 'Recorded By', 'Collections', 'Total Collected (KSh)', '', '', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
       debtByRecorder.forEach(([name, d], i) => {
         sc(r, 0, `#${i + 1}`, cel(i)); sc(r, 1, name, lft(i)); sc(r, 2, d.count, cel(i))
         sc(r, 3, d.total, blu(i)); sc(r, 4, '', cel(i)); sc(r, 5, '', cel(i)); sc(r, 6, '', cel(i)); r++
@@ -349,7 +351,7 @@ export default function MonthlyReport() {
 
     if (monthlyExpenses.length > 0) {
       sc(r, 0, 'EXPENSES BY CATEGORY', secStyle); mc(r, 0, 6); r++
-      ;['Category', 'Total (KSh)', 'Count', '', '', '', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+        ;['Category', 'Total (KSh)', 'Count', '', '', '', ''].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
       expenseByCategory.forEach(([cat, total], i) => {
         const count = monthlyExpenses.filter(e => e.category === cat).length
         sc(r, 0, EXPENSE_CAT_LABELS[cat] || cat, lft(i)); sc(r, 1, total, red(i)); sc(r, 2, count, cel(i))
@@ -361,22 +363,22 @@ export default function MonthlyReport() {
       for (let c = 3; c <= 6; c++) sc(r, c, '', totStyle); r++
     }
 
-    ws['!ref']    = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r, c: 6 } })
+    ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r, c: 6 } })
     ws['!merges'] = merges
-    ws['!cols']   = [{ wch: 22 }, { wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
-    ws['!rows']   = Array.from({ length: r }, (_, i) => ({ hpt: i < 4 ? 22 : 18 }))
+    ws['!cols'] = [{ wch: 22 }, { wch: 24 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 18 }]
+    ws['!rows'] = Array.from({ length: r }, (_, i) => ({ hpt: i < 4 ? 22 : 18 }))
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Monthly Report')
 
     if (monthlyExpenses.length > 0) {
       const expRows = monthlyExpenses.map(e => ({
-        Date:            e.date,
-        Time:            e.time || '',
-        Category:        EXPENSE_CAT_LABELS[e.category] || e.category,
-        Description:     e.description || '',
-        'Amount (KSh)':  e.amount,
-        'Recorded By':   e.recordedBy || '',
+        Date: e.date,
+        Time: e.time || '',
+        Category: EXPENSE_CAT_LABELS[e.category] || e.category,
+        Description: e.description || '',
+        'Amount (KSh)': e.amount,
+        'Recorded By': e.recordedBy || '',
       }))
       const expSheet = XLSX.utils.json_to_sheet(expRows)
       expSheet['!cols'] = [{ wch: 13 }, { wch: 13 }, { wch: 16 }, { wch: 32 }, { wch: 14 }, { wch: 20 }]
@@ -429,17 +431,23 @@ export default function MonthlyReport() {
 
       {/* Summary cards */}
       <div className="grid gap-3 mb-5" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))' }}>
-        {CARD_CONFIG.map((c, i) => (
-          <div key={i} style={{ ...card, borderLeft: `3px solid ${c.colorVar}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: c.bgVar, color: c.colorVar, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
-              {c.icon}
+        {CARD_CONFIG.map((c, i) => {
+          const isNetProfit = c.key === 'netProfit'
+          const netVal = summaryValues['netProfit'] || 0
+          const cardColor = isNetProfit && netVal < 0 ? 'var(--danger)' : c.colorVar
+          const cardBg = isNetProfit && netVal < 0 ? 'var(--danger-light)' : c.bgVar
+          return (
+            <div key={i} style={{ ...card, borderLeft: `3px solid ${cardColor}`, display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ width: '40px', height: '40px', borderRadius: 'var(--radius-md)', background: cardBg, color: cardColor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '22px', flexShrink: 0 }}>
+                {c.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{c.label}</div>
+                <div style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)' }}>{formatCardValue(c.key, summaryValues[c.key])}</div>
+              </div>
             </div>
-            <div>
-              <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{c.label}</div>
-              <div style={{ fontSize: '17px', fontWeight: '700', color: 'var(--text-primary)' }}>{formatCardValue(c.key, summaryValues[c.key])}</div>
-            </div>
-          </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Daily bar chart */}

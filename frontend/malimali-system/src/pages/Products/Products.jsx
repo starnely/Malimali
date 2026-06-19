@@ -13,7 +13,9 @@ import DeleteConfirmModal from './DeleteConfirmModal'
 const emptyForm = {
   name: '', category: '', supplier: '', store: '',
   buyPrice: '', sellPrice: '', stock: '',
-  batch: '', description: '', mftDate: '', expiryDate: ''
+  batch: '', description: '', mftDate: '', expiryDate: '',
+  isWeighed: false, pricePerKg: '', pluNumber: '',
+  unit: 'pcs',
 }
 
 export default function Products() {
@@ -59,11 +61,25 @@ export default function Products() {
     setSavedBarcode('')
   }, [setEditProduct])
 
+  // ── Build a fresh form pre-filled with the active store filter's
+  //    batch (current month/year) and store name ───────────────────
+  const buildAutoFilledForm = useCallback(() => {
+    const now = new Date()
+    const monthYear = now.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }).replace(' ', '-')
+    // e.g. "Jun-2026"
+    return {
+      ...emptyForm,
+      batch: storeFilter !== 'All' ? `${monthYear} Batch` : '',
+      store: storeFilter !== 'All' ? storeFilter : '',
+    }
+  }, [storeFilter])
+
   const openEdit = useCallback((product) => {
     setEditProduct(product)
     setForm({
       name: product.name || '',
       category: product.category || '',
+      unit: product.unit || 'pcs',
       supplier: product.supplier || '',
       store: product.store || '',
       buyPrice: product.buyPrice || '',
@@ -73,6 +89,9 @@ export default function Products() {
       description: product.description || '',
       mftDate: product.mftDate ? product.mftDate.split('T')[0] : '',
       expiryDate: product.expiryDate ? product.expiryDate.split('T')[0] : '',
+      isWeighed: product.isWeighed || false,
+      pricePerKg: product.pricePerKg || '',
+      pluNumber: product.pluNumber || '',
     })
     setMode('manual')
     setBarcode('')
@@ -84,7 +103,7 @@ export default function Products() {
 
   const openAdd = () => {
     setEditProduct(null)
-    setForm(emptyForm)
+    setForm(buildAutoFilledForm())
     setMode('manual')
     setBarcode('')
     setSavedBarcode('')
@@ -112,13 +131,41 @@ export default function Products() {
       setError('Missing required fields (Name, Prices, Stock, Category, Supplier)')
       return
     }
+
+    // Extra validation for weighed items
+    // Extra validation for weighed items
+    if (form.isWeighed && !form.pluNumber) {
+      setError('Weighed items require a PLU Number for the scale.')
+      return
+    }
+    if (form.isWeighed && !form.pricePerKg) {
+      setError('Weighed items require a Price per KG.')
+      return
+    }
+    if (form.isWeighed && form.pluNumber) {
+      const enteredPLU = Number(form.pluNumber)
+      const conflict = products.find(p =>
+        p.isWeighed &&
+        Number(p.pluNumber) === enteredPLU &&
+        (!editProduct || p._id !== editProduct._id)
+      )
+      if (conflict) {
+        setError(`PLU ${form.pluNumber} is already assigned to "${conflict.name}" (${conflict.store}). Choose a different PLU number.`)
+        return
+      }
+    }
+
     const data = {
       ...form,
       buyPrice: Number(form.buyPrice),
       sellPrice: Number(form.sellPrice),
       stock: Number(form.stock),
-      barcode: barcode.trim() || editProduct?.barcode || undefined
+      isWeighed: !!form.isWeighed,
+      pricePerKg: Number(form.pricePerKg) || 0,
+      pluNumber: form.pluNumber ? Number(form.pluNumber) : null,
+      barcode: barcode.trim() || editProduct?.barcode || undefined,
     }
+
     try {
       const url = editProduct
         ? `http://localhost:5000/api/products/${editProduct._id}`
@@ -138,7 +185,7 @@ export default function Products() {
         } else {
           if (result.product?.barcode) setSavedBarcode(result.product.barcode)
           setTimeout(() => {
-            setForm(emptyForm)
+            setForm(buildAutoFilledForm())
             setBarcode('')
             setSavedBarcode('')
             setSuccess('')
@@ -167,17 +214,20 @@ export default function Products() {
           Authorization: `Bearer ${currentUser?.token}`
         },
         body: JSON.stringify({
-          // Send full product data so backend validation passes
           name: restockProduct.name,
           category: restockProduct.category || '',
           supplier: restockProduct.supplier || '',
           store: restockProduct.store || 'Main Store',
+          unit: restockProduct.unit || 'pcs',
           buyPrice: restockProduct.buyPrice || 0,
           sellPrice: restockProduct.sellPrice || 0,
           batch: restockProduct.batch || '',
           description: restockProduct.description || '',
           mftDate: restockProduct.mftDate || null,
           expiryDate: restockProduct.expiryDate || null,
+          isWeighed: restockProduct.isWeighed || false,
+          pricePerKg: restockProduct.pricePerKg || 0,
+          pluNumber: restockProduct.pluNumber || null,
           stock: Number(restockProduct.stock) + qty,
         }),
       })
@@ -226,7 +276,7 @@ export default function Products() {
       const matchSearch = p.name?.toLowerCase().includes(search.toLowerCase())
       const matchCat = categoryFilter === 'All' || p.category === categoryFilter
       const matchStore = storeFilter === 'All' || p.store === storeFilter
-      const matchLow = showLowStockOnly ? p.stock <= (settings?.lowStockThreshold || 5) : true;
+      const matchLow = showLowStockOnly ? p.stock <= (settings?.lowStockThreshold || 5) : true
       return matchSearch && matchCat && matchStore && matchLow
     })
     .sort((a, b) => a.stock - b.stock)
@@ -302,6 +352,7 @@ export default function Products() {
       <ProductFormPanel
         showModal={showModal}
         editProduct={editProduct}
+        products={products}
         mode={mode} setMode={setMode}
         barcode={barcode} setBarcode={setBarcode}
         savedBarcode={savedBarcode}
