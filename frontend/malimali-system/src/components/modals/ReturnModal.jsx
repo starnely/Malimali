@@ -63,9 +63,10 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
         body: JSON.stringify({
           saleId: sale._id,
           items: itemsToReturn.map(i => ({
-            productId: i.productId?._id || i.productId,
-            qty:   i.returnQty,
-            price: i.price
+            saleItemId: i._id,
+            productId:  i.productId?._id || i.productId,
+            qty:        i.returnQty,
+            price:      i.price,
           })),
           reason,
           customerName,
@@ -147,7 +148,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
                         {item.productId?.name}
                       </div>
                       <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                        Qty: {max} · KSh {item.price.toLocaleString()} each
+                        Qty: {max} {item.unit || 'pcs'} · KSh {item.price.toLocaleString()} each
                       </div>
                     </div>
                     <div className="text-sm font-bold" style={{ color: 'var(--primary)' }}>

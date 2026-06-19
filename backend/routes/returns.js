@@ -78,9 +78,11 @@ router.post("/", async (req, res) => {
     const resolvedItems = [];
 
     for (const i of items) {
-      const saleItem = sale.items.find(
-        si => String(si.productId) === String(i.productId)
-      );
+      // Prefer saleItemId (sub-doc _id) when provided — essential for sales
+      // where the same product appears as more than one line item.
+      const saleItem = i.saleItemId
+        ? sale.items.id(i.saleItemId)
+        : sale.items.find(si => String(si.productId) === String(i.productId));
       if (!saleItem) {
         return res.status(400).json({
           success: false,
