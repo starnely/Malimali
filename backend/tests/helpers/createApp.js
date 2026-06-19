@@ -19,6 +19,9 @@ function createApp() {
   app.use("/api/weigh-station", require("../../routes/weighStation"));
   app.use("/api/purchase-orders", require("../../routes/purchaseOrders"));
   app.use("/api/returns", require("../../routes/returns"));
+  app.use("/api/customers", require("../../routes/customers"));
+  app.use("/api/expired", require("../../routes/expiredStock"));
+  app.use("/api/expenses", require("../../routes/expenses"));
 
   return app;
 }
