@@ -111,6 +111,20 @@ describe("POST /api/expired/move/:productId", () => {
     expect(res.status).toBe(400);
   });
 
+  test("400 — quantity: 0 is rejected (not silently expired as full stock)", async () => {
+    const owner   = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const product = await createProduct({ stock: 10, store: "Main Store" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
+    const res = await request(app)
+      .post(`/api/expired/move/${product._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ quantity: 0 });
+    expect(res.status).toBe(400);
+    // Stock must be untouched
+    const unchanged = await (require("../../models/Product")).findById(product._id);
+    expect(unchanged.stock).toBe(10);
+  });
+
   test("400 — negative quantity", async () => {
     const owner   = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
     const product = await createProduct({ stock: 10, store: "Main Store" });

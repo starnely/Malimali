@@ -72,8 +72,8 @@ router.post("/move/:productId", async (req, res) => {
       return res.status(404).json({ success: false, message: "Product not found" })
     }
 
-    const quantity = Number(req.body.quantity) || product.stock
-    if (quantity <= 0) {
+    const quantity = Number(req.body.quantity)
+    if (!req.body.quantity || quantity <= 0) {
       return res.status(400).json({ success: false, message: "Quantity must be greater than 0" })
     }
     if (quantity > product.stock) {
