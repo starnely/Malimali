@@ -29,9 +29,11 @@ export default function ChatModal({ onClose }) {
   // ── Real owner ID fetched from backend — avoids "owner" string fallback ──
   const [ownerContact,     setOwnerContact]     = useState(null)
 
-  const messagesEndRef   = useRef(null)
-  const textareaRef      = useRef(null)
-  const activeContactRef = useRef(activeContact)
+  const messagesEndRef     = useRef(null)
+  const textareaRef        = useRef(null)
+  const scrollContainerRef = useRef(null)
+  const forceScrollRef     = useRef(true)  // true on mount → first load jumps to bottom
+  const activeContactRef   = useRef(activeContact)
   const broadcastModeRef = useRef(broadcastMode)
 
   useEffect(() => { activeContactRef.current = activeContact }, [activeContact])
@@ -68,10 +70,30 @@ export default function ChatModal({ onClose }) {
     setTimeout(() => setUnreadMsgCount(0), 0)
   }, [setUnreadMsgCount])
 
-  // ── Auto scroll ────────────────────────────────────────────────────
+  // ── Contact switched: arm force-scroll for next messages update ───
+  useEffect(() => {
+    forceScrollRef.current = true
+  }, [activeContact])
+
+  // ── Smart scroll on direct thread changes ─────────────────────────
+  useEffect(() => {
+    const container = scrollContainerRef.current
+    if (!container) return
+    if (forceScrollRef.current) {
+      forceScrollRef.current = false
+      container.scrollTop = container.scrollHeight
+      return
+    }
+    const { scrollTop, scrollHeight, clientHeight } = container
+    if (scrollHeight - scrollTop - clientHeight < 100) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }, [messages])
+
+  // ── Broadcast: always scroll to bottom ────────────────────────────
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages, broadcastHistory])
+  }, [broadcastHistory])
 
   // ── Load thread when contact changes ──────────────────────────────
   useEffect(() => {
@@ -640,7 +662,7 @@ export default function ChatModal({ onClose }) {
                 </div>
               </div>
 
-              <div className={styles.messages}>
+              <div className={styles.messages} ref={scrollContainerRef}>
                 {renderMessages(messages)}
                 <div ref={messagesEndRef} />
               </div>
