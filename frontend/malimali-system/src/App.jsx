@@ -24,7 +24,6 @@ import Expenses from '@/pages/Expenses'
 import PettyCash from '@/pages/PettyCash'
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
-import { SocketProvider } from '@/context/SocketContext'
 import DailyReport from '@/pages/DailyReport'
 import WeighStation from './pages/WeighStation';
 import '@/App.css'
@@ -52,75 +51,73 @@ function App() {
   }
 
   return (
-    <SocketProvider>
-      <BrowserRouter>
-        {!isSetupComplete ? (
-          <Routes>
-            <Route path="*" element={<SetupWizard />} />
-          </Routes>
-        ) : (
-          <>
-            {isLoggedIn ? (
-              <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
-                <Sidebar />
-                <div style={{
-                  marginLeft:    isMobile ? '0'    : '230px',
-                  marginTop:     isMobile ? '56px' : '0',
-                  width:         '100%',
-                  height:        '100vh',
-                  display:       'flex',
-                  flexDirection: 'column',
-                  overflow:      'visible',       // ← was 'hidden'
-                }}>
-                  <TopBar />
-                  {/* ── Scrollable content area ── */}
-                  <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-                    <Routes>
-                      {/* ── DEFAULT ROUTING ── */}
-                      {!isOwner && <Route path="/" element={<Navigate to="/barcodes" />} />}
-                      {isOwner  && <Route path="/" element={<Dashboard />} />}
+    <BrowserRouter>
+      {!isSetupComplete ? (
+        <Routes>
+          <Route path="*" element={<SetupWizard />} />
+        </Routes>
+      ) : (
+        <>
+          {isLoggedIn ? (
+            <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+              <Sidebar />
+              <div style={{
+                marginLeft:    isMobile ? '0'    : '230px',
+                marginTop:     isMobile ? '56px' : '0',
+                width:         '100%',
+                height:        '100vh',
+                display:       'flex',
+                flexDirection: 'column',
+                overflow:      'visible',       // ← was 'hidden'
+              }}>
+                <TopBar />
+                {/* ── Scrollable content area ── */}
+                <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+                  <Routes>
+                    {/* ── DEFAULT ROUTING ── */}
+                    {!isOwner && <Route path="/" element={<Navigate to="/barcodes" />} />}
+                    {isOwner  && <Route path="/" element={<Dashboard />} />}
 
-                      {/* ── OWNER ONLY ── */}
-                      {isOwner && <Route path="/employees"      element={<Employees />} />}
-                      {isOwner && <Route path="/daily-archives" element={<DailyArchives />} />}
+                    {/* ── OWNER ONLY ── */}
+                    {isOwner && <Route path="/employees"      element={<Employees />} />}
+                    {isOwner && <Route path="/daily-archives" element={<DailyArchives />} />}
 
-                      {/* ── OWNER + MANAGER ── */}
-                      {(isOwner || isManager) && <Route path="/products"        element={<Products />} />}
-                      {(isOwner || isManager) && <Route path="/reports"         element={<Reports />} />}
-                      {(isOwner || isManager) && <Route path="/categories"      element={<Categories />} />}
-                      {(isOwner || isManager) && <Route path="/daily-report"   element={<DailyReport />} />}
-                      {(isOwner || isManager) && <Route path="/suppliers"       element={<Suppliers />} />}
-                      {(isOwner || isManager) && <Route path="/stores"          element={<Stores />} />}
-                      {(isOwner || isManager) && <Route path="/expired-stock"   element={<ExpiredStock />} />}
-                      {(isOwner || isManager) && <Route path="/settings"        element={<Settings />} />}
-                      {(isOwner || isManager) && <Route path="/customers"       element={<Customers />} />}
-                      {(isOwner || isManager) && <Route path="/purchase-orders" element={<PurchaseOrders />} />}
-                      {(isOwner || isManager) && <Route path="/petty-cash"      element={<PettyCash />} />}       
+                    {/* ── OWNER + MANAGER ── */}
+                    {(isOwner || isManager) && <Route path="/products"        element={<Products />} />}
+                    {(isOwner || isManager) && <Route path="/reports"         element={<Reports />} />}
+                    {(isOwner || isManager) && <Route path="/categories"      element={<Categories />} />}
+                    {(isOwner || isManager) && <Route path="/daily-report"   element={<DailyReport />} />}
+                    {(isOwner || isManager) && <Route path="/suppliers"       element={<Suppliers />} />}
+                    {(isOwner || isManager) && <Route path="/stores"          element={<Stores />} />}
+                    {(isOwner || isManager) && <Route path="/expired-stock"   element={<ExpiredStock />} />}
+                    {(isOwner || isManager) && <Route path="/settings"        element={<Settings />} />}
+                    {(isOwner || isManager) && <Route path="/customers"       element={<Customers />} />}
+                    {(isOwner || isManager) && <Route path="/purchase-orders" element={<PurchaseOrders />} />}
+                    {(isOwner || isManager) && <Route path="/petty-cash"      element={<PettyCash />} />}
 
-                      {/* ── CASHIER ONLY ── */}
-                      {isCashier && <Route path="/my-credits" element={<MyCredits />} />}
+                    {/* ── CASHIER ONLY ── */}
+                    {isCashier && <Route path="/my-credits" element={<MyCredits />} />}
 
-                      {/* ── SHARED (all roles) ── */}
-                      <Route path="/barcodes"      element={<Barcodes />} />
-                      <Route path="/stock-out"     element={<StockOut />} />
-                      <Route path="/sales-history" element={<SalesHistory />} />
-                      <Route path="/profile"       element={<Profile />} />
-                      <Route path="/expenses"      element={<Expenses />} />
-                      <Route path="/weigh-station" element={<WeighStation />} />
+                    {/* ── SHARED (all roles) ── */}
+                    <Route path="/barcodes"      element={<Barcodes />} />
+                    <Route path="/stock-out"     element={<StockOut />} />
+                    <Route path="/sales-history" element={<SalesHistory />} />
+                    <Route path="/profile"       element={<Profile />} />
+                    <Route path="/expenses"      element={<Expenses />} />
+                    <Route path="/weigh-station" element={<WeighStation />} />
 
-                      {/* ── FALLBACK ── */}
-                      <Route path="*" element={<Navigate to="/" />} />
-                    </Routes>
-                  </div>
+                    {/* ── FALLBACK ── */}
+                    <Route path="*" element={<Navigate to="/" />} />
+                  </Routes>
                 </div>
               </div>
-            ) : (
-              <Login />
-            )}
-          </>
-        )}
-      </BrowserRouter>
-    </SocketProvider>
+            </div>
+          ) : (
+            <Login />
+          )}
+        </>
+      )}
+    </BrowserRouter>
   )
 }
 

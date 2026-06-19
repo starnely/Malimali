@@ -13,7 +13,7 @@ export default function ChatModal({ onClose }) {
     conversations, fetchConversations,
     messages, setMessages,
     fetchThread, sendMessage, sendBroadcast,
-    setUnreadMsgCount
+    setUnreadMsgCount, fetchUnreadMsgCount
   } = useApp()
 
   const socket = useSocket()
@@ -93,17 +93,19 @@ export default function ChatModal({ onClose }) {
   // ── Socket: messages_read ──────────────────────────────────────────
   useEffect(() => {
     if (!socket) return
-    socket.on('messages_read', () => {
+    const handleMessagesRead = () => {
       if (activeContactRef.current) fetchThread(activeContactRef.current.id)
-    })
-    return () => { socket.off('messages_read') }
-  }, [socket, fetchThread])
+      fetchUnreadMsgCount()
+    }
+    socket.on('messages_read', handleMessagesRead)
+    return () => { socket.off('messages_read', handleMessagesRead) }
+  }, [socket, fetchThread, fetchUnreadMsgCount])
 
   // ── Socket: live new message delivery ─────────────────────────────
   useEffect(() => {
     if (!socket) return
 
-    socket.on('new_message', (data) => {
+    const handleNewMessage = (data) => {
       const msg = data?.message
       if (!msg) return
 
@@ -139,9 +141,10 @@ export default function ChatModal({ onClose }) {
         fetchThread(current.id)
         setTimeout(() => setUnreadMsgCount(0), 0)
       }
-    })
+    }
 
-    return () => { socket.off('new_message') }
+    socket.on('new_message', handleNewMessage)
+    return () => { socket.off('new_message', handleNewMessage) }
   }, [socket, myId, fetchThread, setMessages, setUnreadMsgCount])
 
   // ── Staff: auto open owner thread on first load ────────────────────
