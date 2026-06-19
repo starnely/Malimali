@@ -15,6 +15,9 @@ function createApp() {
 
   app.use("/api/auth", require("../../routes/auth"));
   app.use("/api/sales", require("../../routes/sales"));
+  app.use("/api/products", require("../../routes/products"));
+  app.use("/api/weigh-station", require("../../routes/weighStation"));
+  app.use("/api/purchase-orders", require("../../routes/purchaseOrders"));
 
   return app;
 }
