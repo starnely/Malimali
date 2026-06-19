@@ -73,20 +73,44 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const refundAmount = items.reduce(
-      (sum, i) => sum + (Number(i.qty) * Number(i.price || i.sellPrice || 0)),
-      0
-    );
+    // Resolve price and qty from the stored sale — never trust client-supplied prices.
+    let refundAmount = 0;
+    const resolvedItems = [];
+
+    for (const i of items) {
+      const saleItem = sale.items.find(
+        si => String(si.productId) === String(i.productId)
+      );
+      if (!saleItem) {
+        return res.status(400).json({
+          success: false,
+          message: "One or more items were not found in this sale."
+        });
+      }
+      const qty = Number(i.qty);
+      const maxReturnable = (saleItem.qty || 0)
+        - (saleItem.returnedQty || 0)
+        - (saleItem.voidedQty   || 0);
+      if (qty <= 0 || qty > maxReturnable) {
+        return res.status(400).json({
+          success: false,
+          message: `Return quantity for item exceeds what is eligible for return (max ${maxReturnable}).`
+        });
+      }
+      refundAmount += qty * saleItem.price;
+      resolvedItems.push({
+        saleItemId: saleItem._id,   // sub-doc _id — avoids find-first-by-productId ambiguity
+        productId:  saleItem.productId,
+        qty,
+        sellPrice:  saleItem.price,
+      });
+    }
 
     const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
 
     const returnRecord = new Return({
       saleId,
-      items: items.map(i => ({
-        productId: i.productId,
-        qty:       Number(i.qty),
-        sellPrice: Number(i.price || i.sellPrice || 0)
-      })),
+      items: resolvedItems,
       reason,
       customerName,
       requestedBy:  req.user.id,
@@ -98,11 +122,9 @@ router.post("/", async (req, res) => {
 
     await returnRecord.save();
 
-    // Mark sale items as pending return
-    for (const returnItem of items) {
-      const saleItem = sale.items.find(
-        si => String(si.productId) === String(returnItem.productId)
-      );
+    // Mark the exact sale sub-documents as pending, matched by sub-doc _id.
+    for (const returnItem of resolvedItems) {
+      const saleItem = sale.items.id(returnItem.saleItemId);
       if (saleItem) saleItem.returnStatus = "pending";
     }
     sale.returnStatus = "pending";
@@ -163,10 +185,7 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
     const sale = await Sale.findById(returnRecord.saleId).populate("items.productId");
     if (sale) {
       for (const returnItem of returnRecord.items) {
-        const saleItem = sale.items.find(
-          si => String(si.productId?._id || si.productId) ===
-                String(returnItem.productId._id || returnItem.productId)
-        );
+        const saleItem = sale.items.id(returnItem.saleItemId);
         if (saleItem) {
           // Accumulate returnedQty — do NOT mutate qty so original qty is preserved
           saleItem.returnedQty  = (saleItem.returnedQty || 0) + returnItem.qty
@@ -316,10 +335,7 @@ router.patch("/:id/reject", ownerOnly, async (req, res) => {
     const sale = await Sale.findById(returnRecord.saleId);
     if (sale) {
       for (const returnItem of returnRecord.items) {
-        const saleItem = sale.items.find(
-          si => String(si.productId?._id || si.productId) ===
-                String(returnItem.productId?._id || returnItem.productId)
-        );
+        const saleItem = sale.items.id(returnItem.saleItemId);
         if (saleItem) saleItem.returnStatus = "rejected";
       }
       sale.returnStatus = "rejected";

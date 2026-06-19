@@ -18,25 +18,27 @@ const productSchema = new mongoose.Schema(
       required: [true, "Category is required"],
       trim: true
     },
-    // ── Legacy plain-text supplier (kept for backward compat) ────────
+    unit: {
+      type: String,
+      trim: true,
+      enum: ["kg", "g", "l", "ml", "pcs", "box", "carton", "pack", "dozen", "crate", "bag", "bale", "tray", "roll", "bottle", "set"],
+      default: "pcs",
+    },
     supplier: {
       type: String,
       trim: true,
       default: ""
     },
-    // ── Phase 6: linked Supplier document (optional) ─────────────────
     supplierId: {
-      type:    mongoose.Schema.Types.ObjectId,
-      ref:     "Supplier",
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Supplier",
       default: null,
     },
-    // ── Phase 6: reorder threshold ───────────────────────────────────
     reorderLevel: {
-      type:    Number,
+      type: Number,
       default: 5,
-      min:     [0, "Reorder level cannot be negative"],
+      min: [0, "Reorder level cannot be negative"],
     },
-    // Store/Warehouse this product belongs to
     store: {
       type: String,
       trim: true,
@@ -58,6 +60,8 @@ const productSchema = new mongoose.Schema(
       min: [0, "Sell price cannot be negative"],
       validate: {
         validator: function (value) {
+          // Skip validation for weighed items — sellPrice is per kg
+          if (this.isWeighed) return true
           if (this.buyPrice === undefined || this.buyPrice === null) return true
           return Number(value) >= Number(this.buyPrice)
         },
@@ -71,7 +75,6 @@ const productSchema = new mongoose.Schema(
       index: true,
       minlength: [6, "Barcode must be at least 6 characters"]
     },
-    // Batch tracking
     batch: {
       type: String,
       trim: true,
@@ -85,11 +88,33 @@ const productSchema = new mongoose.Schema(
       type: Date,
       default: null
     },
-    // Flag for expired products (moved to expired stock)
     isExpired: {
       type: Boolean,
       default: false
-    }
+    },
+
+    // ── NEW: Weighed Item Fields ────────────────────────────────────────
+    // Set isWeighed: true for products sold by weight (sugar, rice, meat, etc.)
+    // sellPrice becomes the price per KG
+    // pluNumber is the number programmed on the DIGI SM-500 scale
+    isWeighed: {
+      type: Boolean,
+      default: false,
+    },
+    pricePerKg: {
+      type: Number,
+      default: 0,
+      min: [0, "Price per kg cannot be negative"],
+    },
+    pluNumber: {
+      type: Number,
+      min: 1,
+      max: 99999,
+      unique: true,
+      sparse: true,
+      // No default — field must be absent (not null) for sparse unique index
+      // to skip non-weighed products. Use $unset when clearing.
+    },
   },
   { timestamps: true }
 )

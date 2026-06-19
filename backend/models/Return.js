@@ -9,6 +9,10 @@ const returnSchema = new mongoose.Schema(
     },
     items: [
       {
+        saleItemId: {
+          type: mongoose.Schema.Types.ObjectId,
+          required: true,
+        },
         productId: {
           type: mongoose.Schema.Types.ObjectId,
           ref: "Product",

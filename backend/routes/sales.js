@@ -145,13 +145,9 @@ router.get("/", async (req, res) => {
     const sales = rawSales.map(sale => {
       const saleObj = sale.toObject()
 
-      const returnedAmount = sale.items.reduce((sum, item) => {
-        if (item.returnStatus !== "approved") return sum
-        const activeQty = Math.max(0, (item.qty || 0) - (item.voidedQty || 0))
-        return sum + (activeQty * item.price)
-      }, 0)
-
-      saleObj.netTotal = (sale.paymentInfo?.finalTotal || sale.total) - returnedAmount
+      // finalTotal is already decremented at return-approval time (returns.js PATCH approve).
+      // Do not subtract returnedAmount a second time — that would double-count the deduction.
+      saleObj.netTotal = sale.paymentInfo?.finalTotal ?? sale.total
       saleObj.isPartiallyReturned = sale.items.some(i => i.returnStatus === "approved")
 
       return saleObj
