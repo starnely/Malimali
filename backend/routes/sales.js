@@ -47,6 +47,13 @@ router.post("/", async (req, res) => {
         { new: true, session }
       )
 
+      // Epsilon guard: floating-point subtraction on kg values (e.g. 0.432 kg)
+      // can leave stock at -1e-15 when it should be exactly 0. Clamp it.
+      if (updated && updated.stock < 0) {
+        await Product.findByIdAndUpdate(updated._id, { $set: { stock: 0 } }, { session })
+        updated.stock = 0
+      }
+
       if (!updated) {
         const product = await Product.findById(item.productId).session(session)
         await session.abortTransaction(); session.endSession()
