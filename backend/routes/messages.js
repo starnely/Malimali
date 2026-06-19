@@ -196,13 +196,11 @@ router.post("/", async (req, res) => {
         from: req.user.name || req.user.fullname || "Unknown"
       };
 
-      // Emit to receiver's personal ID room
+      // Emit to receiver's personal ID room only.
+      // Do NOT also emit to "owner" room — the owner's socket joins both
+      // rooms, so a second emit would deliver the event twice and
+      // double-increment the unread badge.
       io.to(String(receiverId)).emit("new_message", payload);
-
-      // If receiver is owner, also emit to "owner" room
-      if (receiver.role === "owner") {
-        io.to("owner").emit("new_message", payload);
-      }
     }
 
     res.status(201).json({ success: true, message });
