@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const User = require("../../models/User");
 const Product = require("../../models/Product");
+const Category = require("../../models/Category");
 const PurchaseOrder = require("../../models/PurchaseOrder");
 const SupplierPayment = require("../../models/SupplierPayment");
 const Customer = require("../../models/Customer");
@@ -162,6 +163,15 @@ async function createPettyCash(overrides = {}) {
   });
 }
 
+async function createCategory(overrides = {}) {
+  return Category.create({
+    name: "test category",
+    store: null,
+    description: "",
+    ...overrides,
+  });
+}
+
 module.exports = {
   createUser,
   createProduct,
@@ -173,5 +183,6 @@ module.exports = {
   createExpiredStock,
   createExpense,
   createPettyCash,
+  createCategory,
   DEFAULT_PASSWORD,
 };

@@ -22,6 +22,8 @@ function createApp() {
   app.use("/api/customers", require("../../routes/customers"));
   app.use("/api/expired", require("../../routes/expiredStock"));
   app.use("/api/expenses", require("../../routes/expenses"));
+  app.use("/api/petty-cash", require("../../routes/pettyCash"));
+  app.use("/api/categories", require("../../routes/categories"));
 
   return app;
 }
