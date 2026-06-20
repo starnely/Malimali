@@ -33,7 +33,6 @@ export function AppProvider({ children }) {
   const [products, setProducts] = useState([])
   const [sales, setSales] = useState([])
   const [returns, setReturns] = useState([])
-  const [stockInLog, setStockInLog] = useState([])
   const [dailyArchives, setDailyArchives] = useState([])
   const [notifications, setNotifications] = useState(() => load('pos_system_notifications', []))
   const [shiftCloses, setShiftCloses] = useState(() => load('pos_system_shift_closes', []))
@@ -158,15 +157,6 @@ export function AppProvider({ children }) {
       const data = await res.json()
       setReturns(data.success && Array.isArray(data.returns) ? data.returns : [])
     } catch (err) { console.error('Error fetching returns:', err); setReturns([]) }
-  }, [])
-
-  const fetchStockIn = useCallback(async () => {
-    try {
-      const res = await authFetchRef.current('http://localhost:5000/api/stockin')
-      if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
-      const data = await res.json()
-      setStockInLog(data.success && Array.isArray(data.stockIn) ? data.stockIn : [])
-    } catch (err) { console.error('Error fetching stock-in:', err); setStockInLog([]) }
   }, [])
 
   const fetchUsers = useCallback(async () => {
@@ -574,7 +564,6 @@ export function AppProvider({ children }) {
       () => fetchProducts(),
       () => fetchSales(),
       () => fetchReturns(),
-      () => (role === 'owner' || role === 'manager') && fetchStockIn(),
       () => fetchArchives(),
       () => fetchStores(),
       () => fetchCategories(),
@@ -588,7 +577,7 @@ export function AppProvider({ children }) {
   }, [
     currentUser?.token, currentUser?.role,
     fetchUsers, fetchProducts, fetchSales, fetchReturns,
-    fetchStockIn, fetchArchives, fetchStores, fetchCategories,
+    fetchArchives, fetchStores, fetchCategories,
     fetchSuppliers, fetchConversations, fetchUnreadMsgCount,
   ]);
 
@@ -642,20 +631,6 @@ export function AppProvider({ children }) {
       return { success: false, message: data.error || data.message || 'Setup failed' };
     } catch (err) { console.error('Setup failed:', err); return { success: false, message: 'Could not connect to server.' }; }
   };
-
-  // ── STOCK IN ───────────────────────────────────────────────────────────
-  const addStockIn = async (form) => {
-    try {
-      const res = await authFetchRef.current('http://localhost:5000/api/stockin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form)
-      })
-      const data = await res.json()
-      if (data.success) { fetchStockIn(); fetchProducts() }
-      return data
-    } catch (err) { console.error('Operation failed:', err); return { success: false } }
-  }
 
   // ── RECORD SALE ────────────────────────────────────────────────────────
   const recordMultipleSales = async (cartItems, paymentInfo = {}) => {
@@ -1133,7 +1108,6 @@ export function AppProvider({ children }) {
       voidSale,
       dailyArchives, fetchArchives,
       lowStockProducts, today,
-      stockInLog, addStockIn, fetchStockIn,
       stores, setStores, fetchStores,
       categories, setCategories, fetchCategories,
       suppliers, setSuppliers, fetchSuppliers,

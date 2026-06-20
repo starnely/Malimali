@@ -13,7 +13,6 @@ import DailySummaryModal from '@/components/modals/DailySummaryModal'
 const pageTitles = {
   '/': 'Dashboard',
   '/products': 'Products',
-  '/stock-in': 'Stock In',
   '/stock-out': 'Stock Out',
   '/barcodes': 'POS Terminal',
   '/sales-history': 'Sales History',
