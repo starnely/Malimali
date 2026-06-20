@@ -6,6 +6,8 @@ const Category = require("../../models/Category");
 const Supplier = require("../../models/Supplier");
 const Store = require("../../models/Store");
 const Archive = require("../../models/Archive");
+const Message = require("../../models/Message");
+const Setting = require("../../models/Setting");
 const PurchaseOrder = require("../../models/PurchaseOrder");
 const SupplierPayment = require("../../models/SupplierPayment");
 const Customer = require("../../models/Customer");
@@ -209,6 +211,29 @@ async function createArchive(overrides = {}) {
   });
 }
 
+async function createMessage(overrides = {}) {
+  return Message.create({
+    senderId:     new mongoose.Types.ObjectId(),
+    senderName:   "Test Sender",
+    senderRole:   "cashier",
+    receiverId:   new mongoose.Types.ObjectId(),
+    receiverName: "Test Receiver",
+    content:      "Test message content",
+    isBroadcast:  false,
+    readBy:       [],
+    ...overrides,
+  });
+}
+
+async function createSetting(overrides = {}) {
+  return Setting.create({
+    companyName: "Test Company",
+    currency:    "KSh",
+    isActivated: true,
+    ...overrides,
+  });
+}
+
 // General sale factory — productId defaults to a throw-away ObjectId so
 // archive tests don't need a real Product document to exist.
 async function createSale(overrides = {}) {
@@ -239,6 +264,8 @@ module.exports = {
   createSupplier,
   createStore,
   createArchive,
+  createMessage,
+  createSetting,
   createSale,
   DEFAULT_PASSWORD,
 };

@@ -27,6 +27,8 @@ function createApp() {
   app.use("/api/suppliers", require("../../routes/suppliers"));
   app.use("/api/stores", require("../../routes/stores"));
   app.use("/api/archives", require("../../routes/archives"));
+  app.use("/api/messages", require("../../routes/messages"));
+  app.use("/api/setup", require("../../routes/setup"));
 
   return app;
 }
