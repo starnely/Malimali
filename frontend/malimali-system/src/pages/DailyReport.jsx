@@ -578,7 +578,15 @@ export default function DailyReport() {
                   <SectionHeader
                     icon={<MdAccountBalanceWallet />}
                     title="Petty Cash"
-                    subtitle={pcLoading ? 'Loading...' : pettyCash ? `Opened by ${pettyCash.openedBy}` : 'Not opened today'}
+                    subtitle={
+                      pcLoading
+                        ? 'Loading...'
+                        : pettyCash
+                          ? `Opened by ${pettyCash.openedBy}`
+                          : (isOwner && selectedStore === 'All')
+                            ? 'Select a store to view'
+                            : 'Not opened today'
+                    }
                   />
                   {!pcLoading && pettyCash && (
                     <span style={{
