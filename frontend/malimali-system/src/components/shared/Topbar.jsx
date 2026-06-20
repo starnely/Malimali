@@ -398,8 +398,8 @@ export default function TopBar() {
 
           {/* Chat */}
           <button onClick={handleOpenChat} className="relative p-2 rounded-lg transition"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
-            <MdChat className="text-xl" style={{ color: 'var(--text-primary)' }} />
+            style={{ background: unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent', border: 'none', cursor: 'pointer' }}>
+            <MdChat className="text-xl" style={{ color: unreadMsgCount > 0 ? 'var(--primary)' : 'var(--text-muted)' }} />
             {unreadMsgCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
                 style={{ background: 'var(--primary)' }}>
