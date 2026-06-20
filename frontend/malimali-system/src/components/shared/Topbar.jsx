@@ -385,7 +385,9 @@ export default function TopBar() {
           {isOwner && (
             <button onClick={() => navigate('/products', { state: { filter: 'lowStock' } })}
               className="relative p-2 rounded-lg transition"
-              style={{ background: lowStockCount > 0 ? 'var(--warning-light)' : 'transparent', border: 'none', cursor: 'pointer' }}>
+              style={{ background: lowStockCount > 0 ? 'var(--warning-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
+              onMouseEnter={e => e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'var(--bg-muted)'}
+              onMouseLeave={e => e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'transparent'}>
               <MdWarning className="text-xl" style={{ color: lowStockCount > 0 ? 'var(--warning-dark)' : 'var(--text-muted)' }} />
               {lowStockCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
@@ -398,7 +400,9 @@ export default function TopBar() {
 
           {/* Chat */}
           <button onClick={handleOpenChat} className="relative p-2 rounded-lg transition"
-            style={{ background: unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent', border: 'none', cursor: 'pointer' }}>
+            style={{ background: unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
+            onMouseLeave={e => e.currentTarget.style.background = unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent'}>
             <MdChat className="text-xl" style={{ color: unreadMsgCount > 0 ? 'var(--primary)' : 'var(--text-muted)' }} />
             {unreadMsgCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
@@ -410,7 +414,9 @@ export default function TopBar() {
 
           {/* Notifications bell */}
           <button onClick={handleOpenNotifications} className="relative p-2 rounded-lg transition"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}>
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
             <MdNotifications className="text-xl" style={{ color: 'var(--text-primary)' }} />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
