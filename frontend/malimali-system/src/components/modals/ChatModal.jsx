@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import {
   MdChat, MdClose, MdSend, MdCampaign,
   MdDoneAll, MdDone, MdSearch
@@ -76,12 +76,18 @@ export default function ChatModal({ onClose }) {
   }, [activeContact])
 
   // ── Smart scroll on direct thread changes ─────────────────────────
-  useEffect(() => {
+  useLayoutEffect(() => {
     const container = scrollContainerRef.current
     if (!container) return
     if (forceScrollRef.current) {
       forceScrollRef.current = false
-      container.scrollTop = container.scrollHeight
+      // useLayoutEffect fires before paint but layout may not be fully computed
+      // for dynamic content yet — double-RAF guarantees two frames have elapsed.
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          container.scrollTop = container.scrollHeight
+        })
+      })
       return
     }
     const { scrollTop, scrollHeight, clientHeight } = container
