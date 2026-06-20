@@ -313,6 +313,7 @@ export default function PurchaseOrders() {
       )}
       {receivingPO && (
         <ReceiveModal po={receivingPO}
+          products={products}
           onClose={() => setReceivingPO(null)}
           onReceived={() => { setReceivingPO(null); load(); showToast('Stock received and inventory updated') }}
           receivePurchaseOrder={receivePurchaseOrder}
@@ -1098,25 +1099,67 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
 // ══════════════════════════════════════════════════════════════════════
 //  RECEIVE STOCK MODAL
 // ══════════════════════════════════════════════════════════════════════
-function ReceiveModal({ po, onClose, onReceived, receivePurchaseOrder }) {
-  const [quantities, setQuantities] = useState(Object.fromEntries(po.items.map(item => [item._id, item.qtyOrdered - item.qtyReceived])))
+function ReceiveModal({ po, products, onClose, onReceived, receivePurchaseOrder }) {
+  const [quantities, setQuantities] = useState(
+    Object.fromEntries(po.items.map(item => [item._id, item.qtyOrdered - item.qtyReceived]))
+  )
+  const [actualCosts, setActualCosts] = useState(
+    Object.fromEntries(po.items.map(item => [item._id, item.unitCost]))
+  )
+  const [newSellPrices, setNewSellPrices] = useState(() => {
+    const map = {}
+    for (const item of po.items) {
+      const pid = String(item.productId?._id || item.productId)
+      const product = products.find(p => String(p._id) === pid)
+      map[item._id] = product?.sellPrice ?? ''
+    }
+    return map
+  })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const getProduct = (item) => {
+    const pid = String(item.productId?._id || item.productId)
+    return products.find(p => String(p._id) === pid)
+  }
+
+  const calcMarginPct = (sell, cost) => {
+    const s = Number(sell); const c = Number(cost)
+    if (!s || s <= 0 || isNaN(c)) return null
+    return ((s - c) / s * 100)
+  }
+
   const handleReceive = async () => {
     setError('')
-    const items = po.items.map(item => ({ itemId: item._id, qtyReceived: Number(quantities[item._id] || 0) })).filter(i => i.qtyReceived > 0)
-    if (!items.length) { setError('Enter quantities received for at least one item.'); return }
-    for (const po_item of po.items) {
-      const max = po_item.qtyOrdered - po_item.qtyReceived
-      if (Number(quantities[po_item._id] || 0) > max) { setError(`${po_item.productName}: cannot receive more than ${max}.`); return }
+    for (const poItem of po.items) {
+      const max = poItem.qtyOrdered - poItem.qtyReceived
+      if (Number(quantities[poItem._id] || 0) > max) {
+        setError(`${poItem.productName}: cannot receive more than ${max}.`); return
+      }
+      const cost = Number(actualCosts[poItem._id])
+      if (isNaN(cost) || cost < 0) {
+        setError(`${poItem.productName}: enter a valid unit cost.`); return
+      }
     }
+    const items = po.items
+      .map(item => ({
+        itemId: item._id,
+        qtyReceived: Number(quantities[item._id] || 0),
+        actualUnitCost: Number(actualCosts[item._id]),
+        newSellPrice: newSellPrices[item._id] !== '' ? Number(newSellPrices[item._id]) : undefined,
+      }))
+      .filter(i => i.qtyReceived > 0)
+    if (!items.length) { setError('Enter quantities received for at least one item.'); return }
     setSaving(true)
     const res = await receivePurchaseOrder(po._id, items)
     setSaving(false)
     if (res.success) onReceived()
     else setError(res.message || 'Failed to receive stock')
   }
+
+  const totalValue = po.items.reduce(
+    (s, item) => s + (Number(quantities[item._id]) || 0) * (Number(actualCosts[item._id]) || 0), 0
+  )
 
   return (
     <div className={styles.overlay}>
@@ -1126,48 +1169,139 @@ function ReceiveModal({ po, onClose, onReceived, receivePurchaseOrder }) {
           <button className={styles.modalClose} onClick={onClose}><MdClose /></button>
         </div>
         <div className={styles.modalBody}>
-          <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--info-light)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--info-dark)', fontWeight: 600 }}>
+
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--info-light)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--info-dark)', fontWeight: 600 }}>
             <MdLocalShipping style={{ verticalAlign: 'middle', marginRight: 6 }} />
-            Enter quantities actually received. Stock will be updated immediately.
+            Confirm quantities and actual unit costs paid. Buy prices update for <strong>future sales only</strong> — past sales already recorded are not affected.
           </div>
+
           {po.items.map(item => {
-            const remaining = item.qtyOrdered - item.qtyReceived
-            const pct = item.qtyOrdered ? Math.min(100, Math.round(item.qtyReceived / item.qtyOrdered * 100)) : 0
-            const itemUnit = item.unit || 'pcs'
+            const remaining  = item.qtyOrdered - item.qtyReceived
+            const pct        = item.qtyOrdered ? Math.min(100, Math.round(item.qtyReceived / item.qtyOrdered * 100)) : 0
+            const itemUnit   = item.unit || 'pcs'
+            const product    = getProduct(item)
+            const origCost   = item.unitCost
+            const actualCost = Number(actualCosts[item._id])
+            const costChanged = !isNaN(actualCost) && Math.abs(actualCost - origCost) > 0.001
+            const costDiff   = actualCost - origCost
+            const sellForMargin = (newSellPrices[item._id] !== '' && !isNaN(Number(newSellPrices[item._id])))
+              ? Number(newSellPrices[item._id])
+              : (product?.sellPrice || 0)
+            const origMargin = calcMarginPct(product?.sellPrice, origCost)
+            const newMargin  = calcMarginPct(sellForMargin, actualCost)
+
             return (
-              <div key={item._id} className={styles.receiveItem}>
-                <div>
-                  <div className={styles.receiveItemName}>{item.productName}</div>
-                  <div className={styles.receiveItemSub}>Ordered: {item.qtyOrdered} {itemUnit} · Received: {item.qtyReceived} {itemUnit} · Remaining: {remaining} {itemUnit}</div>
-                  <div className={styles.progressBar} style={{ marginTop: 6, width: 140 }}><div className={styles.progressFill} style={{ width: `${pct}%` }} /></div>
+              <div key={item._id} style={{
+                marginBottom: 14, padding: '14px 16px',
+                background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)',
+                border: `1px solid ${costChanged ? 'var(--warning)' : 'var(--border-soft)'}`,
+              }}>
+                {/* Product name + progress */}
+                <div style={{ marginBottom: 10 }}>
+                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{item.productName}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                    Ordered: {item.qtyOrdered} {itemUnit} · Received so far: {item.qtyReceived} {itemUnit} · Remaining: {remaining} {itemUnit}
+                  </div>
+                  <div className={styles.progressBar} style={{ marginTop: 6, width: 160 }}>
+                    <div className={styles.progressFill} style={{ width: `${pct}%` }} />
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Qty Now ({itemUnit})</div>
-                  <input type='number' min={0} max={remaining} value={quantities[item._id] ?? ''} onChange={e => setQuantities({ ...quantities, [item._id]: e.target.value })} disabled={remaining <= 0}
-                    style={{ width: 80, padding: '6px 8px', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-sm)', background: remaining <= 0 ? 'var(--bg-muted)' : 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 13, outline: 'none', textAlign: 'center' }} />
+
+                {/* Three input columns */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                  {/* Qty */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Qty Now ({itemUnit})</div>
+                    <input
+                      type='number' min={0} max={remaining}
+                      value={quantities[item._id] ?? ''}
+                      onChange={e => setQuantities({ ...quantities, [item._id]: e.target.value })}
+                      disabled={remaining <= 0}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-sm)', background: remaining <= 0 ? 'var(--bg-muted)' : 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 13, outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+                    />
+                  </div>
+
+                  {/* Actual unit cost */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Actual Unit Cost (KSh)</div>
+                    <input
+                      type='number' min={0} step='0.01'
+                      value={actualCosts[item._id] ?? ''}
+                      onChange={e => setActualCosts({ ...actualCosts, [item._id]: e.target.value })}
+                      style={{ width: '100%', padding: '6px 8px', border: `1px solid ${costChanged ? 'var(--warning)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>PO quoted: KSh {origCost.toLocaleString()}</div>
+                  </div>
+
+                  {/* Optional new sell price */}
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>
+                      Selling Price (KSh) <span style={{ fontWeight: 400, textTransform: 'none', fontSize: 9 }}>— optional update</span>
+                    </div>
+                    <input
+                      type='number' min={0} step='0.01'
+                      value={newSellPrices[item._id] ?? ''}
+                      onChange={e => setNewSellPrices({ ...newSellPrices, [item._id]: e.target.value })}
+                      style={{ width: '100%', padding: '6px 8px', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-sm)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 13, outline: 'none', boxSizing: 'border-box' }}
+                    />
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 3 }}>Current: KSh {(product?.sellPrice || 0).toLocaleString()}</div>
+                  </div>
                 </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Unit Cost</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>KSh {item.unitCost?.toLocaleString()} / {itemUnit}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Subtotal</div>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--primary)' }}>KSh {((Number(quantities[item._id]) || 0) * item.unitCost).toLocaleString()}</div>
+
+                {/* Variance + margin callout — only shown when cost changed */}
+                {costChanged && (
+                  <div style={{
+                    marginTop: 10, padding: '8px 12px', borderRadius: 'var(--radius-sm)', fontSize: 12,
+                    background: costDiff > 0 ? 'var(--warning-light)' : 'var(--success-light)',
+                    border: `1px solid ${costDiff > 0 ? 'var(--warning)' : 'var(--success)'}`,
+                  }}>
+                    <div style={{ fontWeight: 700, color: costDiff > 0 ? 'var(--warning-dark)' : 'var(--success-dark)', marginBottom: origMargin !== null ? 4 : 0 }}>
+                      {costDiff > 0 ? '⚠️' : '✅'} Price changed: KSh {origCost.toLocaleString()} → KSh {actualCost.toLocaleString()} ({costDiff > 0 ? '+' : ''}KSh {Math.abs(costDiff).toLocaleString()})
+                    </div>
+                    {origMargin !== null && newMargin !== null && (
+                      <div style={{ color: 'var(--text-secondary)' }}>
+                        Margin at KSh {sellForMargin.toLocaleString()} sell price:{' '}
+                        <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{origMargin.toFixed(1)}%</span>
+                        {' → '}
+                        <span style={{ fontWeight: 700, color: newMargin < origMargin ? 'var(--danger)' : 'var(--success-dark)' }}>
+                          {newMargin.toFixed(1)}%
+                        </span>
+                        {newMargin < 20 && newMargin < origMargin && (
+                          <span style={{ color: 'var(--danger)', marginLeft: 6 }}>⚠️ Low margin</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Subtotal */}
+                <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end', fontSize: 12, color: 'var(--text-muted)' }}>
+                  Subtotal:&nbsp;<span style={{ fontWeight: 700, color: 'var(--primary)' }}>
+                    KSh {((Number(quantities[item._id]) || 0) * (isNaN(actualCost) ? origCost : actualCost)).toLocaleString()}
+                  </span>
                 </div>
               </div>
             )
           })}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
             <div style={{ background: 'var(--success-light)', border: '1px solid var(--success)', borderRadius: 'var(--radius-md)', padding: '10px 16px', textAlign: 'right' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success-dark)', textTransform: 'uppercase' }}>Total Value Received Now</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--success-dark)' }}>KSh {po.items.reduce((s, item) => s + (Number(quantities[item._id]) || 0) * item.unitCost, 0).toLocaleString()}</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--success-dark)' }}>KSh {totalValue.toLocaleString()}</div>
             </div>
           </div>
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}><MdWarning style={{ verticalAlign: 'middle', marginRight: 6 }} />{error}</div>}
+
+          {error && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>
+              <MdWarning style={{ verticalAlign: 'middle', marginRight: 6 }} />{error}
+            </div>
+          )}
         </div>
         <div className={styles.modalFooter}>
           <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>
-          <button className={styles.btnSuccess} onClick={handleReceive} disabled={saving}><MdCheckCircle /> {saving ? 'Updating...' : 'Confirm Receipt & Update Stock'}</button>
+          <button className={styles.btnSuccess} onClick={handleReceive} disabled={saving}>
+            <MdCheckCircle /> {saving ? 'Updating...' : 'Confirm Receipt & Update Stock'}
+          </button>
         </div>
       </div>
     </div>

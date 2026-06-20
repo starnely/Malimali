@@ -31,8 +31,9 @@ const poItemSchema = new mongoose.Schema(
     unit:         { type: String, default: "pcs" },
     qtyOrdered:   { type: Number, required: true, min: [1, "Quantity must be at least 1"] },
     qtyReceived:  { type: Number, default: 0, min: [0, "Received quantity cannot be negative"] },
-    unitCost:     { type: Number, required: true, min: [0, "Unit cost cannot be negative"] },
-    receivedCost: { type: Number, default: 0 },
+    unitCost:       { type: Number, required: true, min: [0, "Unit cost cannot be negative"] },
+    actualUnitCost: { type: Number, default: null }, // actual price paid at delivery (null = same as unitCost)
+    receivedCost:   { type: Number, default: 0 },
   },
   { _id: true }
 )

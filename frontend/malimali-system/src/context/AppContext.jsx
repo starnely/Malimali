@@ -359,7 +359,7 @@ export function AppProvider({ children }) {
         body: JSON.stringify({ items })
       });
       const data = await res.json();
-      if (res.ok) { fetchProducts(); return { success: true, purchaseOrder: data.purchaseOrder, stockUpdates: data.stockUpdates }; }
+      if (res.ok) { await fetchProducts(); return { success: true, purchaseOrder: data.purchaseOrder, stockUpdates: data.stockUpdates }; }
       return { success: false, message: data.message };
     } catch { return { success: false, message: 'Network error' }; }
   }, [fetchProducts]);

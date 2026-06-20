@@ -238,9 +238,25 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
       if (!poItem) continue
       const qty = Number(recv.qtyReceived)
       if (qty < 0) continue
-      poItem.qtyReceived = poItem.qtyReceived + qty
-      poItem.receivedCost = poItem.qtyReceived * poItem.unitCost
-      const product = await Product.findByIdAndUpdate(poItem.productId, { $inc: { stock: qty } }, { new: true })
+
+      const actualUnitCost =
+        recv.actualUnitCost != null && !isNaN(Number(recv.actualUnitCost))
+          ? Number(recv.actualUnitCost)
+          : poItem.unitCost
+
+      poItem.qtyReceived    = poItem.qtyReceived + qty
+      poItem.actualUnitCost = actualUnitCost
+      poItem.receivedCost   = poItem.qtyReceived * actualUnitCost
+
+      const productSet = { buyPrice: actualUnitCost }
+      if (recv.newSellPrice != null && Number(recv.newSellPrice) > 0) {
+        productSet.sellPrice = Number(recv.newSellPrice)
+      }
+      const product = await Product.findByIdAndUpdate(
+        poItem.productId,
+        { $inc: { stock: qty }, $set: productSet },
+        { new: true }
+      )
       if (product) {
         stockUpdates.push({ productId: product._id, productName: product.name, qtyAdded: qty, newStock: product.stock })
         if (product.stock <= (product.reorderLevel ?? 5))
