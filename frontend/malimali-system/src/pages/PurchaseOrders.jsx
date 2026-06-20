@@ -706,7 +706,7 @@ function CreatePOModal({
 // ══════════════════════════════════════════════════════════════════════
 function InvoiceModal({ po, currentUser, onClose, onSaved }) {
   const [invoiceNumber, setInvoiceNumber] = useState(po.invoiceNumber || '')
-  const [invoiceAmount, setInvoiceAmount] = useState(po.invoiceAmount || po.totalOrderedCost || '')
+  const [invoiceAmount, setInvoiceAmount] = useState(po.invoiceAmount || po.totalReceivedCost || po.totalOrderedCost || '')
   const [invoiceDate, setInvoiceDate] = useState(() => po.invoiceDate || getTodayEAT())
   const [photoFile, setPhotoFile] = useState(null)
   const [saving, setSaving] = useState(false)
