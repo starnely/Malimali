@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   MdAttachMoney, MdTrendingUp, MdInventory, MdReceiptLong,
   MdPeopleAlt, MdAccountBalanceWallet, MdRefresh, MdDownload,
@@ -76,6 +76,7 @@ export default function DailyReport() {
   const [supplierDebt,   setSupplierDebt]   = useState(0)
   const [debtLoading,    setDebtLoading]    = useState(true)
   const [refreshKey,     setRefreshKey]     = useState(0)
+  const storeSelectRef = useRef(null)
 
   // ── Fetch repayments ──────────────────────────────────────────────
   useEffect(() => {
@@ -375,6 +376,7 @@ export default function DailyReport() {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: 'var(--bg-muted)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-md)' }}>
                 <MdStorefront style={{ color: 'var(--primary)', fontSize: 16 }} />
                 <select
+                  ref={storeSelectRef}
                   value={selectedStore}
                   onChange={e => setSelectedStore(e.target.value)}
                   style={{ border: 'none', background: 'transparent', color: 'var(--text-primary)', fontSize: 13, fontWeight: 600, outline: 'none', fontFamily: 'inherit', cursor: 'pointer' }}
@@ -584,7 +586,10 @@ export default function DailyReport() {
                         : pettyCash
                           ? `Opened by ${pettyCash.openedBy}`
                           : (isOwner && selectedStore === 'All')
-                            ? 'Select a store to view'
+                            ? <span
+                                onClick={() => storeSelectRef.current?.focus()}
+                                style={{ cursor: 'pointer', color: 'var(--primary)', textDecoration: 'underline dotted' }}
+                              >Select a store to view ↑</span>
                             : 'Not opened today'
                     }
                   />
