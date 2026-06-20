@@ -823,7 +823,7 @@ export function AppProvider({ children }) {
   useEffect(() => {
     if (!socket) return;
 
-    socket.on('adminShiftNotification', (data) => {
+    const onAdminShiftNotification = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       console.log('adminShiftNotification received, role:', role, 'data:', data)
       if (role !== 'owner') return;
@@ -833,13 +833,13 @@ export function AppProvider({ children }) {
       addNotification(`🔒 ${name} closed shift at ${time}`, 'info', 'owner');
       addShiftCloseNotif(name, time, revenue);
       fetchArchives(); fetchSales();
-    });
+    };
 
-    socket.on('sync_system_data', () => {
+    const onSyncSystemData = () => {
       fetchSales(); fetchReturns(); fetchProducts();
-    });
+    };
 
-    socket.on('newReturnRequest', (data) => {
+    const onNewReturnRequest = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
       if (role !== 'owner') return
       addNotification(
@@ -847,9 +847,9 @@ export function AppProvider({ children }) {
         'warning', 'owner'
       )
       fetchReturns()
-    })
+    };
 
-    socket.on('returnUpdated', (data) => {
+    const onReturnUpdated = (data) => {
       const user = currentUserRef.current
       if (!user) return
       addNotification(
@@ -859,9 +859,9 @@ export function AppProvider({ children }) {
       )
       fetchReturns()
       fetchSales()
-    })
+    };
 
-    socket.on('saleVoided', (data) => {
+    const onSaleVoided = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
       const name = data.voidedBy || 'A manager';
@@ -873,16 +873,16 @@ export function AppProvider({ children }) {
         'warning', 'owner'
       );
       fetchSales(); fetchProducts();
-    });
+    };
 
-    socket.on('autoExpiredCheck', (data) => {
+    const onAutoExpiredCheck = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
       fetchProducts();
       addNotification(`⚠️ Auto-check moved ${data.moved} expired product(s) to expired stock.`, 'info', 'owner');
-    });
+    };
 
-    socket.on('overdueCustomers', (data) => {
+    const onOverdueCustomers = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
       const count = data.count || 0;
@@ -890,18 +890,18 @@ export function AppProvider({ children }) {
         `⏰ ${count} customer${count !== 1 ? 's have' : ' has'} passed their payment deadline. Visit Debtors to follow up.`,
         'warning', 'owner'
       );
-    });
+    };
 
-    socket.on('lowStockAlert', (data) => {
+    const onLowStockAlert = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner' && role !== 'manager') return;
       addNotification(
         `⚠️ Low stock: ${data.productName} — only ${data.stock} ${data.unit || 'pcs'} left (reorder at ${data.reorderLevel})`,
         'warning', 'owner'
       );
-    });
+    };
 
-    socket.on('stockReceived', (data) => {
+    const onStockReceived = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner' && role !== 'manager') return;
       fetchProducts();
@@ -909,27 +909,27 @@ export function AppProvider({ children }) {
         `📦 Stock received from ${data.supplierName} on PO ${data.poNumber} — by ${data.receivedBy}`,
         'info', 'owner'
       );
-    });
+    };
 
-    socket.on('pettyCashAutoClosed', (data) => {
+    const onPettyCashAutoClosed = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
       addNotification(
         `🔒 Petty cash for ${data.store} was auto-closed at midnight (KSh ${(data.closingFloat || 0).toLocaleString()}). No physical count was done — verify tomorrow morning.`,
         'warning', 'owner'
       );
-    });
+    };
 
-    socket.on('expenseLogged', (data) => {
+    const onExpenseLogged = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
       addNotification(
         `💸 Expense logged: KSh ${data.amount?.toLocaleString()} (${data.category}) by ${data.recordedBy}`,
         'info', 'owner'
       );
-    });
+    };
 
-    socket.on('new_message', (data) => {
+    const onNewMessage = (data) => {
       const msg = data?.message;
       const user = currentUserRef.current;
       if (!msg) return;
@@ -944,21 +944,34 @@ export function AppProvider({ children }) {
         if (exists) return prev;
         return [...prev, msg];
       });
-    });
+    };
+
+    socket.on('adminShiftNotification', onAdminShiftNotification);
+    socket.on('sync_system_data', onSyncSystemData);
+    socket.on('newReturnRequest', onNewReturnRequest);
+    socket.on('returnUpdated', onReturnUpdated);
+    socket.on('saleVoided', onSaleVoided);
+    socket.on('autoExpiredCheck', onAutoExpiredCheck);
+    socket.on('overdueCustomers', onOverdueCustomers);
+    socket.on('lowStockAlert', onLowStockAlert);
+    socket.on('stockReceived', onStockReceived);
+    socket.on('pettyCashAutoClosed', onPettyCashAutoClosed);
+    socket.on('expenseLogged', onExpenseLogged);
+    socket.on('new_message', onNewMessage);
 
     return () => {
-      socket.off('adminShiftNotification');
-      socket.off('sync_system_data');
-      socket.off('autoExpiredCheck');
-      socket.off('new_message');
-      socket.off('saleVoided');
-      socket.off('overdueCustomers');
-      socket.off('lowStockAlert');
-      socket.off('stockReceived');
-      socket.off('expenseLogged');
-      socket.off('newReturnRequest')
-      socket.off('returnUpdated')
-      socket.off('pettyCashAutoClosed');
+      socket.off('adminShiftNotification', onAdminShiftNotification);
+      socket.off('sync_system_data', onSyncSystemData);
+      socket.off('newReturnRequest', onNewReturnRequest);
+      socket.off('returnUpdated', onReturnUpdated);
+      socket.off('saleVoided', onSaleVoided);
+      socket.off('autoExpiredCheck', onAutoExpiredCheck);
+      socket.off('overdueCustomers', onOverdueCustomers);
+      socket.off('lowStockAlert', onLowStockAlert);
+      socket.off('stockReceived', onStockReceived);
+      socket.off('pettyCashAutoClosed', onPettyCashAutoClosed);
+      socket.off('expenseLogged', onExpenseLogged);
+      socket.off('new_message', onNewMessage);
     };
   }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns,
     fetchProducts, addShiftCloseNotif, fetchConversations]);
