@@ -1,7 +1,11 @@
 const bcrypt = require("bcryptjs");
+const mongoose = require("mongoose");
 const User = require("../../models/User");
 const Product = require("../../models/Product");
 const Category = require("../../models/Category");
+const Supplier = require("../../models/Supplier");
+const Store = require("../../models/Store");
+const Archive = require("../../models/Archive");
 const PurchaseOrder = require("../../models/PurchaseOrder");
 const SupplierPayment = require("../../models/SupplierPayment");
 const Customer = require("../../models/Customer");
@@ -172,6 +176,54 @@ async function createCategory(overrides = {}) {
   });
 }
 
+async function createSupplier(overrides = {}) {
+  const count = await Supplier.countDocuments();
+  return Supplier.create({
+    name: `Test Supplier ${count}`,
+    stores: [],
+    isActive: true,
+    ...overrides,
+  });
+}
+
+async function createStore(overrides = {}) {
+  const count = await Store.countDocuments();
+  return Store.create({
+    name: `Test Store ${count}`,
+    location: "",
+    phone: "",
+    ...overrides,
+  });
+}
+
+async function createArchive(overrides = {}) {
+  return Archive.create({
+    employeeName: "Test Employee",
+    date: "2024-01-15",
+    store: "Main Store",
+    revenue: 0,
+    profit: 0,
+    transactions: 0,
+    itemsSold: 0,
+    ...overrides,
+  });
+}
+
+// General sale factory — productId defaults to a throw-away ObjectId so
+// archive tests don't need a real Product document to exist.
+async function createSale(overrides = {}) {
+  return Sale.create({
+    items: [{ productId: new mongoose.Types.ObjectId(), qty: 1, price: 50, buyPrice: 30 }],
+    total: 50,
+    store: "Main Store",
+    cashier: "Test Cashier",
+    date: "2024-01-01",
+    time: "10:00:00 EAT",
+    paymentInfo: { paymentMethod: "cash", finalTotal: 50 },
+    ...overrides,
+  });
+}
+
 module.exports = {
   createUser,
   createProduct,
@@ -184,5 +236,9 @@ module.exports = {
   createExpense,
   createPettyCash,
   createCategory,
+  createSupplier,
+  createStore,
+  createArchive,
+  createSale,
   DEFAULT_PASSWORD,
 };

@@ -24,6 +24,9 @@ function createApp() {
   app.use("/api/expenses", require("../../routes/expenses"));
   app.use("/api/petty-cash", require("../../routes/pettyCash"));
   app.use("/api/categories", require("../../routes/categories"));
+  app.use("/api/suppliers", require("../../routes/suppliers"));
+  app.use("/api/stores", require("../../routes/stores"));
+  app.use("/api/archives", require("../../routes/archives"));
 
   return app;
 }
