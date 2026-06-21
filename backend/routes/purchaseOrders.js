@@ -481,7 +481,7 @@ router.get("/:id/pdf", async (req, res) => {
     doc.rect(0, 0, doc.page.width, 115).fill(C.dark)
     if (settings?.logo) {
       const publicDir = path.resolve(__dirname, "../public")
-      const logoPath = path.resolve(publicDir, settings.logo)
+      const logoPath = path.resolve(publicDir, settings.logo.replace(/^[/\\]+/, ""))
       if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
         try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { }
       }
@@ -738,7 +738,7 @@ router.get("/supplier/:supplierId/statement", async (req, res) => {
     doc.rect(0, 0, doc.page.width, 115).fill(C.dark)
     if (settings?.logo) {
       const publicDir = path.resolve(__dirname, "../public")
-      const logoPath = path.resolve(publicDir, settings.logo)
+      const logoPath = path.resolve(publicDir, settings.logo.replace(/^[/\\]+/, ""))
       if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
         try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { }
       }
