@@ -3,6 +3,7 @@ import { MdPointOfSale, MdTableChart, MdBarChart, MdStorefront } from 'react-ico
 import JsBarcode from 'jsbarcode'
 import { useApp } from '@/context/AppContext'
 import p from '@/styles/POS.module.css'
+import { isWeightBarcode } from '@/utils/barcodeUtils'
 
 import Receipt from './Receipt'
 import CheckoutModal from './CheckoutModal'
@@ -11,12 +12,6 @@ import ScanPanel from './ScanPanel'
 import GenerateBarcodes from './GenerateBarcodes'
 
 const API = 'http://localhost:5000'
-
-// ── Detect variable weight barcode (EAN-13 starting with "2") ─────────
-function isWeightBarcode(code) {
-  const trimmed = String(code).trim()
-  return trimmed.length === 13 && trimmed.startsWith('2') && /^\d+$/.test(trimmed)
-}
 
 export default function Barcodes() {
   const {

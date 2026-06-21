@@ -124,6 +124,8 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All") 
     employeeMap[empName].itemsSold += saleQty
   })
 
+  if (totalTransactions === 0) return null
+
   return {
     date: targetDate,
     totalRevenue: Math.round(totalRevenue),

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { MdPerson, MdMoney, MdCallSplit, MdPhone, MdCheckCircle, MdWarning, MdCreditCard, MdAccountBalance, MdCalendarToday, MdBlock } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import s from '@/styles/Barcodes.module.css'
+import { isValidKenyanPhone } from '@/utils/validators'
 
 const ALL_METHODS = [
   { key: 'cash',   label: 'Cash',          icon: '💵' },
@@ -18,13 +19,6 @@ function getTomorrowDate() {
   return d.toISOString().split('T')[0]
 }
 
-// ── Kenyan phone number validator ─────────────────────────────────────
-// Accepts: 07XXXXXXXX, 01XXXXXXXX, 2547XXXXXXXX, 2541XXXXXXXX,
-//          +2547XXXXXXXX, +2541XXXXXXXX
-const isValidKenyanPhone = (phone) => {
-  const cleaned = phone.trim().replace(/\s+/g, '')
-  return /^(07\d{8}|01\d{8}|2547\d{8}|2541\d{8}|\+2547\d{8}|\+2541\d{8})$/.test(cleaned)
-}
 
 export default function CheckoutModal({ cartTotal, onConfirm, onCancel }) {
   const { currentUser, settings, checkCustomerCredit } = useApp()

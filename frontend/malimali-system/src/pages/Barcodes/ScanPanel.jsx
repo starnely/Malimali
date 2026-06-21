@@ -6,12 +6,7 @@ import {
   MdKeyboard, MdScale,
 } from 'react-icons/md'
 import p from '@/styles/POS.module.css'
-
-// ── Detect variable weight barcode (EAN-13 starting with "2") ─────────
-function isWeightBarcode(code) {
-  const trimmed = String(code).trim()
-  return trimmed.length === 13 && trimmed.startsWith('2') && /^\d+$/.test(trimmed)
-}
+import { isWeightBarcode } from '@/utils/barcodeUtils'
 
 export default function ScanPanel({
   cart = [], cartTotal = 0, cartCount = 0,
