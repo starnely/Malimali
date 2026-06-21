@@ -85,8 +85,15 @@ router.get("/outstanding", async (req, res) => {
       .populate("supplierId", "name company phone email")
       .sort({ invoiceDate: 1 })
 
+    const pendingInvoiceFilter = {
+      status: { $in: ["received", "partial"] },
+      $or: [{ invoiceAmount: { $exists: false } }, { invoiceAmount: 0 }],
+    }
+    if (req.query.store) pendingInvoiceFilter.store = req.query.store
+
     const totalOutstanding = pos.reduce((s, po) => s + (po.balance || 0), 0)
-    res.json({ success: true, purchaseOrders: pos, totalOutstanding, count: pos.length })
+    const pendingInvoiceCount = await PurchaseOrder.countDocuments(pendingInvoiceFilter)
+    res.json({ success: true, purchaseOrders: pos, totalOutstanding, count: pos.length, pendingInvoiceCount })
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch outstanding POs." })
   }

@@ -269,6 +269,11 @@ export default function PurchaseOrders() {
                         <span className={`${styles.badge} ${styles[po.status]}`}>
                           {STATUS_LABELS[po.status]?.icon} {STATUS_LABELS[po.status]?.label}
                         </span>
+                        {(po.status === 'received' || po.status === 'partial') && !po.invoiceAmount && (
+                          <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: 'var(--warning-light)', color: 'var(--warning-dark)', whiteSpace: 'nowrap' }}>
+                            ⚠ Invoice due
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div className={styles.actionRow}>

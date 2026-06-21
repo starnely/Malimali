@@ -29,6 +29,7 @@ export default function Dashboard() {
   const [expenseLoading, setExpenseLoading] = useState(true)
   const [supplierDebt, setSupplierDebt] = useState(0)
   const [supplierDebtCount, setSupplierDebtCount] = useState(0)
+  const [pendingInvoiceCount, setPendingInvoiceCount] = useState(0)
   const [supplierDebtLoading, setSupplierDebtLoading] = useState(true)
 
   const syncAllData = useMemo(() => () => {
@@ -59,7 +60,8 @@ export default function Dashboard() {
       setStockLoading(true)
       try {
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
-        const res = await fetch(`http://localhost:5000/api/products/low-stock?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const stockQuery = store ? `?store=${encodeURIComponent(store)}` : ''
+        const res = await fetch(`http://localhost:5000/api/products/low-stock${stockQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
         if (active) setLowStockCount(data.count ?? data.products?.length ?? 0)
       } catch { if (active) setLowStockCount(0) }
@@ -92,9 +94,10 @@ export default function Dashboard() {
       setSupplierDebtLoading(true)
       try {
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
-        const res = await fetch(`http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const debtQuery = store ? `?store=${encodeURIComponent(store)}` : ''
+        const res = await fetch(`http://localhost:5000/api/purchase-orders/outstanding${debtQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
-        if (active) { setSupplierDebt(data.totalOutstanding || 0); setSupplierDebtCount(data.count || 0) }
+        if (active) { setSupplierDebt(data.totalOutstanding || 0); setSupplierDebtCount(data.count || 0); setPendingInvoiceCount(data.pendingInvoiceCount || 0) }
       } catch { if (active) { setSupplierDebt(0); setSupplierDebtCount(0) } }
       finally { if (active) setSupplierDebtLoading(false) }
     }
@@ -111,8 +114,9 @@ export default function Dashboard() {
       socket.on('supplierPaymentMade', () => {
         if (!currentUser?.token) return
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
-        fetch(`http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(store)}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
-          .then(r => r.json()).then(d => { setSupplierDebt(d.totalOutstanding || 0); setSupplierDebtCount(d.count || 0) }).catch(() => { })
+        const q = store ? `?store=${encodeURIComponent(store)}` : ''
+        fetch(`http://localhost:5000/api/purchase-orders/outstanding${q}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+          .then(r => r.json()).then(d => { setSupplierDebt(d.totalOutstanding || 0); setSupplierDebtCount(d.count || 0); setPendingInvoiceCount(d.pendingInvoiceCount || 0) }).catch(() => { })
       })
     }
     const interval = setInterval(syncAllData, 5 * 60 * 1000)
@@ -262,17 +266,20 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
-        <div onClick={() => navigate('/purchase-orders')} className={styles['animate-slideUp']} style={{ background: lowStockCount > 0 ? '#fff7ed' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? '#ea580c' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div onClick={() => navigate('/products', { state: { filter: 'lowStock' } })} className={styles['animate-slideUp']} style={{ background: lowStockCount > 0 ? '#fff7ed' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? '#ea580c' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: lowStockCount > 0 ? '#fed7aa' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdWarning style={{ color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
           <div style={{ fontSize: 26, fontWeight: 900, color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{stockLoading ? '—' : lowStockCount}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', marginBottom: 2 }}>Low Stock</div>
-          <div style={{ fontSize: 11, color: lowStockCount > 0 ? '#92400e' : 'var(--text-muted)' }}>{stockLoading ? 'Checking...' : lowStockCount === 0 ? 'All levels OK ✓' : 'Click → Create PO'}</div>
+          <div style={{ fontSize: 11, color: lowStockCount > 0 ? '#92400e' : 'var(--text-muted)' }}>{stockLoading ? 'Checking...' : lowStockCount === 0 ? 'All levels OK ✓' : 'Click to view'}</div>
         </div>
         <div onClick={() => navigate('/purchase-orders')} className={styles['animate-slideUp']} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? '#fecaca' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: supplierDebt > 0 ? '#fecaca' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdPayments style={{ color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
           <div style={{ fontSize: supplierDebt > 0 ? 18 : 26, fontWeight: 900, color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{supplierDebtLoading ? '—' : supplierDebt > 0 ? `KSh ${supplierDebt.toLocaleString()}` : '✓'}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Supplier Debt</div>
           <div style={{ fontSize: 11, color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)' }}>{supplierDebtLoading ? 'Loading...' : supplierDebt > 0 ? `${supplierDebtCount} unpaid PO${supplierDebtCount !== 1 ? 's' : ''}` : 'All suppliers paid'}</div>
+          {!supplierDebtLoading && pendingInvoiceCount > 0 && (
+            <div style={{ fontSize: 10, color: 'var(--warning-dark)', marginTop: 3 }}>⚠ {pendingInvoiceCount} awaiting invoice</div>
+          )}
         </div>
         <div onClick={() => navigate('/sales-history')} className={styles['animate-slideUp']} style={{ background: safeReturns.length > 0 ? 'var(--info-light)' : 'var(--bg-card)', border: `1px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: safeReturns.length > 0 ? 'var(--info)' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdShoppingCart style={{ color: safeReturns.length > 0 ? '#fff' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
