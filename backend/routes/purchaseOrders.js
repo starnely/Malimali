@@ -654,16 +654,15 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
       </tr>`).join("")
 
     let logoHtml = ""
+    let logoAttachment = null
     if (settings?.logo) {
       const publicDir = path.resolve(__dirname, "../public")
       const logoPath = path.resolve(publicDir, settings.logo.replace(/^[/\\]+/, ""))
       if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
-        try {
-          const ext = path.extname(logoPath).toLowerCase().replace(".", "")
-          const mime = ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/jpeg"
-          const logoData = fs.readFileSync(logoPath).toString("base64")
-          logoHtml = `<img src="data:${mime};base64,${logoData}" alt="${escHtml(settings.companyName)}" style="height:54px;max-width:110px;object-fit:contain;display:block;margin-bottom:10px"/>`
-        } catch { }
+        const ext = path.extname(logoPath).toLowerCase().replace(".", "")
+        const mime = ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : ext === "avif" ? "image/avif" : "image/jpeg"
+        logoHtml = `<img src="cid:po-logo" alt="${escHtml(settings.companyName)}" style="height:54px;max-width:110px;object-fit:contain;display:block;margin-bottom:10px"/>`
+        logoAttachment = { filename: `logo.${ext}`, path: logoPath, cid: "po-logo", contentType: mime }
       }
     }
 
@@ -708,7 +707,9 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
       host: settings.smtp.host, port: settings.smtp.port || 587, secure: settings.smtp.secure || false,
       auth: { user: settings.smtp.user, pass: decryptPassword(settings.smtp.password) },
     })
-    await transporter.sendMail({ from: `"${settings.smtp.fromName || settings.companyName}" <${settings.smtp.user}>`, to: recipientEmail, subject, html })
+    const mailOptions = { from: `"${settings.smtp.fromName || settings.companyName}" <${settings.smtp.user}>`, to: recipientEmail, subject, html }
+    if (logoAttachment) mailOptions.attachments = [logoAttachment]
+    await transporter.sendMail(mailOptions)
 
     if (po.status === "draft") {
       po.status = "sent"; po.sentAt = new Date()
