@@ -653,9 +653,24 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
         <td style="padding:10px 14px;border-bottom:1px solid #E2E8F0;text-align:right;font-weight:700;color:#1E5FA5">KSh ${(item.qtyOrdered * item.unitCost).toLocaleString()}</td>
       </tr>`).join("")
 
+    let logoHtml = ""
+    if (settings?.logo) {
+      const publicDir = path.resolve(__dirname, "../public")
+      const logoPath = path.resolve(publicDir, settings.logo.replace(/^[/\\]+/, ""))
+      if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
+        try {
+          const ext = path.extname(logoPath).toLowerCase().replace(".", "")
+          const mime = ext === "png" ? "image/png" : ext === "gif" ? "image/gif" : ext === "webp" ? "image/webp" : "image/jpeg"
+          const logoData = fs.readFileSync(logoPath).toString("base64")
+          logoHtml = `<img src="data:${mime};base64,${logoData}" alt="${escHtml(settings.companyName)}" style="height:54px;max-width:110px;object-fit:contain;display:block;margin-bottom:10px"/>`
+        } catch { }
+      }
+    }
+
     const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#F5F7FF;font-family:'Segoe UI',Arial,sans-serif">
       <div style="max-width:640px;margin:24px auto;padding:0 16px 24px">
         <div style="background:#0C3660;padding:26px 30px;border-radius:12px 12px 0 0">
+          ${logoHtml}
           <h1 style="color:white;margin:0 0 4px;font-size:20px">${settings.companyName}</h1>
           <p style="color:rgba(255,255,255,0.65);margin:0;font-size:12px">${[settings.businessAddress || settings.location, settings.phone, settings.email].filter(Boolean).join("  ·  ")}</p>
         </div>
