@@ -70,7 +70,8 @@ router.post("/", async (req, res) => {
     const daySales = await Sale.find({
       date,
       cashier: employeeName,
-      returned: false
+      returned: false,
+      status: { $nin: ["pending", "failed"] },
     });
 
     // ── Calculate revenue from finalTotal ──

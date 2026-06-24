@@ -690,6 +690,49 @@ export function AppProvider({ children }) {
     } catch (err) { console.error('Sale Recording Error:', err); return { success: false, error: 'Failed to record sale' }; }
   };
 
+  // ── INITIATE M-PESA STK PUSH ───────────────────────────────────────────
+  // Creates a pending sale on the backend (stock reserved) and fires the
+  // real Safaricom STK push.  Returns { success, checkoutRequestId, saleId }.
+  // The caller listens on socket event "mpesa_result" for the final outcome.
+  const initiateMpesaPayment = async ({ phone, amount, cartItems, discount, finalTotal, customerName }) => {
+    try {
+      const res = await authFetchRef.current('http://localhost:5000/api/mpesa/stk-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone,
+          amount,
+          finalTotal:   Number(finalTotal)  || amount,
+          discount:     Number(discount)    || 0,
+          customerName: customerName        || 'Walk-in Customer',
+          cartItems: cartItems.map(item => ({
+            productId: item.productId || item._id || item.id,
+            qty:       item.qty,
+            price:     item.sellPrice,
+            unit:      item.unit || 'pcs',
+          })),
+        }),
+      });
+      const data = await res.json();
+      return data; // { success, checkoutRequestId, saleId } on success
+    } catch (err) {
+      console.error('M-Pesa STK push error:', err);
+      return { success: false, message: 'Failed to reach the payment server.' };
+    }
+  };
+
+  const checkMpesaStatus = async (checkoutRequestId) => {
+    try {
+      const res = await authFetchRef.current(
+        `http://localhost:5000/api/mpesa/status/${checkoutRequestId}`
+      )
+      return await res.json()
+    } catch (err) {
+      console.error('M-Pesa status check error:', err)
+      return { success: false }
+    }
+  }
+
   // ── RETURNS ────────────────────────────────────────────────────────────
   const processReturn = async (saleId, returnItems, reason, customerName) => {
     try {
@@ -1096,7 +1139,7 @@ export function AppProvider({ children }) {
       users, setUsers,
       fetchUsers, addUser, updateUser, deleteUser, toggleUserStatus,
       products, fetchProducts,
-      sales, fetchSales, recordMultipleSales,
+      sales, fetchSales, recordMultipleSales, initiateMpesaPayment, checkMpesaStatus,
       todaySales, totalRevenue,
       returns, pendingReturns, fetchReturns,
       processReturn, approveReturn, rejectReturn,

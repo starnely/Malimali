@@ -113,6 +113,8 @@ app.use("/api/print", require("./routes/print"));
 app.use("/api/customers", require("./routes/customers"));
 app.use("/api/weigh-station", require("./routes/weighStation"));
 
+app.use("/api/mpesa", require("./routes/mpesa"));
+
 // ── Phase 6 ──────────────────────────────────────────────────────────
 require("./models/SupplierPayment");
 app.use("/api/purchase-orders", require("./routes/purchaseOrders"));

@@ -241,6 +241,43 @@ export default function Barcodes() {
       ? (selectedStore === 'All Stores' ? defaultStore : selectedStore)
       : (currentUser?.store || 'Main Store')
 
+    // M-Pesa real flow: sale was already created and confirmed on the backend.
+    // Skip recordMultipleSales and build the receipt from the confirmed sale object.
+    if (paymentDetails.confirmedSale) {
+      const sale = paymentDetails.confirmedSale
+      setReceipt({
+        receiptId:          sale.receiptId           || '',
+        date:               paymentDetails.date       || sale.date  || '',
+        time:               paymentDetails.time       || sale.time  || '',
+        items:              cart,
+        total:              cartTotal,
+        finalTotal:         paymentDetails.finalTotal,
+        discount:           paymentDetails.discount,
+        paymentMethod:      'mpesa',
+        cashGiven:          0,
+        change:             0,
+        customerName:       paymentDetails.customerName,
+        customerPhone:      '',
+        promiseDate:        '',
+        mpesaPhone:         paymentDetails.mpesaPhone,
+        mpesaReceiptNumber: paymentDetails.mpesaReceiptNumber || '',
+        cashPart:           0,
+        mpesaPart:          paymentDetails.finalTotal,
+        cardApprovalCode:   '',
+        bankReference:      '',
+        soldBy:             sale.cashier || currentUser?.fullname || 'Owner',
+        store:              sale.store   || saleStore,
+        address:            currentUser?.address || '',
+        phone:              currentUser?.phone   || '',
+      })
+      setCart([])
+      setLastScanned(null)
+      setScanError('')
+      setShowCheckout(false)
+      if (isOwner) loadStoreProducts(selectedStore)
+      return
+    }
+
     const paymentInfo = {
       paymentMethod: paymentDetails.paymentMethod,
       mpesaPhone: paymentDetails.mpesaPhone,
@@ -386,6 +423,7 @@ export default function Barcodes() {
       {showCheckout && (
         <CheckoutModal
           cartTotal={cartTotal}
+          cart={cart}
           onConfirm={handleCheckoutConfirm}
           onCancel={() => {
             setShowCheckout(false)

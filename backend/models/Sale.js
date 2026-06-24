@@ -65,7 +65,20 @@ const saleSchema = new mongoose.Schema(
       change: { type: Number, default: 0 },
       cardApprovalCode: { type: String, default: "" },
       bankReference: { type: String, default: "" },
+      mpesaReceiptNumber: { type: String, default: "" },
     },
+
+    // ── M-Pesa STK Push integration ───────────────────────────────────
+    // "pending"   — stock reserved, STK push sent, awaiting callback
+    // "confirmed" — callback received (success), or created by non-M-Pesa method
+    // "failed"    — callback received (failure), stock has been restocked
+    status: {
+      type: String,
+      enum: ["pending", "confirmed", "failed"],
+      default: "confirmed",
+    },
+    mpesaCheckoutRequestId: { type: String, default: "" },
+    mpesaMerchantRequestId: { type: String, default: "" },
 
     date: { type: String, required: true, default: dateEAT },
     time: { type: String, required: true, default: timeEAT },

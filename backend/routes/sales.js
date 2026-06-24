@@ -144,7 +144,7 @@ router.get("/", async (req, res) => {
       }
     }
 
-    const rawSales = await Sale.find(query)
+    const rawSales = await Sale.find({ ...query, status: { $ne: "failed" } })
       .populate("cashierId", "username fullname")
       .populate("items.productId", "name sellPrice category")
       .sort({ createdAt: -1 })

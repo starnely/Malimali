@@ -29,6 +29,7 @@ function createApp() {
   app.use("/api/archives", require("../../routes/archives"));
   app.use("/api/messages", require("../../routes/messages"));
   app.use("/api/setup", require("../../routes/setup"));
+  app.use("/api/mpesa", require("../../routes/mpesa"));
 
   return app;
 }
