@@ -20,6 +20,152 @@ function escHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+// ── Shared PDF generator — returns a Buffer ───────────────────────────
+function generatePOPdf(po, settings) {
+  return new Promise((resolve, reject) => {
+    const PDFDocument = require("pdfkit")
+    const doc = new PDFDocument({ margin: 50, size: "A4" })
+    const chunks = []
+    doc.on("data", c => chunks.push(c))
+    doc.on("end", () => resolve(Buffer.concat(chunks)))
+    doc.on("error", reject)
+
+    const C = { primary: "#1E5FA5", dark: "#0C3660", light: "#E6F1FB", muted: "#94A3B8", text: "#0F172A", border: "#E2E8F0", bg: "#F5F7FF" }
+    const W = doc.page.width - 100
+    const LEFT = 50
+
+    doc.rect(0, 0, doc.page.width, 115).fill(C.dark)
+    if (settings?.logo) {
+      const publicDir = path.resolve(__dirname, "../public")
+      const logoPath = path.resolve(publicDir, settings.logo.replace(/^[/\\]+/, ""))
+      if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
+        try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { }
+      }
+    }
+    doc.fillColor("white").fontSize(17).font("Helvetica-Bold")
+      .text(settings?.companyName || "Company", 190, 20, { width: 360, align: "right" })
+    const headerSub = [settings?.businessAddress || settings?.location || "", settings?.phone || "", settings?.email || "", settings?.businessWebsite || ""].filter(Boolean).join("  ·  ")
+    doc.fillColor("rgba(255,255,255,0.7)").fontSize(8.5).font("Helvetica").text(headerSub, 190, 44, { width: 360, align: "right" })
+    if (settings?.kraPin) doc.fillColor("rgba(255,255,255,0.5)").fontSize(8).text(`KRA PIN: ${settings.kraPin}`, 190, 76, { width: 360, align: "right" })
+
+    doc.rect(0, 115, doc.page.width, 42).fill(C.primary)
+    doc.fillColor("white").fontSize(19).font("Helvetica-Bold").text("PURCHASE ORDER", LEFT, 125, { width: W, align: "center" })
+    let y = 176
+
+    doc.rect(LEFT, y, W, 46).fill(C.light).stroke(C.border)
+    const cw = W / 4
+      ;[{ label: "PO NUMBER", value: po.poNumber }, { label: "DATE", value: po.date }, { label: "STATUS", value: po.status.toUpperCase() }, { label: "EXPECTED BY", value: po.expectedDate || "—" }]
+        .forEach((col, i) => {
+          const x = LEFT + i * cw
+          doc.fillColor(C.muted).fontSize(7).font("Helvetica").text(col.label, x + 8, y + 8)
+          doc.fillColor(C.dark).fontSize(10).font("Helvetica-Bold").text(col.value, x + 8, y + 20, { width: cw - 12 })
+        })
+    y += 60
+
+    const hw = (W - 14) / 2
+    doc.rect(LEFT, y, hw, 88).stroke(C.border)
+    doc.fillColor(C.primary).fontSize(7.5).font("Helvetica-Bold").text("SUPPLIER", LEFT + 10, y + 10)
+    doc.fillColor(C.text).fontSize(10).font("Helvetica-Bold").text(po.supplierName || "—", LEFT + 10, y + 23)
+    doc.fillColor(C.muted).fontSize(9).font("Helvetica")
+      ;[po.supplierId?.company || "", po.supplierId?.phone || po.supplierPhone || "", po.supplierId?.email || "", po.supplierId?.address || ""].filter(Boolean).forEach((l, i) => doc.text(l, LEFT + 10, y + 37 + i * 12))
+    const dx = LEFT + hw + 14
+    doc.rect(dx, y, hw, 88).stroke(C.border)
+    doc.fillColor(C.primary).fontSize(7.5).font("Helvetica-Bold").text("DELIVER TO", dx + 10, y + 10)
+    doc.fillColor(C.text).fontSize(10).font("Helvetica-Bold").text(settings?.companyName || "—", dx + 10, y + 23)
+    doc.fillColor(C.muted).fontSize(9).font("Helvetica")
+      ;[settings?.businessAddress || settings?.location || "", settings?.phone || ""].filter(Boolean).forEach((l, i) => doc.text(l, dx + 10, y + 37 + i * 12))
+    y += 102
+
+    const COL = { num: 28, name: 200, qty: 58, unit: 88, total: 90 }
+    doc.rect(LEFT, y, W, 22).fill(C.primary)
+    doc.fillColor("white").fontSize(8).font("Helvetica-Bold")
+    let cx = LEFT + 6
+      ;["#", "DESCRIPTION", "QTY", "COST/UNIT", "LINE TOTAL"].forEach((h, i) => {
+        const widths = [COL.num, COL.name, COL.qty, COL.unit, COL.total - 6]
+        const aligns = ["left", "left", "center", "right", "right"]
+        doc.text(h, cx, y + 7, { width: widths[i], align: aligns[i] })
+        cx += widths[i]
+      })
+    y += 22
+
+    po.items.forEach((item, i) => {
+      const rh = 26
+      doc.rect(LEFT, y, W, rh).fill(i % 2 === 0 ? "white" : C.bg)
+      doc.moveTo(LEFT, y + rh).lineTo(LEFT + W, y + rh).strokeColor(C.border).lineWidth(0.4).stroke()
+      let rx = LEFT + 6
+      doc.fillColor(C.muted).fontSize(8.5).font("Helvetica").text(String(i + 1), rx, y + 7, { width: COL.num }); rx += COL.num
+      doc.fillColor(C.text).font("Helvetica-Bold").text(item.productName || "—", rx, y + 7, { width: COL.name - 6 }); rx += COL.name
+      doc.fillColor(C.text).font("Helvetica").text(`${item.qtyOrdered} ${item.unit || "pcs"}`, rx, y + 7, { width: COL.qty, align: "center" }); rx += COL.qty
+      doc.text(`KSh ${Number(item.unitCost).toLocaleString()}/${item.unit || "pcs"}`, rx, y + 7, { width: COL.unit, align: "right" }); rx += COL.unit
+      doc.fillColor(C.primary).font("Helvetica-Bold").text(`KSh ${(item.qtyOrdered * item.unitCost).toLocaleString()}`, rx, y + 7, { width: COL.total - 6, align: "right" })
+      y += rh
+    })
+    y += 10
+
+    const totX = LEFT + W - 220
+      ;[{ label: "Subtotal", value: `KSh ${po.totalOrderedCost.toLocaleString()}` }, { label: "Tax (0%)", value: "KSh 0" }].forEach(row => {
+        doc.fillColor(C.muted).fontSize(9).font("Helvetica").text(row.label, totX, y + 3, { width: 110 })
+        doc.fillColor(C.text).font("Helvetica-Bold").text(row.value, totX + 110, y + 3, { width: 100, align: "right" })
+        y += 18
+      })
+    doc.rect(totX - 8, y - 2, 220, 26).fill(C.primary)
+    doc.fillColor("white").fontSize(11).font("Helvetica-Bold")
+      .text("GRAND TOTAL", totX, y + 4, { width: 110 })
+      .text(`KSh ${po.totalOrderedCost.toLocaleString()}`, totX + 110, y + 4, { width: 100, align: "right" })
+    y += 36
+
+    if (po.invoiceAmount > 0) {
+      y += 8
+      doc.rect(LEFT, y, W, 26).fill(C.light).stroke(C.border)
+      doc.fillColor(C.primary).fontSize(8).font("Helvetica-Bold").text("INVOICE & PAYMENT STATUS", LEFT + 10, y + 8)
+      y += 26
+      const invCols = [
+        { label: "Invoice No", value: po.invoiceNumber || "—" },
+        { label: "Invoice Amount", value: `KSh ${po.invoiceAmount.toLocaleString()}` },
+        { label: "Amount Paid", value: `KSh ${po.amountPaid.toLocaleString()}` },
+        { label: "Balance Due", value: `KSh ${po.balance.toLocaleString()}` },
+      ]
+      const icw = W / 4
+      invCols.forEach((col, i) => {
+        const x = LEFT + i * icw
+        doc.fillColor(C.muted).fontSize(7).font("Helvetica").text(col.label, x + 8, y + 5)
+        doc.fillColor(i === 3 && po.balance > 0 ? "#DC2626" : C.dark).fontSize(10).font("Helvetica-Bold").text(col.value, x + 8, y + 17, { width: icw - 12 })
+      })
+      y += 42
+    }
+
+    if (po.notes) {
+      doc.rect(LEFT, y, W, 48).stroke(C.border)
+      doc.fillColor(C.primary).fontSize(7.5).font("Helvetica-Bold").text("NOTES / SPECIAL INSTRUCTIONS", LEFT + 10, y + 9)
+      doc.fillColor(C.muted).fontSize(9).font("Helvetica").text(po.notes, LEFT + 10, y + 22, { width: W - 20 })
+      y += 62
+    }
+    y += 10
+
+    const sw = (W - 20) / 2
+    doc.rect(LEFT, y, sw, 68).stroke(C.border)
+    doc.fillColor(C.muted).fontSize(7).font("Helvetica").text("PREPARED BY", LEFT + 10, y + 9)
+    doc.fillColor(C.text).fontSize(9.5).font("Helvetica-Bold").text(po.createdBy || "—", LEFT + 10, y + 22)
+    doc.fillColor(C.muted).fontSize(8).font("Helvetica").text(po.date, LEFT + 10, y + 36)
+    doc.moveTo(LEFT + 10, y + 56).lineTo(LEFT + sw - 10, y + 56).strokeColor(C.border).lineWidth(1).stroke()
+    doc.fillColor(C.muted).fontSize(7).text("Signature", LEFT + 10, y + 58)
+    const ax = LEFT + sw + 20
+    doc.rect(ax, y, sw, 68).stroke(C.border)
+    doc.fillColor(C.muted).fontSize(7).font("Helvetica").text("AUTHORIZED BY", ax + 10, y + 9)
+    doc.fillColor(C.text).fontSize(9.5).font("Helvetica-Bold").text(settings?.companyName || "—", ax + 10, y + 22)
+    doc.fillColor(C.muted).fontSize(8).font("Helvetica").text("Owner / Director", ax + 10, y + 36)
+    doc.moveTo(ax + 10, y + 56).lineTo(ax + sw - 10, y + 56).strokeColor(C.border).lineWidth(1).stroke()
+    doc.fillColor(C.muted).fontSize(7).text("Authorized Signature & Company Stamp", ax + 10, y + 58)
+    y += 82
+
+    doc.rect(0, doc.page.height - 38, doc.page.width, 38).fill(C.dark)
+    const footerText = [settings?.companyName || "", settings?.phone || "", settings?.email || "", settings?.businessWebsite || ""].filter(Boolean).join("   |   ")
+    doc.fillColor("rgba(255,255,255,0.75)").fontSize(8).font("Helvetica").text(footerText, LEFT, doc.page.height - 24, { width: W, align: "center" })
+
+    doc.end()
+  })
+}
+
 // ── Multer for invoice photo uploads ─────────────────────────────────
 const invoiceStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -473,146 +619,12 @@ router.get("/:id/pdf", async (req, res) => {
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
 
     const Setting = require("../models/Setting")
-    const PDFDocument = require("pdfkit")
     const settings = await Setting.findOne()
 
-    const doc = new PDFDocument({ margin: 50, size: "A4" })
+    const pdfBuffer = await generatePOPdf(po, settings)
     res.setHeader("Content-Type", "application/pdf")
     res.setHeader("Content-Disposition", `attachment; filename="${po.poNumber}.pdf"`)
-    doc.pipe(res)
-
-    const C = { primary: "#1E5FA5", dark: "#0C3660", light: "#E6F1FB", muted: "#94A3B8", text: "#0F172A", border: "#E2E8F0", bg: "#F5F7FF" }
-    const W = doc.page.width - 100
-    const LEFT = 50
-
-    doc.rect(0, 0, doc.page.width, 115).fill(C.dark)
-    if (settings?.logo) {
-      const publicDir = path.resolve(__dirname, "../public")
-      const logoPath = path.resolve(publicDir, settings.logo.replace(/^[/\\]+/, ""))
-      if (logoPath.startsWith(publicDir + path.sep) && fs.existsSync(logoPath)) {
-        try { doc.image(logoPath, LEFT, 16, { height: 54, fit: [110, 54] }) } catch { }
-      }
-    }
-    doc.fillColor("white").fontSize(17).font("Helvetica-Bold")
-      .text(settings?.companyName || "Company", 190, 20, { width: 360, align: "right" })
-    const headerSub = [settings?.businessAddress || settings?.location || "", settings?.phone || "", settings?.email || "", settings?.businessWebsite || ""].filter(Boolean).join("  ·  ")
-    doc.fillColor("rgba(255,255,255,0.7)").fontSize(8.5).font("Helvetica").text(headerSub, 190, 44, { width: 360, align: "right" })
-    if (settings?.kraPin) doc.fillColor("rgba(255,255,255,0.5)").fontSize(8).text(`KRA PIN: ${settings.kraPin}`, 190, 76, { width: 360, align: "right" })
-
-    doc.rect(0, 115, doc.page.width, 42).fill(C.primary)
-    doc.fillColor("white").fontSize(19).font("Helvetica-Bold").text("PURCHASE ORDER", LEFT, 125, { width: W, align: "center" })
-    let y = 176
-
-    doc.rect(LEFT, y, W, 46).fill(C.light).stroke(C.border)
-    const cw = W / 4
-      ;[{ label: "PO NUMBER", value: po.poNumber }, { label: "DATE", value: po.date }, { label: "STATUS", value: po.status.toUpperCase() }, { label: "EXPECTED BY", value: po.expectedDate || "—" }]
-        .forEach((col, i) => {
-          const x = LEFT + i * cw
-          doc.fillColor(C.muted).fontSize(7).font("Helvetica").text(col.label, x + 8, y + 8)
-          doc.fillColor(C.dark).fontSize(10).font("Helvetica-Bold").text(col.value, x + 8, y + 20, { width: cw - 12 })
-        })
-    y += 60
-
-    const hw = (W - 14) / 2
-    doc.rect(LEFT, y, hw, 88).stroke(C.border)
-    doc.fillColor(C.primary).fontSize(7.5).font("Helvetica-Bold").text("SUPPLIER", LEFT + 10, y + 10)
-    doc.fillColor(C.text).fontSize(10).font("Helvetica-Bold").text(po.supplierName || "—", LEFT + 10, y + 23)
-    doc.fillColor(C.muted).fontSize(9).font("Helvetica")
-      ;[po.supplierId?.company || "", po.supplierId?.phone || po.supplierPhone || "", po.supplierId?.email || "", po.supplierId?.address || ""].filter(Boolean).forEach((l, i) => doc.text(l, LEFT + 10, y + 37 + i * 12))
-    const dx = LEFT + hw + 14
-    doc.rect(dx, y, hw, 88).stroke(C.border)
-    doc.fillColor(C.primary).fontSize(7.5).font("Helvetica-Bold").text("DELIVER TO", dx + 10, y + 10)
-    doc.fillColor(C.text).fontSize(10).font("Helvetica-Bold").text(settings?.companyName || "—", dx + 10, y + 23)
-    doc.fillColor(C.muted).fontSize(9).font("Helvetica")
-      ;[settings?.businessAddress || settings?.location || "", settings?.phone || ""].filter(Boolean).forEach((l, i) => doc.text(l, dx + 10, y + 37 + i * 12))
-    y += 102
-
-    const COL = { num: 28, name: 200, qty: 58, unit: 88, total: 90 }
-    doc.rect(LEFT, y, W, 22).fill(C.primary)
-    doc.fillColor("white").fontSize(8).font("Helvetica-Bold")
-    let cx = LEFT + 6
-      ;["#", "DESCRIPTION", "QTY", "COST/UNIT", "LINE TOTAL"].forEach((h, i) => {
-        const widths = [COL.num, COL.name, COL.qty, COL.unit, COL.total - 6]
-        const aligns = ["left", "left", "center", "right", "right"]
-        doc.text(h, cx, y + 7, { width: widths[i], align: aligns[i] })
-        cx += widths[i]
-      })
-    y += 22
-
-    po.items.forEach((item, i) => {
-      const rh = 26
-      doc.rect(LEFT, y, W, rh).fill(i % 2 === 0 ? "white" : C.bg)
-      doc.moveTo(LEFT, y + rh).lineTo(LEFT + W, y + rh).strokeColor(C.border).lineWidth(0.4).stroke()
-      let rx = LEFT + 6
-      doc.fillColor(C.muted).fontSize(8.5).font("Helvetica").text(String(i + 1), rx, y + 7, { width: COL.num }); rx += COL.num
-      doc.fillColor(C.text).font("Helvetica-Bold").text(item.productName || "—", rx, y + 7, { width: COL.name - 6 }); rx += COL.name
-      doc.fillColor(C.text).font("Helvetica").text(`${item.qtyOrdered} ${item.unit || "pcs"}`, rx, y + 7, { width: COL.qty, align: "center" }); rx += COL.qty
-      doc.text(`KSh ${Number(item.unitCost).toLocaleString()}/${item.unit || "pcs"}`, rx, y + 7, { width: COL.unit, align: "right" }); rx += COL.unit
-      doc.fillColor(C.primary).font("Helvetica-Bold").text(`KSh ${(item.qtyOrdered * item.unitCost).toLocaleString()}`, rx, y + 7, { width: COL.total - 6, align: "right" })
-      y += rh
-    })
-    y += 10
-
-    const totX = LEFT + W - 220
-      ;[{ label: "Subtotal", value: `KSh ${po.totalOrderedCost.toLocaleString()}` }, { label: "Tax (0%)", value: "KSh 0" }].forEach(row => {
-        doc.fillColor(C.muted).fontSize(9).font("Helvetica").text(row.label, totX, y + 3, { width: 110 })
-        doc.fillColor(C.text).font("Helvetica-Bold").text(row.value, totX + 110, y + 3, { width: 100, align: "right" })
-        y += 18
-      })
-    doc.rect(totX - 8, y - 2, 220, 26).fill(C.primary)
-    doc.fillColor("white").fontSize(11).font("Helvetica-Bold")
-      .text("GRAND TOTAL", totX, y + 4, { width: 110 })
-      .text(`KSh ${po.totalOrderedCost.toLocaleString()}`, totX + 110, y + 4, { width: 100, align: "right" })
-    y += 36
-
-    if (po.invoiceAmount > 0) {
-      y += 8
-      doc.rect(LEFT, y, W, 26).fill(C.light).stroke(C.border)
-      doc.fillColor(C.primary).fontSize(8).font("Helvetica-Bold").text("INVOICE & PAYMENT STATUS", LEFT + 10, y + 8)
-      y += 26
-      const invCols = [
-        { label: "Invoice No", value: po.invoiceNumber || "—" },
-        { label: "Invoice Amount", value: `KSh ${po.invoiceAmount.toLocaleString()}` },
-        { label: "Amount Paid", value: `KSh ${po.amountPaid.toLocaleString()}` },
-        { label: "Balance Due", value: `KSh ${po.balance.toLocaleString()}` },
-      ]
-      const icw = W / 4
-      invCols.forEach((col, i) => {
-        const x = LEFT + i * icw
-        doc.fillColor(C.muted).fontSize(7).font("Helvetica").text(col.label, x + 8, y + 5)
-        doc.fillColor(i === 3 && po.balance > 0 ? "#DC2626" : C.dark).fontSize(10).font("Helvetica-Bold").text(col.value, x + 8, y + 17, { width: icw - 12 })
-      })
-      y += 42
-    }
-
-    if (po.notes) {
-      doc.rect(LEFT, y, W, 48).stroke(C.border)
-      doc.fillColor(C.primary).fontSize(7.5).font("Helvetica-Bold").text("NOTES / SPECIAL INSTRUCTIONS", LEFT + 10, y + 9)
-      doc.fillColor(C.muted).fontSize(9).font("Helvetica").text(po.notes, LEFT + 10, y + 22, { width: W - 20 })
-      y += 62
-    }
-    y += 10
-
-    const sw = (W - 20) / 2
-    doc.rect(LEFT, y, sw, 68).stroke(C.border)
-    doc.fillColor(C.muted).fontSize(7).font("Helvetica").text("PREPARED BY", LEFT + 10, y + 9)
-    doc.fillColor(C.text).fontSize(9.5).font("Helvetica-Bold").text(po.createdBy || "—", LEFT + 10, y + 22)
-    doc.fillColor(C.muted).fontSize(8).font("Helvetica").text(po.date, LEFT + 10, y + 36)
-    doc.moveTo(LEFT + 10, y + 56).lineTo(LEFT + sw - 10, y + 56).strokeColor(C.border).lineWidth(1).stroke()
-    doc.fillColor(C.muted).fontSize(7).text("Signature", LEFT + 10, y + 58)
-    const ax = LEFT + sw + 20
-    doc.rect(ax, y, sw, 68).stroke(C.border)
-    doc.fillColor(C.muted).fontSize(7).font("Helvetica").text("AUTHORIZED BY", ax + 10, y + 9)
-    doc.fillColor(C.text).fontSize(9.5).font("Helvetica-Bold").text(settings?.companyName || "—", ax + 10, y + 22)
-    doc.fillColor(C.muted).fontSize(8).font("Helvetica").text("Owner / Director", ax + 10, y + 36)
-    doc.moveTo(ax + 10, y + 56).lineTo(ax + sw - 10, y + 56).strokeColor(C.border).lineWidth(1).stroke()
-    doc.fillColor(C.muted).fontSize(7).text("Authorized Signature & Company Stamp", ax + 10, y + 58)
-    y += 82
-
-    doc.rect(0, doc.page.height - 38, doc.page.width, 38).fill(C.dark)
-    const footerText = [settings?.companyName || "", settings?.phone || "", settings?.email || "", settings?.businessWebsite || ""].filter(Boolean).join("   |   ")
-    doc.fillColor("rgba(255,255,255,0.75)").fontSize(8).font("Helvetica").text(footerText, LEFT, doc.page.height - 24, { width: W, align: "center" })
-    doc.end()
+    res.send(pdfBuffer)
 
   } catch (err) {
     console.error("PDF generation error:", err.message)
@@ -624,7 +636,7 @@ router.get("/:id/pdf", async (req, res) => {
 router.post("/:id/send-email", managerOrOwner, async (req, res) => {
   try {
     const po = await PurchaseOrder.findById(req.params.id)
-      .populate("supplierId", "name company phone email")
+      .populate("supplierId", "name company phone address email")
       .populate("items.productId", "name")
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
 
@@ -703,13 +715,14 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
         <p style="text-align:center;margin:16px 0 0;font-size:11px;color:#94A3B8">Sent by ${settings.companyName} POS System</p>
       </div></body></html>`
 
+    const pdfBuffer = await generatePOPdf(po, settings)
     const transporter = nodemailer.createTransport({
       host: settings.smtp.host, port: settings.smtp.port || 587, secure: settings.smtp.secure || false,
       auth: { user: settings.smtp.user, pass: decryptPassword(settings.smtp.password) },
     })
-    const mailOptions = { from: `"${settings.smtp.fromName || settings.companyName}" <${settings.smtp.user}>`, to: recipientEmail, subject, html }
-    if (logoAttachment) mailOptions.attachments = [logoAttachment]
-    await transporter.sendMail(mailOptions)
+    const attachments = [{ filename: `PO-${po.poNumber}.pdf`, content: pdfBuffer, contentType: "application/pdf" }]
+    if (logoAttachment) attachments.push(logoAttachment)
+    await transporter.sendMail({ from: `"${settings.smtp.fromName || settings.companyName}" <${settings.smtp.user}>`, to: recipientEmail, subject, html, attachments })
 
     if (po.status === "draft") {
       po.status = "sent"; po.sentAt = new Date()
