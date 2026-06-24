@@ -20,6 +20,10 @@ function getTomorrowDate() {
   return d.toISOString().split('T')[0]
 }
 
+const CODE_RX = /^[A-Za-z0-9]+$/
+const isValidCardCode = (c) => c.length >= 6 && CODE_RX.test(c)
+const isValidBankRef  = (r) => r.length >= 8 && CODE_RX.test(r)
+
 
 export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) {
   const { currentUser, settings, checkCustomerCredit, initiateMpesaPayment, checkMpesaStatus } = useApp()
@@ -42,8 +46,10 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
   const [mpesaPart,        setMpesaPart]        = useState('')
   const [splitMpesaPhone,  setSplitMpesaPhone]  = useState('')
   const [splitMpesaStep,   setSplitMpesaStep]   = useState('enter')
-  const [cardApprovalCode, setCardApprovalCode] = useState('')
-  const [bankReference,    setBankReference]    = useState('')
+  const [cardApprovalCode,        setCardApprovalCode]        = useState('')
+  const [cardApprovalCodeConfirm, setCardApprovalCodeConfirm] = useState('')
+  const [bankReference,           setBankReference]           = useState('')
+  const [bankReferenceConfirm,    setBankReferenceConfirm]    = useState('')
 
   // ── Real M-Pesa STK push state ────────────────────────────────────
   const [mpesaCheckoutRequestId, setMpesaCheckoutRequestId] = useState('')
@@ -110,12 +116,12 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
     : true
 
   const canConfirm =
-    paymentMethod === 'cash'   ? cashGivenNum >= finalTotal && cashGiven !== ''                                                    :
-    paymentMethod === 'mpesa'  ? mpesaStep === 'confirmed'                                                                         :
-    paymentMethod === 'credit' ? creditValid                                                                                        :
-    paymentMethod === 'split'  ? splitTotal >= finalTotal && cashPartNum > 0 && mpesaPartNum > 0 && splitMpesaStep === 'confirmed'  :
-    paymentMethod === 'card'   ? cardApprovalCode.trim().length > 0                                                                :
-    paymentMethod === 'bank'   ? bankReference.trim().length > 0
+    paymentMethod === 'cash'   ? cashGivenNum >= finalTotal && cashGiven !== ''                                                                        :
+    paymentMethod === 'mpesa'  ? mpesaStep === 'confirmed'                                                                                             :
+    paymentMethod === 'credit' ? creditValid                                                                                                            :
+    paymentMethod === 'split'  ? splitTotal >= finalTotal && cashPartNum > 0 && mpesaPartNum > 0 && splitMpesaStep === 'confirmed'                      :
+    paymentMethod === 'card'   ? isValidCardCode(cardApprovalCode.trim()) && cardApprovalCode.trim() === cardApprovalCodeConfirm.trim()                 :
+    paymentMethod === 'bank'   ? isValidBankRef(bankReference.trim()) && bankReference.trim() === bankReferenceConfirm.trim()
     : false
 
   // ── Real STK push handler ─────────────────────────────────────────
@@ -197,6 +203,8 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
     setPaymentMethod(method)
     setMpesaStep('enter')
     setSplitMpesaStep('enter')
+    setCardApprovalCode(''); setCardApprovalCodeConfirm('')
+    setBankReference('');    setBankReferenceConfirm('')
   }
 
   const handleConfirm = () => {
@@ -671,12 +679,56 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                 <label className={s.splitInputLabel}>Approval Code</label>
                 <div className={s.inputWrap}>
                   <MdCreditCard className={s.inputIcon} />
-                  <input type="text" placeholder="e.g. APP-123456"
-                    value={cardApprovalCode} onChange={e => setCardApprovalCode(e.target.value)}
-                    autoFocus className={`${s.formInput} ${cardApprovalCode.trim() ? s.formInputSuccess : ''}`} />
+                  <input
+                    type="text"
+                    placeholder="e.g. 123456"
+                    value={cardApprovalCode}
+                    onChange={e => setCardApprovalCode(e.target.value)}
+                    autoFocus
+                    className={`${s.formInput} ${
+                      !cardApprovalCode.trim() ? '' :
+                      !isValidCardCode(cardApprovalCode.trim()) ? s.formInputError : s.formInputSuccess
+                    }`}
+                  />
                 </div>
-                {!cardApprovalCode.trim() && <div className={s.cardNote}>Enter the approval code from the EDC terminal slip to confirm.</div>}
-                {cardApprovalCode.trim() && (
+                {cardApprovalCode.trim() && !isValidCardCode(cardApprovalCode.trim()) && (
+                  <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                    {!CODE_RX.test(cardApprovalCode.trim())
+                      ? '✗ Letters and numbers only — no spaces or symbols'
+                      : '✗ Too short — minimum 6 characters'}
+                  </div>
+                )}
+                <label className={s.splitInputLabel} style={{ marginTop: '10px' }}>Re-enter code to confirm</label>
+                <div className={s.inputWrap}>
+                  <MdCreditCard className={s.inputIcon} />
+                  <input
+                    type="text"
+                    placeholder="Re-enter approval code"
+                    value={cardApprovalCodeConfirm}
+                    onChange={e => setCardApprovalCodeConfirm(e.target.value)}
+                    className={`${s.formInput} ${
+                      !cardApprovalCodeConfirm.trim() ? '' :
+                      cardApprovalCode.trim() === cardApprovalCodeConfirm.trim() ? s.formInputSuccess : s.formInputError
+                    }`}
+                  />
+                </div>
+                {cardApprovalCode.trim() && cardApprovalCodeConfirm.trim() && cardApprovalCode.trim() !== cardApprovalCodeConfirm.trim() && (
+                  <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: '8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#dc2626', marginBottom: 6 }}>⚠️ Codes don't match</div>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 2 }}>First entry</div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{cardApprovalCode.trim()}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 2 }}>Second entry</div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{cardApprovalCodeConfirm.trim()}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#991b1b', marginTop: 6 }}>Fix the entry that contains the typo.</div>
+                  </div>
+                )}
+                {isValidCardCode(cardApprovalCode.trim()) && cardApprovalCodeConfirm.trim() && cardApprovalCode.trim() === cardApprovalCodeConfirm.trim() && (
                   <div className={s.mpesaConfirmed}>
                     <MdCheckCircle style={{ color: 'var(--success)', fontSize: '20px', flexShrink: 0 }} />
                     <div>
@@ -684,6 +736,9 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                       <div className={s.mpesaConfirmedSub}>Code: {cardApprovalCode.trim()}</div>
                     </div>
                   </div>
+                )}
+                {!cardApprovalCode.trim() && (
+                  <div className={s.cardNote}>Enter the approval code from the EDC terminal slip — letters and numbers only, minimum 6 characters.</div>
                 )}
               </div>
             </div>
@@ -701,12 +756,56 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                 <label className={s.splitInputLabel}>Reference Number</label>
                 <div className={s.inputWrap}>
                   <MdAccountBalance className={s.inputIcon} />
-                  <input type="text" placeholder="e.g. TXN-20240601-00123"
-                    value={bankReference} onChange={e => setBankReference(e.target.value)}
-                    autoFocus className={`${s.formInput} ${bankReference.trim() ? s.formInputSuccess : ''}`} />
+                  <input
+                    type="text"
+                    placeholder="e.g. FTGN24060100001"
+                    value={bankReference}
+                    onChange={e => setBankReference(e.target.value)}
+                    autoFocus
+                    className={`${s.formInput} ${
+                      !bankReference.trim() ? '' :
+                      !isValidBankRef(bankReference.trim()) ? s.formInputError : s.formInputSuccess
+                    }`}
+                  />
                 </div>
-                {!bankReference.trim() && <div className={s.cardNote}>Enter the reference number from the customer's transfer confirmation.</div>}
-                {bankReference.trim() && (
+                {bankReference.trim() && !isValidBankRef(bankReference.trim()) && (
+                  <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                    {!CODE_RX.test(bankReference.trim())
+                      ? '✗ Letters and numbers only — no spaces or symbols'
+                      : '✗ Too short — minimum 8 characters'}
+                  </div>
+                )}
+                <label className={s.splitInputLabel} style={{ marginTop: '10px' }}>Re-enter reference to confirm</label>
+                <div className={s.inputWrap}>
+                  <MdAccountBalance className={s.inputIcon} />
+                  <input
+                    type="text"
+                    placeholder="Re-enter reference number"
+                    value={bankReferenceConfirm}
+                    onChange={e => setBankReferenceConfirm(e.target.value)}
+                    className={`${s.formInput} ${
+                      !bankReferenceConfirm.trim() ? '' :
+                      bankReference.trim() === bankReferenceConfirm.trim() ? s.formInputSuccess : s.formInputError
+                    }`}
+                  />
+                </div>
+                {bankReference.trim() && bankReferenceConfirm.trim() && bankReference.trim() !== bankReferenceConfirm.trim() && (
+                  <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: '8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: '#dc2626', marginBottom: 6 }}>⚠️ References don't match</div>
+                    <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 2 }}>First entry</div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{bankReference.trim()}</div>
+                      </div>
+                      <div>
+                        <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 2 }}>Second entry</div>
+                        <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{bankReferenceConfirm.trim()}</div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 11, color: '#991b1b', marginTop: 6 }}>Fix the entry that contains the typo.</div>
+                  </div>
+                )}
+                {isValidBankRef(bankReference.trim()) && bankReferenceConfirm.trim() && bankReference.trim() === bankReferenceConfirm.trim() && (
                   <div className={s.mpesaConfirmed}>
                     <MdCheckCircle style={{ color: 'var(--success)', fontSize: '20px', flexShrink: 0 }} />
                     <div>
@@ -714,6 +813,9 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                       <div className={s.mpesaConfirmedSub}>Ref: {bankReference.trim()}</div>
                     </div>
                   </div>
+                )}
+                {!bankReference.trim() && (
+                  <div className={s.cardNote}>Enter the reference number from the customer's transfer confirmation — letters and numbers only, minimum 8 characters.</div>
                 )}
               </div>
             </div>

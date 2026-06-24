@@ -124,21 +124,29 @@ describe('M-Pesa flow', () => {
     expect(screen.getByRole('button', { name: /Send M-Pesa Request/i })).toBeDisabled()
   })
 
-  it('clicking Send STK transitions to the "waiting" step', async () => {
-    renderModal()
+  it('clicking Send STK with a valid phone and cart shows "Waiting for Payment"', async () => {
+    const initiateMpesaPayment = vi.fn().mockResolvedValue({ success: true, checkoutRequestId: 'REQ001' })
+    renderModal(
+      { cart: [{ productId: '1', qty: 1, price: 100 }] },
+      { initiateMpesaPayment, checkMpesaStatus: vi.fn().mockResolvedValue(null) }
+    )
     await clickMethod('M-Pesa')
     await userEvent.type(screen.getByPlaceholderText(/e\.g\. 0712345678/i), '0712345678')
     await userEvent.click(screen.getByRole('button', { name: /Send M-Pesa Request/i }))
-    expect(screen.getByText(/STK Push Sent/i)).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByText(/Waiting for Payment/i)).toBeInTheDocument())
   })
 
-  it('Confirm is enabled after "Payment Received" is clicked', async () => {
-    renderModal()
+  it('Confirm stays disabled while waiting for M-Pesa payment confirmation', async () => {
+    const initiateMpesaPayment = vi.fn().mockResolvedValue({ success: true, checkoutRequestId: 'REQ001' })
+    renderModal(
+      { cart: [{ productId: '1', qty: 1, price: 100 }] },
+      { initiateMpesaPayment, checkMpesaStatus: vi.fn().mockResolvedValue(null) }
+    )
     await clickMethod('M-Pesa')
     await userEvent.type(screen.getByPlaceholderText(/e\.g\. 0712345678/i), '0712345678')
     await userEvent.click(screen.getByRole('button', { name: /Send M-Pesa Request/i }))
-    await userEvent.click(screen.getByRole('button', { name: /Payment Received/i }))
-    expect(confirmBtn()).not.toBeDisabled()
+    await waitFor(() => expect(screen.getByText(/Waiting for Payment/i)).toBeInTheDocument())
+    expect(confirmBtn()).toBeDisabled()
   })
 })
 
@@ -229,16 +237,56 @@ describe('credit blacklist gate', () => {
 // ── Card payment ───────────────────────────────────────────────────────
 
 describe('card payment', () => {
-  it('Confirm is disabled when approval code is empty', async () => {
+  it('Confirm is disabled when both fields are empty', async () => {
     renderModal()
     await clickMethod('Card')
     expect(confirmBtn()).toBeDisabled()
   })
 
-  it('Confirm is enabled after entering an approval code', async () => {
+  it('shows "Too short" error for a code under 6 characters', async () => {
     renderModal()
     await clickMethod('Card')
-    await userEvent.type(screen.getByPlaceholderText(/APP-123456/i), 'APP-999')
+    await userEvent.type(screen.getByPlaceholderText(/e\.g\. 123456/i), 'AB1')
+    expect(screen.getByText(/Too short — minimum 6 characters/i)).toBeInTheDocument()
+  })
+
+  it('shows "Letters and numbers only" error for a code with invalid characters', async () => {
+    renderModal()
+    await clickMethod('Card')
+    await userEvent.type(screen.getByPlaceholderText(/e\.g\. 123456/i), 'ABC!@#')
+    expect(screen.getByText(/Letters and numbers only/i)).toBeInTheDocument()
+  })
+
+  it('Confirm is disabled when first code is valid but confirmation is empty', async () => {
+    renderModal()
+    await clickMethod('Card')
+    await userEvent.type(screen.getByPlaceholderText(/e\.g\. 123456/i), 'ABC123')
+    expect(confirmBtn()).toBeDisabled()
+  })
+
+  it('Confirm is disabled when codes do not match', async () => {
+    renderModal()
+    await clickMethod('Card')
+    await userEvent.type(screen.getByPlaceholderText(/e\.g\. 123456/i), 'ABC123')
+    await userEvent.type(screen.getByPlaceholderText(/Re-enter approval code/i), 'ABC124')
+    expect(confirmBtn()).toBeDisabled()
+  })
+
+  it('shows "Codes don\'t match" panel with both values when entries differ', async () => {
+    renderModal()
+    await clickMethod('Card')
+    await userEvent.type(screen.getByPlaceholderText(/e\.g\. 123456/i), 'ABC123')
+    await userEvent.type(screen.getByPlaceholderText(/Re-enter approval code/i), 'ABC124')
+    expect(screen.getByText(/Codes don't match/i)).toBeInTheDocument()
+    expect(screen.getByText('ABC123')).toBeInTheDocument()
+    expect(screen.getByText('ABC124')).toBeInTheDocument()
+  })
+
+  it('Confirm is enabled when both entries match a valid code', async () => {
+    renderModal()
+    await clickMethod('Card')
+    await userEvent.type(screen.getByPlaceholderText(/e\.g\. 123456/i), 'ABC123')
+    await userEvent.type(screen.getByPlaceholderText(/Re-enter approval code/i), 'ABC123')
     expect(confirmBtn()).not.toBeDisabled()
   })
 })
@@ -246,16 +294,49 @@ describe('card payment', () => {
 // ── Bank transfer ──────────────────────────────────────────────────────
 
 describe('bank transfer', () => {
-  it('Confirm is disabled when reference is empty', async () => {
+  it('Confirm is disabled when both fields are empty', async () => {
     renderModal()
     await clickMethod('Bank Transfer')
     expect(confirmBtn()).toBeDisabled()
   })
 
-  it('Confirm is enabled after entering a reference number', async () => {
+  it('shows "Too short" error for a reference under 8 characters', async () => {
     renderModal()
     await clickMethod('Bank Transfer')
-    await userEvent.type(screen.getByPlaceholderText(/TXN-/i), 'TXN-20240601-001')
+    await userEvent.type(screen.getByPlaceholderText(/FTGN/i), 'ABCD')
+    expect(screen.getByText(/Too short — minimum 8 characters/i)).toBeInTheDocument()
+  })
+
+  it('shows "Letters and numbers only" error for a reference with invalid characters', async () => {
+    renderModal()
+    await clickMethod('Bank Transfer')
+    await userEvent.type(screen.getByPlaceholderText(/FTGN/i), 'TXN-2024')
+    expect(screen.getByText(/Letters and numbers only/i)).toBeInTheDocument()
+  })
+
+  it('Confirm is disabled when references do not match', async () => {
+    renderModal()
+    await clickMethod('Bank Transfer')
+    await userEvent.type(screen.getByPlaceholderText(/FTGN/i), 'ABCD12345')
+    await userEvent.type(screen.getByPlaceholderText(/Re-enter reference number/i), 'ABCD12346')
+    expect(confirmBtn()).toBeDisabled()
+  })
+
+  it('shows "References don\'t match" panel with both values when entries differ', async () => {
+    renderModal()
+    await clickMethod('Bank Transfer')
+    await userEvent.type(screen.getByPlaceholderText(/FTGN/i), 'ABCD12345')
+    await userEvent.type(screen.getByPlaceholderText(/Re-enter reference number/i), 'ABCD12346')
+    expect(screen.getByText(/References don't match/i)).toBeInTheDocument()
+    expect(screen.getByText('ABCD12345')).toBeInTheDocument()
+    expect(screen.getByText('ABCD12346')).toBeInTheDocument()
+  })
+
+  it('Confirm is enabled when both entries match a valid reference', async () => {
+    renderModal()
+    await clickMethod('Bank Transfer')
+    await userEvent.type(screen.getByPlaceholderText(/FTGN/i), 'ABCD12345')
+    await userEvent.type(screen.getByPlaceholderText(/Re-enter reference number/i), 'ABCD12345')
     expect(confirmBtn()).not.toBeDisabled()
   })
 })

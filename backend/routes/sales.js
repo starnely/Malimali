@@ -26,6 +26,25 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, message: "Cart items are required." })
     }
 
+    const CODE_RX = /^[A-Za-z0-9]+$/
+    const pm = paymentInfo?.paymentMethod || "cash"
+
+    if (pm === "card") {
+      const code = (paymentInfo?.cardApprovalCode || "").trim()
+      if (!CODE_RX.test(code) || code.length < 6) {
+        await session.abortTransaction(); session.endSession()
+        return res.status(400).json({ success: false, message: "Card approval code must be at least 6 alphanumeric characters (letters and numbers only)." })
+      }
+    }
+
+    if (pm === "bank") {
+      const ref = (paymentInfo?.bankReference || "").trim()
+      if (!CODE_RX.test(ref) || ref.length < 8) {
+        await session.abortTransaction(); session.endSession()
+        return res.status(400).json({ success: false, message: "Bank reference must be at least 8 alphanumeric characters (letters and numbers only)." })
+      }
+    }
+
     const user = await User.findById(req.user.id).session(session)
     if (!user) {
       await session.abortTransaction(); session.endSession()
