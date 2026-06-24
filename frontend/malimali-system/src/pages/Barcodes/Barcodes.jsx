@@ -288,6 +288,8 @@ export default function Barcodes() {
       cashier: currentUser?.fullname || currentUser?.name || 'Unknown',
       customerPhone: paymentDetails.customerPhone || '',
       promiseDate: paymentDetails.promiseDate || '',
+      cardApprovalCode: paymentDetails.cardApprovalCode || '',
+      bankReference: paymentDetails.bankReference || '',
     }
 
     const result = await recordMultipleSales(cart, paymentInfo)
