@@ -46,6 +46,8 @@ export default function PurchaseOrders() {
   const [filterSupplier, setFilterSupplier] = useState('')
   const [filterPayment, setFilterPayment] = useState('')
   const [filterStore, setFilterStore] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [currentPage, setCurrentPage] = useState(1)
   const [showCreate, setShowCreate] = useState(false)
   const [viewingPO, setViewingPO] = useState(null)
   const [receivingPO, setReceivingPO] = useState(null)
@@ -83,6 +85,8 @@ export default function PurchaseOrders() {
   useEffect(() => { fetchSuppliers() }, [fetchSuppliers])
   useEffect(() => { if (fetchStores) fetchStores() }, [fetchStores])
 
+  const PAGE_SIZE = 25
+
   const stats = useMemo(() => ({
     total: orders.length,
     draft: orders.filter(o => o.status === 'draft').length,
@@ -92,6 +96,23 @@ export default function PurchaseOrders() {
     unpaid: orders.filter(o => o.paymentStatus === 'unpaid' && o.invoiceAmount > 0).length,
     outstanding: orders.reduce((s, o) => s + (o.balance || 0), 0),
   }), [orders])
+
+  const filteredOrders = useMemo(() => {
+    const q = searchText.trim().toLowerCase()
+    if (!q) return orders
+    return orders.filter(o =>
+      o.poNumber?.toLowerCase().includes(q) ||
+      o.supplierName?.toLowerCase().includes(q)
+    )
+  }, [orders, searchText])
+
+  const totalPages = Math.ceil(filteredOrders.length / PAGE_SIZE)
+  const pagedOrders = useMemo(() =>
+    filteredOrders.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE),
+    [filteredOrders, currentPage]
+  )
+
+  useEffect(() => { setCurrentPage(1) }, [orders, searchText])
 
   const handleSend = async (po) => {
     const res = await sendPurchaseOrder(po._id)
@@ -200,6 +221,14 @@ export default function PurchaseOrders() {
           <option value='partial'>⏳ Partial</option>
           <option value='paid'>✅ Paid</option>
         </select>
+        <input
+          className={styles.filterInput}
+          type='search'
+          placeholder='Search PO number or supplier…'
+          value={searchText}
+          onChange={e => setSearchText(e.target.value)}
+          style={{ minWidth: 220 }}
+        />
       </div>
 
       <div className={styles.content}>
@@ -210,6 +239,11 @@ export default function PurchaseOrders() {
             <div className={styles.empty}>
               <div className={styles.emptyIcon}>📋</div>
               <p>No purchase orders found. Create one to start restocking.</p>
+            </div>
+          ) : filteredOrders.length === 0 ? (
+            <div className={styles.empty}>
+              <div className={styles.emptyIcon}>🔍</div>
+              <p>No purchase orders match <strong>"{searchText}"</strong>. Try a different search term.</p>
             </div>
           ) : (
             <table className={styles.table}>
@@ -226,7 +260,7 @@ export default function PurchaseOrders() {
                 </tr>
               </thead>
               <tbody>
-                {orders.map(po => {
+                {pagedOrders.map(po => {
                   const ps = PAYMENT_STATUS[po.paymentStatus]
                   const hasInvoice = po.invoiceAmount > 0
                   return (
@@ -294,6 +328,38 @@ export default function PurchaseOrders() {
                 })}
               </tbody>
             </table>
+          )}
+          {!loading && filteredOrders.length > PAGE_SIZE && (
+            <div className={styles.pagination}>
+              <span className={styles.paginationInfo}>
+                Showing {((currentPage - 1) * PAGE_SIZE) + 1}–{Math.min(currentPage * PAGE_SIZE, filteredOrders.length)} of {filteredOrders.length}
+              </span>
+              <div className={styles.paginationPages}>
+                <button
+                  className={styles.pageBtn}
+                  onClick={() => setCurrentPage(p => p - 1)}
+                  disabled={currentPage === 1}
+                >‹ Prev</button>
+                {(() => {
+                  const pages = []
+                  const delta = 2
+                  const start = Math.max(1, currentPage - delta)
+                  const end = Math.min(totalPages, currentPage + delta)
+                  if (start > 1) { pages.push(1); if (start > 2) pages.push('…') }
+                  for (let i = start; i <= end; i++) pages.push(i)
+                  if (end < totalPages) { if (end < totalPages - 1) pages.push('…'); pages.push(totalPages) }
+                  return pages.map((p, i) => p === '…'
+                    ? <span key={`ellipsis-${i}`} style={{ padding: '0 4px', color: 'var(--text-muted)' }}>…</span>
+                    : <button key={p} onClick={() => setCurrentPage(p)} className={`${styles.pageBtn} ${p === currentPage ? styles.pageBtnActive : ''}`}>{p}</button>
+                  )
+                })()}
+                <button
+                  className={styles.pageBtn}
+                  onClick={() => setCurrentPage(p => p + 1)}
+                  disabled={currentPage === totalPages}
+                >Next ›</button>
+              </div>
+            </div>
           )}
         </div>
       </div>
