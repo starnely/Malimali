@@ -7,7 +7,7 @@ import {
   MdLocalShipping, MdWarning, MdEdit,
   MdPictureAsPdf, MdMarkEmailRead,
   MdPayments, MdReceipt, MdAccountBalance,
-  MdPhoneAndroid, MdMoney, MdStore,
+  MdPhoneAndroid, MdMoney, MdStore, MdArrowDropDown,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/PurchaseOrders.module.css'
@@ -432,6 +432,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const [hovered, setHovered] = useState(false)
   const containerRef = useRef(null)
 
   const selected = options.find(p => p._id === value)
@@ -598,7 +599,12 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
   )
 
   return (
-    <div ref={containerRef} style={{ position: 'relative' }}>
+    <div
+      ref={containerRef}
+      style={{ position: 'relative' }}
+      onMouseEnter={() => !disabled && setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+    >
       <input
         value={open ? query : (selected?.name || '')}
         onChange={e => { setQuery(e.target.value); if (!open) openDropdown(); setActiveIdx(-1) }}
@@ -607,10 +613,23 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
         placeholder='— Select product —'
         disabled={disabled}
         style={{
-          width: '100%', padding: '5px 8px', borderRadius: 'var(--radius-sm)',
-          border: '1px solid var(--border-medium)', background: disabled ? 'var(--bg-muted)' : 'var(--bg-card)',
+          width: '100%', padding: '5px 24px 5px 8px', borderRadius: 'var(--radius-sm)',
+          border: `1px solid ${open ? 'var(--primary)' : hovered ? 'var(--text-secondary)' : 'var(--border-medium)'}`,
+          background: disabled ? 'var(--bg-muted)' : 'var(--bg-card)',
           color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 12,
-          outline: 'none', boxSizing: 'border-box', cursor: disabled ? 'not-allowed' : 'text',
+          outline: 'none', boxSizing: 'border-box',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          transition: 'border-color 0.15s',
+        }}
+      />
+      <MdArrowDropDown
+        size={18}
+        style={{
+          position: 'absolute', right: 5, top: '50%',
+          transform: open ? 'translateY(-50%) rotate(180deg)' : 'translateY(-50%)',
+          color: open ? 'var(--primary)' : 'var(--text-muted)',
+          pointerEvents: 'none',
+          transition: 'transform 0.15s, color 0.15s',
         }}
       />
       {open && !disabled && createPortal(panel, document.body)}
