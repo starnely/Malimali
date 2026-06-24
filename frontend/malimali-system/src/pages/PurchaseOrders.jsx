@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import {
   MdShoppingCart, MdAdd, MdClose, MdSend,
   MdInventory, MdDelete, MdVisibility,
@@ -424,6 +425,200 @@ export default function PurchaseOrders() {
 }
 
 // ══════════════════════════════════════════════════════════════════════
+//  PRODUCT COMBOBOX — searchable + low-stock grouped
+// ══════════════════════════════════════════════════════════════════════
+function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
+  const [query, setQuery] = useState('')
+  const [open, setOpen] = useState(false)
+  const [activeIdx, setActiveIdx] = useState(-1)
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const containerRef = useRef(null)
+
+  const selected = options.find(p => p._id === value)
+
+  const reorderOf = p => p.reorderLevel ?? p.reorderPoint
+  const isLow = p => { const r = reorderOf(p); return r != null && (p.stock ?? p.quantity ?? 0) <= r }
+
+  const q = query.trim().toLowerCase()
+  const visible = options.filter(p => !q || p.name.toLowerCase().includes(q))
+  const lowGroup = visible.filter(isLow)
+  const normalGroup = visible.filter(p => !isLow(p))
+  const flat = [...lowGroup, ...normalGroup]
+
+  const PANEL_MAX_H = 270
+
+  const calcPos = () => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const spaceBelow = window.innerHeight - rect.bottom
+    const flipUp = spaceBelow < PANEL_MAX_H
+    setPos({
+      top:    flipUp ? undefined : rect.bottom + 2,
+      bottom: flipUp ? window.innerHeight - rect.top + 2 : undefined,
+      left:   rect.left,
+      width:  rect.width,
+    })
+  }
+
+  const close = () => { setOpen(false); setQuery(''); setActiveIdx(-1) }
+
+  const openDropdown = () => { calcPos(); setOpen(true) }
+
+  // Close on outside click
+  useEffect(() => {
+    if (!open) return
+    const onDown = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) close()
+    }
+    document.addEventListener('mousedown', onDown)
+    return () => document.removeEventListener('mousedown', onDown)
+  }, [open])
+
+  // Close on any scroll so the fixed panel doesn't drift from the input
+  useEffect(() => {
+    if (!open) return
+    window.addEventListener('scroll', close, true)
+    return () => window.removeEventListener('scroll', close, true)
+  }, [open])
+
+  const select = (id) => { onChange(id); close() }
+
+  const onKeyDown = (e) => {
+    if (!open) {
+      if (e.key === 'ArrowDown' || e.key === 'Enter') { e.preventDefault(); openDropdown() }
+      return
+    }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      setActiveIdx(i => Math.min(i + 1, flat.length - 1))
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      setActiveIdx(i => Math.max(i - 1, 0))
+    } else if (e.key === 'Enter') {
+      e.preventDefault()
+      const p = flat[activeIdx]
+      if (p && !usedIds.has(p._id)) select(p._id)
+    } else if (e.key === 'Escape') {
+      close()
+    }
+  }
+
+  const ROW = { padding: '6px 10px', fontSize: 12, userSelect: 'none' }
+  const GROUP_HDR = {
+    padding: '5px 10px', fontSize: 10, fontWeight: 700,
+    textTransform: 'uppercase', letterSpacing: '0.06em',
+  }
+
+  const panel = (
+    <div style={{
+      position: 'fixed',
+      top:    pos.top,
+      bottom: pos.bottom,
+      left:   pos.left,
+      width:  pos.width,
+      zIndex: 9999,
+      background: 'var(--bg-card)',
+      border: '1px solid var(--border-medium)',
+      borderRadius: 'var(--radius-sm)',
+      maxHeight: 270,
+      overflowY: 'auto',
+      boxShadow: '0 4px 14px rgba(0,0,0,0.14)',
+    }}>
+      {flat.length === 0 && (
+        <div style={{ ...ROW, color: 'var(--text-muted)', textAlign: 'center', padding: '12px' }}>
+          No products match "{query}"
+        </div>
+      )}
+
+      {lowGroup.length > 0 && (
+        <>
+          <div style={{ ...GROUP_HDR, color: 'var(--warning-dark)', background: 'var(--warning-light)', borderBottom: '1px solid var(--warning)', position: 'sticky', top: 0 }}>
+            ⚠️ Low Stock
+          </div>
+          {lowGroup.map(p => {
+            const isUsed = usedIds.has(p._id)
+            const idx = flat.indexOf(p)
+            const reorder = reorderOf(p)
+            return (
+              <div
+                key={p._id}
+                onMouseDown={e => { e.preventDefault(); if (!isUsed) select(p._id) }}
+                onMouseEnter={() => setActiveIdx(idx)}
+                style={{
+                  ...ROW,
+                  cursor: isUsed ? 'not-allowed' : 'pointer',
+                  background: idx === activeIdx ? 'var(--primary-light)' : 'transparent',
+                  opacity: isUsed ? 0.45 : 1,
+                }}
+              >
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
+                <span style={{ marginLeft: 7, color: 'var(--warning-dark)', fontSize: 11 }}>
+                  stock: {p.stock ?? p.quantity ?? 0}{p.unit ? ` ${p.unit}` : ''} · reorder at {reorder}
+                </span>
+                {isUsed && <span style={{ marginLeft: 7, fontSize: 10, color: 'var(--text-muted)' }}>(already added)</span>}
+              </div>
+            )
+          })}
+        </>
+      )}
+
+      {normalGroup.length > 0 && (
+        <>
+          {lowGroup.length > 0 && (
+            <div style={{ ...GROUP_HDR, color: 'var(--text-muted)', background: 'var(--bg-muted)', borderTop: '1px solid var(--border-soft)', borderBottom: '1px solid var(--border-soft)' }}>
+              All Products
+            </div>
+          )}
+          {normalGroup.map(p => {
+            const isUsed = usedIds.has(p._id)
+            const idx = flat.indexOf(p)
+            return (
+              <div
+                key={p._id}
+                onMouseDown={e => { e.preventDefault(); if (!isUsed) select(p._id) }}
+                onMouseEnter={() => setActiveIdx(idx)}
+                style={{
+                  ...ROW,
+                  cursor: isUsed ? 'not-allowed' : 'pointer',
+                  background: idx === activeIdx ? 'var(--primary-light)' : 'transparent',
+                  opacity: isUsed ? 0.45 : 1,
+                }}
+              >
+                <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
+                <span style={{ marginLeft: 7, color: 'var(--text-muted)', fontSize: 11 }}>
+                  (stock: {p.stock ?? p.quantity ?? 0} {p.unit || 'pcs'})
+                </span>
+                {isUsed && <span style={{ marginLeft: 7, fontSize: 10, color: 'var(--text-muted)' }}>(already added)</span>}
+              </div>
+            )
+          })}
+        </>
+      )}
+    </div>
+  )
+
+  return (
+    <div ref={containerRef} style={{ position: 'relative' }}>
+      <input
+        value={open ? query : (selected?.name || '')}
+        onChange={e => { setQuery(e.target.value); if (!open) openDropdown(); setActiveIdx(-1) }}
+        onFocus={openDropdown}
+        onKeyDown={onKeyDown}
+        placeholder='— Select product —'
+        disabled={disabled}
+        style={{
+          width: '100%', padding: '5px 8px', borderRadius: 'var(--radius-sm)',
+          border: '1px solid var(--border-medium)', background: disabled ? 'var(--bg-muted)' : 'var(--bg-card)',
+          color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 12,
+          outline: 'none', boxSizing: 'border-box', cursor: disabled ? 'not-allowed' : 'text',
+        }}
+      />
+      {open && !disabled && createPortal(panel, document.body)}
+    </div>
+  )
+}
+
+// ══════════════════════════════════════════════════════════════════════
 //  CREATE / EDIT PO MODAL
 // ══════════════════════════════════════════════════════════════════════
 function CreatePOModal({
@@ -674,23 +869,13 @@ function CreatePOModal({
                   return (
                     <tr key={i}>
                       <td>
-                        <select
+                        <ProductCombobox
                           value={item.productId}
-                          onChange={e => onProductChange(i, e.target.value)}
+                          options={storeProducts}
+                          usedIds={new Set(items.filter((_, idx) => idx !== i).map(it => it.productId).filter(Boolean))}
                           disabled={!selectedStore}
-                          style={{ width: '100%', padding: '5px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontFamily: 'inherit', fontSize: 12, outline: 'none' }}
-                        >
-                          <option value=''>— Select product —</option>
-                          {storeProducts.map(p => (
-                            <option
-                              key={p._id}
-                              value={p._id}
-                              disabled={items.some((it, idx) => idx !== i && it.productId === p._id)}
-                            >
-                              {p.name} (stock: {p.stock ?? p.quantity ?? 0} {p.unit || 'pcs'})
-                            </option>
-                          ))}
-                        </select>
+                          onChange={productId => onProductChange(i, productId)}
+                        />
                         {/* Reorder level hint */}
                         {reorderLevel != null && (
                           <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
