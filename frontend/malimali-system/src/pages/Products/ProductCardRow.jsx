@@ -6,7 +6,7 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
   today.setHours(0, 0, 0, 0)
 
   const expiryDate      = product.expiryDate ? new Date(product.expiryDate) : null
-  const isExpired       = expiryDate && expiryDate < today
+  const isExpired       = product.isExpired || (expiryDate && expiryDate < today)
   const isExpiringSoon  = expiryDate && !isExpired &&
     (expiryDate - today) / (1000 * 60 * 60 * 24) <= 30
 

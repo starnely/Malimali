@@ -384,7 +384,7 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
       return res.status(400).json({ success: false, message: "Provide items with quantities received." })
 
     const io = req.app.get("io")
-    const stockUpdates = [], lowStockAlerts = []
+    const stockUpdates = [], lowStockAlerts = [], wasExpiredItems = []
 
     for (const recv of receivedItems) {
       const poItem = po.items.id(recv.itemId)
@@ -401,9 +401,19 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
       poItem.actualUnitCost = actualUnitCost
       poItem.receivedCost   = poItem.qtyReceived * actualUnitCost
 
+      // Read current state before update so we can detect previously-expired products.
+      const existing = qty > 0 ? await Product.findById(poItem.productId).lean() : null
+      const wasExpired = !!existing?.isExpired
+
       const productSet = { buyPrice: actualUnitCost }
       if (recv.newSellPrice != null && Number(recv.newSellPrice) > 0) {
         productSet.sellPrice = Number(recv.newSellPrice)
+      }
+      if (qty > 0) {
+        productSet.isExpired = false
+        // Clear the stale expiry date so the scheduler cannot re-catch this product
+        // on the next startup or midnight run before the user sets a new date.
+        if (wasExpired) productSet.expiryDate = null
       }
       const product = await Product.findByIdAndUpdate(
         poItem.productId,
@@ -412,6 +422,7 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
       )
       if (product) {
         stockUpdates.push({ productId: product._id, productName: product.name, qtyAdded: qty, newStock: product.stock })
+        if (wasExpired) wasExpiredItems.push(product.name)
         if (product.stock <= (product.reorderLevel ?? 5))
           lowStockAlerts.push({ productId: product._id, productName: product.name, stock: product.stock, reorderLevel: product.reorderLevel, store: product.store, unit: product.unit || 'pcs' })
       }
@@ -431,7 +442,7 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
       lowStockAlerts.forEach(alert => io.to("owner").emit("lowStockAlert", alert))
     }
 
-    res.json({ success: true, purchaseOrder: po, stockUpdates, message: `Stock updated. PO status: ${po.status}.` })
+    res.json({ success: true, purchaseOrder: po, stockUpdates, wasExpiredItems, message: `Stock updated. PO status: ${po.status}.` })
   } catch (err) {
     console.error("PO receive error:", err.message)
     res.status(500).json({ success: false, message: "Failed to receive stock.", error: err.message })

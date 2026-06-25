@@ -351,6 +351,37 @@ describe("PATCH /api/purchase-orders/:id/receive", () => {
     expect(res.status).toBe(200);
     expect(res.body.purchaseOrder.status).toBe("received");
   });
+
+  test("200 — receiving stock on an expired product clears isExpired + expiryDate; response includes wasExpiredItems", async () => {
+    const { product, po, token } = await setup();
+    await Product.findByIdAndUpdate(product._id, {
+      $set: { stock: 0, isExpired: true, expiryDate: new Date("2020-01-01") },
+    });
+
+    const res = await request(app)
+      .patch(`/api/purchase-orders/${po._id}/receive`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ items: [{ itemId: po.items[0]._id.toString(), qtyReceived: 5 }] });
+
+    expect(res.status).toBe(200);
+    const updated = await Product.findById(product._id);
+    expect(updated.stock).toBe(5);
+    expect(updated.isExpired).toBe(false);
+    expect(updated.expiryDate).toBeNull();
+    expect(res.body.wasExpiredItems).toContain(product.name);
+  });
+
+  test("200 — receiving stock on a non-expired product does not populate wasExpiredItems", async () => {
+    const { product, po, token } = await setup();
+
+    const res = await request(app)
+      .patch(`/api/purchase-orders/${po._id}/receive`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ items: [{ itemId: po.items[0]._id.toString(), qtyReceived: 5 }] });
+
+    expect(res.status).toBe(200);
+    expect(res.body.wasExpiredItems).toEqual([]);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

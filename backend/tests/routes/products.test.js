@@ -20,7 +20,7 @@ describe("GET /api/products", () => {
     expect(res.status).toBe(401);
   });
 
-  test("cashier sees only their store; expired products excluded", async () => {
+  test("cashier sees only their store; expired products included with isExpired flag", async () => {
     const cashier = await createUser({ role: "cashier", email: "c@test.com", store: "Store A" });
     await createProduct({ name: "Alpha", store: "Store A" });
     await createProduct({ name: "Beta",  store: "Store B" });
@@ -32,8 +32,10 @@ describe("GET /api/products", () => {
     expect(res.status).toBe(200);
     const names = res.body.products.map((p) => p.name);
     expect(names).toContain("Alpha");
-    expect(names).not.toContain("Beta");    // wrong store
-    expect(names).not.toContain("Gamma");   // expired
+    expect(names).not.toContain("Beta");    // wrong store — still excluded
+    expect(names).toContain("Gamma");       // expired but same store — now included
+    const gamma = res.body.products.find((p) => p.name === "Gamma");
+    expect(gamma.isExpired).toBe(true);
   });
 
   test("owner sees all stores; ?store filter narrows results", async () => {
@@ -303,6 +305,52 @@ describe("PUT /api/products/:id", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.product.barcode).toBe("KEEP999");
+  });
+
+  test("200 — setting stock > 0 on an expired product clears isExpired and stale expiryDate", async () => {
+    const owner = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
+    const product = await createProduct({ stock: 0, isExpired: true, expiryDate: new Date("2020-01-01") });
+
+    const res = await request(app)
+      .put(`/api/products/${product._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: product.name, category: product.category, buyPrice: product.buyPrice, sellPrice: product.sellPrice, stock: 10 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.product.stock).toBe(10);
+    expect(res.body.product.isExpired).toBe(false);
+    expect(res.body.product.expiryDate).toBeNull();
+  });
+
+  test("200 — setting stock > 0 with a future expiryDate preserves that date and clears isExpired", async () => {
+    const owner = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
+    const product = await createProduct({ stock: 0, isExpired: true, expiryDate: new Date("2020-01-01") });
+
+    const res = await request(app)
+      .put(`/api/products/${product._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: product.name, category: product.category, buyPrice: product.buyPrice, sellPrice: product.sellPrice, stock: 10, expiryDate: "2030-12-31" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.product.isExpired).toBe(false);
+    expect(new Date(res.body.product.expiryDate).getFullYear()).toBe(2030);
+  });
+
+  test("200 — setting stock to 0 on an expired product leaves isExpired untouched", async () => {
+    const owner = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
+    const product = await createProduct({ stock: 0, isExpired: true });
+
+    const res = await request(app)
+      .put(`/api/products/${product._id}`)
+      .set("Authorization", `Bearer ${token}`)
+      .send({ name: product.name, category: product.category, buyPrice: product.buyPrice, sellPrice: product.sellPrice, stock: 0 });
+
+    expect(res.status).toBe(200);
+    expect(res.body.product.stock).toBe(0);
+    expect(res.body.product.isExpired).toBe(true);
   });
 });
 

@@ -33,7 +33,7 @@ async function uniqueEAN13() {
 // ── GET ALL PRODUCTS ──────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const filter = { isExpired: { $ne: true } }
+    const filter = {}
     if (req.query.store) {
       filter.store = req.query.store
     } else if (req.user.role !== "owner") {
@@ -161,6 +161,14 @@ router.put("/:id", managerOrOwner, async (req, res) => {
       reorderLevel: reorderLevel != null ? Number(reorderLevel) : 5,
       isWeighed: !!isWeighed,
       pricePerKg: Number(pricePerKg) || 0,
+    }
+    if (Number(stock) > 0) {
+      setData.isExpired = false
+      // Clear a stale expiry date to prevent the scheduler re-catching this product.
+      // If the user explicitly provides a future date in this same edit, keep it.
+      const incomingExpiry = expiryDate ? new Date(expiryDate) : null
+      const today = new Date(); today.setHours(0, 0, 0, 0)
+      if (!incomingExpiry || incomingExpiry < today) setData.expiryDate = null
     }
 
     // pluNumber must be absent (not null) for the sparse unique index to skip it.

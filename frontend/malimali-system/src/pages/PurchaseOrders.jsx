@@ -62,7 +62,7 @@ export default function PurchaseOrders() {
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
-    setTimeout(() => setToast(null), 3500)
+    setTimeout(() => setToast(null), type === 'warning' ? 6000 : 3500)
   }
 
   const load = useCallback(async () => {
@@ -149,7 +149,7 @@ export default function PurchaseOrders() {
   return (
     <div className={styles.page}>
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 'var(--radius-md)', background: toast.type === 'error' ? 'var(--danger)' : 'var(--success)', color: 'white', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-dropdown)' }}>
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 'var(--radius-md)', background: toast.type === 'error' ? 'var(--danger)' : toast.type === 'warning' ? '#b45309' : 'var(--success)', color: 'white', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-dropdown)', maxWidth: 360 }}>
           {toast.msg}
         </div>
       )}
@@ -387,7 +387,15 @@ export default function PurchaseOrders() {
         <ReceiveModal po={receivingPO}
           products={products}
           onClose={() => setReceivingPO(null)}
-          onReceived={() => { setReceivingPO(null); load(); showToast('Stock received and inventory updated') }}
+          onReceived={(meta) => {
+            setReceivingPO(null); load(); showToast('Stock received and inventory updated')
+            if (meta?.wasExpiredItems?.length > 0) {
+              setTimeout(() => showToast(
+                `${meta.wasExpiredItems.join(', ')}: previously expired — set a new expiry date in Product Edit.`,
+                'warning'
+              ), 400)
+            }
+          }}
           receivePurchaseOrder={receivePurchaseOrder}
         />
       )}
@@ -1428,7 +1436,7 @@ function ReceiveModal({ po, products, onClose, onReceived, receivePurchaseOrder 
     setSaving(true)
     const res = await receivePurchaseOrder(po._id, items)
     setSaving(false)
-    if (res.success) onReceived()
+    if (res.success) onReceived({ wasExpiredItems: res.wasExpiredItems || [] })
     else setError(res.message || 'Failed to receive stock')
   }
 
