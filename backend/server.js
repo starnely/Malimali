@@ -121,7 +121,7 @@ app.use("/api/purchase-orders", require("./routes/purchaseOrders"));
 app.use("/api/expenses", require("./routes/expenses"));
 app.use("/api/petty-cash", require("./routes/pettyCash"));
 
-// ── 8. STARTUP: AUTO OVERDUE CHECK ───────────────────────────────────
+// ── 8. STARTUP: OVERDUE CHECK + EXPIRY CATCH-UP ──────────────────────
 mongoose.connection.once("open", async () => {
   try {
     const Customer = require("./models/Customer");
@@ -161,10 +161,77 @@ mongoose.connection.once("open", async () => {
     console.error("❌ Startup overdue check failed:", err.message);
   }
 
+  // Catch-up: move any products that expired while the server was down.
+  // Runs immediately so no product sits sellable past its expiry just because
+  // the server restarted before tonight's midnight scheduler fires.
+  try {
+    await runExpiryCheck("System (Startup Catch-Up)", "Moved on server startup — expired during downtime");
+  } catch (err) {
+    console.error("❌ Startup expiry catch-up failed:", err.message);
+  }
+
   scheduleAutoExpiryCheck();
 });
 
-// ── 9. MIDNIGHT SCHEDULER ────────────────────────────────────────────
+// ── 9. SHARED EXPIRY LOGIC ───────────────────────────────────────────
+// Called from both the startup catch-up and the midnight scheduler so the
+// logic (including the EAT-aware date boundary) is never duplicated.
+async function runExpiryCheck(processedBy, note) {
+  const Product = require("./models/Product");
+  const ExpiredStock = require("./models/ExpiredStock");
+
+  // Build "start of today in EAT (UTC+3)" regardless of the server OS timezone.
+  // e.g. running at 23:59 EAT on 21 Jun → todayEATStr = "2026-06-21"
+  //      → boundary = 2026-06-21T00:00:00+03:00 = 2026-06-20T21:00:00Z
+  // A product with expiryDate = 2026-06-21T00:00:00Z (UTC midnight, as stored
+  // by the frontend date-picker) satisfies $lte that boundary only on June 22.
+  // Using the +03:00 literal fixes this: the boundary shifts to EAT midnight,
+  // so a product stored as 2026-06-21T00:00:00+03:00 is caught on June 21.
+  const nowEAT = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const todayEATStr = nowEAT.toISOString().split("T")[0];
+  const todayBoundary = new Date(todayEATStr + "T00:00:00+03:00");
+
+  const expiredProducts = await Product.find({
+    expiryDate: { $lte: todayBoundary },
+    isExpired: { $ne: true },
+    stock: { $gt: 0 },
+  });
+
+  const results = [];
+  for (const product of expiredProducts) {
+    const totalLoss = product.stock * product.buyPrice;
+    await new ExpiredStock({
+      productId: product._id,
+      productName: product.name,
+      category: product.category,
+      supplier: product.supplier || "",
+      store: product.store,
+      batch: product.batch || "",
+      unit: product.unit || "pcs",
+      quantity: product.stock,
+      buyPrice: product.buyPrice,
+      totalLoss,
+      expiryDate: product.expiryDate,
+      processedBy,
+      notes: note,
+    }).save();
+    await Product.findByIdAndUpdate(product._id, { $set: { stock: 0, isExpired: true } });
+    results.push({ productName: product.name, quantity: product.stock, totalLoss });
+    console.log(`🗑️  Auto-expired: ${product.name} — Loss: KSh ${totalLoss}`);
+  }
+
+  if (results.length > 0) {
+    io.emit("productsUpdated");
+    io.to("owner").emit("autoExpiredCheck", {
+      moved: results.length, results, time: new Date().toLocaleTimeString(),
+    });
+    console.log(`✅ Auto-expiry complete: ${results.length} product(s) moved.`);
+  } else {
+    console.log("✅ Auto-expiry: no expired products found.");
+  }
+}
+
+// ── 10. MIDNIGHT SCHEDULER ───────────────────────────────────────────
 // Runs at 23:59 EAT every day:
 //   a) Auto-expire products
 //   b) Auto-close any unclosed petty cash records
@@ -172,12 +239,13 @@ mongoose.connection.once("open", async () => {
 function scheduleAutoExpiryCheck() {
   const now = new Date();
 
-  // Target: 23:59:00 today (server local time)
-  // Your server runs in EAT (+3) based on your existing code pattern
-  const target = new Date();
-  target.setHours(23, 59, 0, 0);
+  // Target: 23:59:00 EAT today — expressed as a UTC Date so the calculation
+  // is correct regardless of what timezone the server OS runs in.
+  const nowEAT = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const todayEATStr = nowEAT.toISOString().split("T")[0];
+  const target = new Date(todayEATStr + "T23:59:00+03:00");
 
-  // If 23:59 already passed today, schedule for tomorrow
+  // If 23:59 EAT already passed today, schedule for tomorrow
   let msUntilTarget = target - now;
   if (msUntilTarget <= 0) msUntilTarget += 24 * 60 * 60 * 1000;
 
@@ -186,49 +254,10 @@ function scheduleAutoExpiryCheck() {
     // ── a) AUTO-EXPIRE PRODUCTS ───────────────────────────────────────
     try {
       console.log("⏰ Midnight: running auto-expiry check...");
-
-      const Product = require("./models/Product");
-      const ExpiredStock = require("./models/ExpiredStock");
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const expiredProducts = await Product.find({
-        expiryDate: { $lte: today },
-        isExpired: { $ne: true },
-        stock: { $gt: 0 }
-      });
-
-      const results = [];
-      for (const product of expiredProducts) {
-        const totalLoss = product.stock * product.buyPrice;
-        await new ExpiredStock({
-          productId: product._id,
-          productName: product.name,
-          category: product.category,
-          supplier: product.supplier || "",
-          store: product.store,
-          batch: product.batch || "",
-          quantity: product.stock,
-          buyPrice: product.buyPrice,
-          totalLoss,
-          expiryDate: product.expiryDate,
-          processedBy: "System (Midnight Auto-Check)",
-          notes: "Automatically moved at midnight expiry check",
-        }).save();
-        await Product.findByIdAndUpdate(product._id, { $set: { stock: 0, isExpired: true } });
-        results.push({ productName: product.name, quantity: product.stock, totalLoss });
-        console.log(`🗑️  Auto-expired: ${product.name} — Loss: KSh ${totalLoss}`);
-      }
-
-      if (results.length > 0) {
-        io.emit("productsUpdated");
-        io.to("owner").emit("autoExpiredCheck", {
-          moved: results.length, results, time: new Date().toLocaleTimeString(),
-        });
-        console.log(`✅ Auto-expiry complete: ${results.length} product(s) moved.`);
-      } else {
-        console.log("✅ Auto-expiry: no expired products found.");
-      }
+      await runExpiryCheck(
+        "System (Midnight Auto-Check)",
+        "Automatically moved at midnight expiry check"
+      );
     } catch (err) {
       console.error("❌ Auto-expiry check failed:", err.message);
     }
@@ -337,7 +366,7 @@ function scheduleAutoExpiryCheck() {
   console.log(`⏰ Midnight scheduler set — runs in ${minutesUntil} minute(s)`);
 }
 
-// ── 10. GLOBAL ERROR HANDLER ─────────────────────────────────────────
+// ── 11. GLOBAL ERROR HANDLER ─────────────────────────────────────────
 app.use((err, req, res, next) => {
   if (err.message && err.message.includes("Only JPEG")) {
     return res.status(400).json({ success: false, message: err.message });
@@ -353,7 +382,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── 11. GRACEFUL SHUTDOWN ────────────────────────────────────────────
+// ── 12. GRACEFUL SHUTDOWN ────────────────────────────────────────────
 const gracefulExit = () => {
   console.log("\n🛑 Shutting down gracefully...");
   mongoose.connection.close(false).then(() => {

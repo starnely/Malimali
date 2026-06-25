@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const Archive = require("../models/Archive");
 const Sale = require("../models/Sale");
+const ExpiredStock = require("../models/ExpiredStock");
 const { authMiddleware } = require("../middleware/authMiddleware");
 
 router.use(authMiddleware);
@@ -138,6 +139,15 @@ router.post("/", async (req, res) => {
       .filter(s => s.paymentInfo?.paymentMethod === "bank" && !s.voided)
       .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
 
+    // ── Expired stock loss for this store on shift date ──────────────
+    const expStart = new Date(date + "T00:00:00+03:00")
+    const expEnd   = new Date(date + "T23:59:59.999+03:00")
+    const expiredRecords = await ExpiredStock.find({
+      store,
+      movedAt: { $gte: expStart, $lte: expEnd }
+    })
+    const expiredLoss = expiredRecords.reduce((sum, e) => sum + (e.totalLoss || 0), 0)
+
     // ── Cash reconciliation ──────────────────────────────────────────
     const openingFloat = Number(req.body.openingFloat) || 0;
     const actualCash = Number(req.body.actualCash) || 0;
@@ -158,6 +168,7 @@ router.post("/", async (req, res) => {
       profit,
       transactions,
       itemsSold,
+      expiredLoss,
       closedAt: new Date(),
       paymentBreakdown: {
         cash: pureCash + splitCashPart,

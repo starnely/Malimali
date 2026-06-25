@@ -19,6 +19,7 @@ const ArchiveSchema = new mongoose.Schema({
   profit:       { type: Number, default: 0 },
   transactions: { type: Number, default: 0 },
   itemsSold:    { type: Number, default: 0 },
+  expiredLoss:  { type: Number, default: 0 },
 
   paymentBreakdown: {
     cash:       { type: Number, default: 0 },

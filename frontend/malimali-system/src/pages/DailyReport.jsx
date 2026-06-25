@@ -75,6 +75,8 @@ export default function DailyReport() {
   const [pcLoading,      setPcLoading]      = useState(true)
   const [supplierDebt,   setSupplierDebt]   = useState(0)
   const [debtLoading,    setDebtLoading]    = useState(true)
+  const [expiredLoss,    setExpiredLoss]    = useState(0)
+  const [expiredLoading, setExpiredLoading] = useState(true)
   const [refreshKey,     setRefreshKey]     = useState(0)
   const storeSelectRef = useRef(null)
 
@@ -161,11 +163,32 @@ export default function DailyReport() {
     return () => { active = false }
   }, [selectedDate, selectedStore, isOwner, currentUser, refreshKey])
 
+  // ── Fetch expired stock loss ─────────────────────────────────────
+  useEffect(() => {
+    let active = true
+    setExpiredLoading(true)
+    const storeParam = isOwner ? (selectedStore !== 'All' ? selectedStore : '') : (currentUser?.store || '')
+    const load = async () => {
+      try {
+        const params = new URLSearchParams({ date: selectedDate })
+        if (storeParam) params.set('store', storeParam)
+        const url = `http://localhost:5000/api/expired/?${params}`
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${currentUser?.token}` } })
+        const data = await res.json()
+        if (!res.ok) throw new Error()
+        if (active) setExpiredLoss(data.totalLoss || 0)
+      } catch { if (active) setExpiredLoss(0) }
+      if (active) setExpiredLoading(false)
+    }
+    load()
+    return () => { active = false }
+  }, [selectedDate, selectedStore, isOwner, currentUser, refreshKey])
+
   // ── Build summary ─────────────────────────────────────────────────
   const storeFilter = isOwner ? selectedStore : (currentUser?.store || 'All')
   const summary = useMemo(() =>
-    buildLiveSummary(selectedDate, sales, products, storeFilter),
-    [selectedDate, sales, products, storeFilter]
+    buildLiveSummary(selectedDate, sales, products, storeFilter, expiredLoss),
+    [selectedDate, sales, products, storeFilter, expiredLoss]
   )
 
   // ── Shift archives ────────────────────────────────────────────────
@@ -179,7 +202,7 @@ export default function DailyReport() {
   )
 
   const totalDebtCollected = repayments.reduce((s, r) => s + (r.amount || 0), 0)
-  const netProfit          = (summary?.totalProfit || 0) - expenseTotal
+  const netProfit          = (summary?.totalProfit || 0) - expenseTotal - expiredLoss
   const displayDate        = new Date(selectedDate + 'T00:00:00').toLocaleDateString('en-KE', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   })
@@ -233,12 +256,13 @@ export default function DailyReport() {
 
     sc(r, 0, 'SUMMARY', sec); mc(r, 0, COLS - 1); r++
     ;[
-      ['Total Revenue',       `KSh ${fmt(summary.totalRevenue)}`,  'Transactions',    String(summary.totalTransactions)],
-      ['Gross Profit',        `KSh ${fmt(summary.totalProfit)}`,   'Items Sold',      String(summary.totalItems)],
-      ['Cost of Goods',       `KSh ${fmt(summary.totalCOGS)}`,     '',                ''],
-      ['Total Expenses',      `KSh ${fmt(expenseTotal)}`,          'Net Profit',      `KSh ${fmt(netProfit)}`],
-      ['Debt Collected',      `KSh ${fmt(totalDebtCollected)}`,    'Collections',     String(repayments.length)],
-      ['Supplier Debt (owed)', `KSh ${fmt(supplierDebt)}`,         'Outstanding POs', ''],
+      ['Total Revenue',              `KSh ${fmt(summary.totalRevenue)}`,  'Transactions',    String(summary.totalTransactions)],
+      ['Gross Profit',               `KSh ${fmt(summary.totalProfit)}`,   'Items Sold',      String(summary.totalItems)],
+      ['Cost of Goods',              `KSh ${fmt(summary.totalCOGS)}`,     '',                ''],
+      ['Total Expenses',             `KSh ${fmt(expenseTotal)}`,          'Net Profit',      `KSh ${fmt(netProfit)}`],
+      ['Inventory Loss (Expired)',   `KSh ${fmt(expiredLoss)}`,           '',                ''],
+      ['Debt Collected',             `KSh ${fmt(totalDebtCollected)}`,    'Collections',     String(repayments.length)],
+      ['Supplier Debt (owed)',       `KSh ${fmt(supplierDebt)}`,          'Outstanding POs', ''],
     ].forEach(([l1, v1, l2, v2], idx) => {
       sc(r, 0, l1, kvL)
       sc(r, 1, v1, idx === 5 ? kvW : kvV)
@@ -297,12 +321,13 @@ export default function DailyReport() {
 
     sc(r, 0, 'PROFIT & LOSS', sec); mc(r, 0, COLS - 1); r++
     ;[
-      ['Gross Revenue',          summary.totalRevenue, '2E7D32'],
-      ['Cost of Goods (COGS)',   summary.totalCOGS,    'C62828'],
-      ['Gross Profit',           summary.totalProfit,  summary.totalProfit >= 0 ? '2E7D32' : 'C62828'],
-      ['Total Expenses',         expenseTotal,         'C62828'],
-      ['Net Profit',             netProfit,            netProfit >= 0 ? '2E7D32' : 'C62828'],
-      ['Supplier Debt (unpaid)', supplierDebt,         supplierDebt > 0 ? 'B45309' : '2E7D32'],
+      ['Gross Revenue',                    summary.totalRevenue, '2E7D32'],
+      ['Cost of Goods (COGS)',             summary.totalCOGS,    'C62828'],
+      ['Gross Profit',                     summary.totalProfit,  summary.totalProfit >= 0 ? '2E7D32' : 'C62828'],
+      ['Total Expenses',                   expenseTotal,         'C62828'],
+      ['Inventory Loss (Expired Stock)',   expiredLoss,          'B45309'],
+      ['Net Profit',                       netProfit,            netProfit >= 0 ? '2E7D32' : 'C62828'],
+      ['Supplier Debt (unpaid)',           supplierDebt,         supplierDebt > 0 ? 'B45309' : '2E7D32'],
     ].forEach(([label, val, hex], i) => {
       sc(r, 0, label, lft(i))
       sc(r, 1, val, { ...cel(i), font: { sz: i === 4 ? 11 : 10, color: { rgb: hex }, bold: i === 4 } })
@@ -477,11 +502,11 @@ export default function DailyReport() {
               />
               <StatTile
                 label="Net Profit"
-                value={expenseLoading || !summary ? '—' : `KSh ${Math.abs(netProfit).toLocaleString()}`}
+                value={expenseLoading || !summary ? '—' : `${netProfit < 0 ? '−' : ''}KSh ${Math.abs(netProfit).toLocaleString()}`}
                 color={netProfit >= 0 ? 'var(--success-dark)' : 'var(--danger)'}
                 bg={netProfit >= 0 ? '#f0fdf4' : 'var(--danger-light)'}
                 icon={netProfit >= 0 ? <MdTrendingUp /> : <MdWarning />}
-                sub={netProfit >= 0 ? 'Gross Profit − Expenses' : '⚠️ Expenses exceed gross profit'}
+                sub={netProfit >= 0 ? 'Gross Profit − Expenses − Expired Loss' : '⚠️ Expenses + losses exceed gross profit'}
               />
               <StatTile
                 label="Debt Collected"
@@ -506,17 +531,18 @@ export default function DailyReport() {
                 <SectionHeader icon={<MdTrendingUp />} title="Profit & Loss" subtitle="Revenue vs expenses for this day" />
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
                   {[
-                    { label: 'Gross Revenue',           value: summary?.totalRevenue || 0,  color: 'var(--primary)',      sign: '',  bold: false, muted: false, topBorder: false, large: false },
-                    { label: 'Cost of Goods (COGS)',     value: summary?.totalCOGS    || 0,  color: 'var(--text-muted)',   sign: '−', bold: false, muted: true,  topBorder: false, large: false },
-                    { label: 'Gross Profit',             value: summary?.totalProfit  || 0,  color: (summary?.totalProfit || 0) >= 0 ? 'var(--success-dark)' : 'var(--danger)', sign: '', bold: true, muted: false, topBorder: true, large: false },
-                    { label: 'Total Expenses',           value: expenseTotal,                color: 'var(--danger)',        sign: '−', bold: false, muted: false, topBorder: false, large: false },
-                    { label: 'Net Profit',               value: netProfit,                   color: netProfit >= 0 ? 'var(--success-dark)' : 'var(--danger)', sign: '', bold: true, muted: false, topBorder: true, large: true },
-                    { label: 'Supplier Debt (unpaid)',   value: supplierDebt,                color: supplierDebt > 0 ? '#b45309' : 'var(--success-dark)', sign: '', bold: false, muted: true, topBorder: true, large: false },
+                    { label: 'Gross Revenue',                    value: summary?.totalRevenue || 0,  color: 'var(--primary)',      sign: '',  bold: false, muted: false, topBorder: false, large: false },
+                    { label: 'Cost of Goods (COGS)',             value: summary?.totalCOGS    || 0,  color: 'var(--text-muted)',   sign: '−', bold: false, muted: true,  topBorder: false, large: false },
+                    { label: 'Gross Profit',                     value: summary?.totalProfit  || 0,  color: (summary?.totalProfit || 0) >= 0 ? 'var(--success-dark)' : 'var(--danger)', sign: '', bold: true, muted: false, topBorder: true, large: false },
+                    { label: 'Total Expenses',                   value: expenseTotal,                color: 'var(--danger)',        sign: '−', bold: false, muted: false, topBorder: false, large: false },
+                    { label: 'Inventory Loss (Expired Stock)',   value: expiredLoss,                 color: '#b45309',              sign: '−', bold: false, muted: false, topBorder: false, large: false },
+                    { label: 'Net Profit',                       value: netProfit,                   color: netProfit >= 0 ? 'var(--success-dark)' : 'var(--danger)', sign: '', bold: true, muted: false, topBorder: true, large: true },
+                    { label: 'Supplier Debt (unpaid)',           value: supplierDebt,                color: supplierDebt > 0 ? '#b45309' : 'var(--success-dark)', sign: '', bold: false, muted: true, topBorder: true, large: false },
                   ].map((row, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderTop: row.topBorder ? '1px solid var(--border-soft)' : 'none', marginTop: row.topBorder ? 4 : 0 }}>
                       <span style={{ fontSize: 13, color: row.muted ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: row.bold ? 700 : 400 }}>{row.label}</span>
                       <span style={{ fontSize: row.large ? 16 : 13, fontWeight: row.bold ? 800 : 500, color: row.color }}>
-                        {row.sign}KSh {Math.abs(row.value).toLocaleString()}
+                        {row.sign || (row.value < 0 ? '−' : '')}KSh {Math.abs(row.value).toLocaleString()}
                       </span>
                     </div>
                   ))}

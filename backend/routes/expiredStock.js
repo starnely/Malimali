@@ -20,6 +20,21 @@ router.get("/", async (req, res) => {
       if (req.user.store) query.store = req.user.store
     }
 
+    // Date range filter (EAT timezone — UTC+3)
+    if (req.query.date) {
+      const start = new Date(req.query.date + "T00:00:00+03:00")
+      const end   = new Date(req.query.date + "T23:59:59.999+03:00")
+      query.movedAt = { $gte: start, $lte: end }
+    } else if (req.query.year && req.query.month) {
+      const yr  = parseInt(req.query.year, 10)
+      const mo  = parseInt(req.query.month, 10)
+      const pad = n => String(n).padStart(2, "0")
+      const lastDay = new Date(yr, mo, 0).getDate()
+      const start = new Date(`${yr}-${pad(mo)}-01T00:00:00+03:00`)
+      const end   = new Date(`${yr}-${pad(mo)}-${pad(lastDay)}T23:59:59.999+03:00`)
+      query.movedAt = { $gte: start, $lte: end }
+    }
+
     const expired = await ExpiredStock.find(query).sort({ movedAt: -1 })
 
     const totalLoss = expired.reduce((sum, e) => sum + (e.totalLoss || 0), 0)

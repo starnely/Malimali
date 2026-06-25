@@ -23,7 +23,7 @@ export function isActiveItem(item) {
  * Build a live summary for a given date from the sales array.
  * Correctly handles partial voids and returned items.
  */
-export function buildLiveSummary(date, sales, products = [], storeName = "All") {
+export function buildLiveSummary(date, sales, products = [], storeName = "All", expiredLoss = 0) {
   const normalize = d => (d ? String(d).slice(0, 10) : null)
   const targetDate = normalize(date)
 
@@ -147,6 +147,7 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All") 
     cardSalesCount,
     bankSalesCount,
     perEmployee: Object.values(employeeMap).sort((a, b) => b.revenue - a.revenue),
+    totalExpiredLoss: Math.round(expiredLoss),
     isLive: true,
   }
 }

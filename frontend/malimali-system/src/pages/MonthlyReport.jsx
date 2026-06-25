@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react'
 import {
   MdChevronLeft, MdChevronRight, MdTrendingUp, MdAttachMoney,
-  MdInventory, MdStorefront, MdDownload, MdReceiptLong, MdPeopleAlt
+  MdInventory, MdStorefront, MdDownload, MdReceiptLong, MdPeopleAlt, MdWarning
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import * as XLSX from 'xlsx'
@@ -17,6 +17,7 @@ const CARD_CONFIG = [
   { key: 'txns', label: 'Transactions', icon: <MdReceiptLong />, colorVar: '#6B21A8', bgVar: '#F3E8FF' },
   { key: 'debtCollected', label: 'Debt Collected', icon: <MdPeopleAlt />, colorVar: '#0369a1', bgVar: '#e0f2fe' },
   { key: 'expenses', label: 'Total Expenses', icon: <MdAttachMoney />, colorVar: 'var(--danger)', bgVar: 'var(--danger-light)' },
+  { key: 'expiredLoss', label: 'Inventory Loss', icon: <MdWarning />, colorVar: '#b45309', bgVar: '#fef3c7' },
   { key: 'netProfit', label: 'Net Profit', icon: <MdTrendingUp />, colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)' },
 ]
 
@@ -47,6 +48,7 @@ export default function MonthlyReport() {
   const [monthlyExpenses, setMonthlyExpenses] = useState([])
   const [expenseLoading, setExpenseLoading] = useState(false)
   const [monthlyExpTotal, setMonthlyExpTotal] = useState(0)
+  const [monthlyExpiredLoss, setMonthlyExpiredLoss] = useState(0)
 
   const monthName = new Date(year, month).toLocaleDateString('en-KE', { month: 'long', year: 'numeric' })
   const prevMonth = () => { if (month === 0) { setMonth(11); setYear(y => y - 1) } else setMonth(m => m - 1) }
@@ -95,6 +97,26 @@ export default function MonthlyReport() {
         if (active) { setMonthlyExpenses(data.expenses || []); setMonthlyExpTotal(data.grandTotal || 0) }
       } catch { if (active) { setMonthlyExpenses([]); setMonthlyExpTotal(0) } }
       if (active) setExpenseLoading(false)
+    }
+    load()
+    return () => { active = false }
+  }, [year, month, selectedStore, currentUser])
+
+  // ── Fetch monthly expired stock loss ─────────────────────────────
+  useEffect(() => {
+    let active = true
+    const load = async () => {
+      try {
+        const token = currentUser?.token
+        if (!token) return
+        const params = new URLSearchParams({ year: String(year), month: String(month + 1) })
+        if (selectedStore !== 'All') params.set('store', selectedStore)
+        const url = `http://localhost:5000/api/expired/?${params}`
+        const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
+        if (!res.ok) throw new Error()
+        const data = await res.json()
+        if (active) setMonthlyExpiredLoss(data.totalLoss || 0)
+      } catch { if (active) setMonthlyExpiredLoss(0) }
     }
     load()
     return () => { active = false }
@@ -159,11 +181,12 @@ export default function MonthlyReport() {
     txns: monthSales.length,
     debtCollected: totalDebtCollected,
     expenses: monthlyExpTotal,
-    netProfit: totalProfit - monthlyExpTotal,
+    expiredLoss: monthlyExpiredLoss,
+    netProfit: totalProfit - monthlyExpTotal - monthlyExpiredLoss,
   }
 
   const formatCardValue = (key, val) => {
-    if (['revenue', 'profit', 'debtCollected', 'expenses', 'netProfit'].includes(key)) return `KSh ${val.toLocaleString()}`
+    if (['revenue', 'profit', 'debtCollected', 'expenses', 'expiredLoss', 'netProfit'].includes(key)) return `KSh ${val.toLocaleString()}`
     return val.toLocaleString()
   }
 
@@ -289,11 +312,12 @@ export default function MonthlyReport() {
 
     sc(r, 0, 'SUMMARY', secStyle); mc(r, 0, 6); r++
       ;[
-        ['Total Revenue', `KSh ${fmt(totalRevenue)}`, 'Items Sold', fmt(totalItems)],
-        ['Total Profit', `KSh ${fmt(totalProfit)}`, 'Transactions', fmt(monthSales.length)],
-        ['Profit Margin', `${profitMarginPct}%`, 'Avg. Txn Value', `KSh ${fmt(avgTxnValue)}`],
-        ['Total Expenses', `KSh ${fmt(monthlyExpTotal)}`, 'Net Profit', `KSh ${fmt(totalProfit - monthlyExpTotal)}`],
-        ['Debt Collected', `KSh ${fmt(totalDebtCollected)}`, 'Debt Collections', fmt(repayments.length)],
+        ['Total Revenue',            `KSh ${fmt(totalRevenue)}`,           'Items Sold',       fmt(totalItems)],
+        ['Total Profit',             `KSh ${fmt(totalProfit)}`,            'Transactions',     fmt(monthSales.length)],
+        ['Profit Margin',            `${profitMarginPct}%`,                'Avg. Txn Value',   `KSh ${fmt(avgTxnValue)}`],
+        ['Total Expenses',           `KSh ${fmt(monthlyExpTotal)}`,        'Net Profit (true)',`KSh ${fmt(totalProfit - monthlyExpTotal - monthlyExpiredLoss)}`],
+        ['Inventory Loss (Expired)', `KSh ${fmt(monthlyExpiredLoss)}`,     '',                 ''],
+        ['Debt Collected',           `KSh ${fmt(totalDebtCollected)}`,     'Debt Collections', fmt(repayments.length)],
       ].forEach(([l1, v1, l2, v2]) => {
         sc(r, 0, l1, kvL); sc(r, 1, v1, kvV)
         sc(r, 2, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
