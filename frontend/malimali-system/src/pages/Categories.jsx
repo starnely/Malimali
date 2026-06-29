@@ -1,9 +1,11 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   MdAdd, MdEdit, MdDelete, MdClose, MdCategory,
   MdStorefront, MdPublic, MdInventory2,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { API_BASE_URL } from '@/config/api'
+import styles from '@/styles/Categories.module.css'
 
 export default function Categories() {
   const { currentUser, stores, isOwner } = useApp()
@@ -35,7 +37,7 @@ export default function Categories() {
     try {
       const params = new URLSearchParams()
       if (storeFilter !== 'all') params.set('store', storeFilter === 'global' ? '' : storeFilter)
-      const res = await fetch(`http://localhost:5000/api/categories?${params}`, {
+      const res = await fetch(`${API_BASE_URL}/api/categories?${params}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json()
@@ -69,8 +71,8 @@ export default function Categories() {
     setSaving(true); setError('')
     try {
       const url = editingCat
-        ? `http://localhost:5000/api/categories/${editingCat._id}`
-        : 'http://localhost:5000/api/categories'
+        ? `${API_BASE_URL}/api/categories/${editingCat._id}`
+        : `${API_BASE_URL}/api/categories`
       const method = editingCat ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
@@ -88,7 +90,7 @@ export default function Categories() {
 
   const handleDelete = async (id) => {
     try {
-      const res = await fetch(`http://localhost:5000/api/categories/${id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/categories/${id}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` }
       })
       const data = await res.json()
@@ -142,9 +144,7 @@ export default function Categories() {
         {isOwner && (
           <button
             onClick={openAdd}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+            className={styles.btnAdd}
           >
             <MdAdd style={{ fontSize: 18 }} /> Add Category
           </button>
@@ -183,8 +183,8 @@ export default function Categories() {
       </div>
 
       {/* Categories table */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)', overflow: 'hidden', maxHeight: 'calc(100vh - 320px)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ overflowY: 'auto', flex: 1 }}>
+      <div className={styles.tableCard}>
+        <div className={styles.tableScroll}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead>
               <tr style={{ background: 'var(--sidebar-bg)', position: 'sticky', top: 0, zIndex: 1 }}>
@@ -214,9 +214,8 @@ export default function Categories() {
                 </tr>
               ) : displayed.map((cat, i) => (
                 <tr key={cat._id}
-                  style={{ borderBottom: '1px solid var(--border-soft)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-muted)', transition: 'background 0.1s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                  onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-muted)'}
+                  className={styles.rowHover}
+                  style={{ borderBottom: '1px solid var(--border-soft)', background: i % 2 === 0 ? 'transparent' : 'var(--bg-muted)' }}
                 >
                   {/* # */}
                   <td style={{ padding: '12px 16px', textAlign: 'center', fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{i + 1}</td>
@@ -277,9 +276,7 @@ export default function Categories() {
                         {isOwner && (
                           <>
                             <button onClick={() => openEdit(cat)} title="Edit"
-                              style={{ padding: 6, borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              className={styles.iconEdit}>
                               <MdEdit size={16} />
                             </button>
                             <button
@@ -291,9 +288,10 @@ export default function Categories() {
                                 }
                               }}
                               title="Delete"
-                              style={{ padding: 6, borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', color: cat.productCount > 0 ? 'var(--text-muted)' : 'var(--danger)', cursor: cat.productCount > 0 ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center' }}
-                              onMouseEnter={e => { if (cat.productCount === 0) e.currentTarget.style.background = 'var(--danger-light)' }}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              disabled={cat.productCount > 0}
+                              className={styles.iconDelete}
+                              style={{ color: cat.productCount > 0 ? 'var(--text-muted)' : 'var(--danger)', cursor: cat.productCount > 0 ? 'not-allowed' : 'pointer' }}
+                            >
                               <MdDelete size={16} />
                             </button>
                           </>

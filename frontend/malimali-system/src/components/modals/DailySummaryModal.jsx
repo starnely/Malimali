@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import {
   MdClose, MdAttachMoney, MdInventory, MdTrendingUp,
   MdPerson, MdLockClock, MdCheckCircle,
@@ -6,8 +6,9 @@ import {
   MdAccountBalanceWallet,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
-import { buildLiveSummary } from '@/utils/utils'
+import { buildLiveSummary, fmtQty } from '@/utils/utils'
 import * as XLSX from 'xlsx'
+import { API_BASE_URL } from '@/config/api'
 
 export default function DailySummaryModal({ onClose }) {
   const {
@@ -30,7 +31,7 @@ export default function DailySummaryModal({ onClose }) {
       if (!token) return
       try {
         const res = await fetch(
-          `http://localhost:5000/api/customers/repayments/month?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}&store=`,
+          `${API_BASE_URL}/api/customers/repayments/month?year=${new Date().getFullYear()}&month=${new Date().getMonth() + 1}&store=`,
           { headers: { Authorization: `Bearer ${token}` } }
         )
         if (!res.ok) return
@@ -238,7 +239,7 @@ export default function DailySummaryModal({ onClose }) {
     const net = summary.totalRevenue - expenseTotal  // ★ Phase 6: P&L
     const kpis = [
       ['Total Revenue', `KSh ${fmt(summary.totalRevenue)}`, 'Transactions', String(summary.totalTransactions)],
-      ['Total Profit', `KSh ${fmt(summary.totalProfit)}`, 'Items Sold', String(summary.totalItems)],
+      ['Total Profit', `KSh ${fmt(summary.totalProfit)}`, 'Items Sold', String(fmtQty(summary.totalItems || 0))],
       ['Cost of Goods', `KSh ${fmt(summary.totalCOGS)}`, '', ''],
       ['Total Expenses', `KSh ${fmt(expenseTotal)}`, 'Net (Rev−Exp)', `KSh ${fmt(net)}`],   // ★ Phase 6
       ['Debt Collected', `KSh ${fmt(totalDebtCollected)}`, 'Collections', String(todayRepayments.length)],
@@ -461,7 +462,7 @@ export default function DailySummaryModal({ onClose }) {
                   {[
                     { label: 'Total Revenue', value: `KSh ${summary.totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: 'var(--primary)', bg: 'var(--primary-light)' },
                     { label: 'Profit Today', value: `KSh ${summary.totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bg: summary.totalProfit >= 0 ? 'var(--success-light)' : 'var(--danger-light)' },
-                    { label: 'Items Sold', value: summary.totalItems, icon: <MdInventory />, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
+                    { label: 'Items Sold', value: fmtQty(summary?.totalItems || 0), icon: <MdInventory />, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
                     { label: 'Transactions', value: summary.totalTransactions, icon: <MdPerson />, color: 'var(--info-dark)', bg: 'var(--info-light)' },
                     { label: 'Debt Collected', value: `KSh ${totalDebtCollected.toLocaleString()}`, icon: <MdPeopleAlt />, color: '#0369a1', bg: '#e0f2fe' },
                   ].map((card, i) => (

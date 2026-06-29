@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   MdPhone, MdCheckCircle, MdRefresh, MdMoneyOff,
   MdBlock, MdWarning, MdCalendarToday, MdCreditCard,
@@ -6,6 +6,7 @@ import {
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import s from '@/styles/MyCredits.module.css'
+import { API_BASE_URL } from '@/config/api'
 
 // ── Helpers ───────────────────────────────────────────────────────────
 function daysUntil(dateStr) {
@@ -70,7 +71,7 @@ export default function MyCredits() {
       const token = currentUser?.token
       const id    = currentUser?._id || currentUser?.id
       if (!token || !id) return
-      const res  = await fetch(`http://localhost:5000/api/customers/cashier/${id}`, {
+      const res  = await fetch(`${API_BASE_URL}/api/customers/cashier/${id}`, {
         headers: { Authorization: `Bearer ${token}` }
       })
       if (!res.ok) throw new Error('Failed')

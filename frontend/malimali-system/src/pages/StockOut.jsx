@@ -1,6 +1,8 @@
 import { MdPointOfSale } from 'react-icons/md'
+import { fmtQty } from '@/utils/utils'
 import { useApp } from '@/context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import styles from '@/styles/StockOut.module.css'
 
 export default function StockOut() {
   const { sales, today, currentUser, isOwner } = useApp()
@@ -44,7 +46,7 @@ export default function StockOut() {
     },
     {
       label: hasFullView ? 'Total Items Sold' : 'My Items Sold',
-      value: todayItems,
+      value: fmtQty(todayItems),
       color: 'var(--success-dark)',
       bg: 'var(--success-light)',
     },
@@ -57,7 +59,7 @@ export default function StockOut() {
   ]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Fixed header ───────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4">
@@ -70,7 +72,7 @@ export default function StockOut() {
       </div>
 
       {/* ── Scrollable content ──────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
 
         {/* Summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
@@ -103,10 +105,8 @@ export default function StockOut() {
             </div>
           </div>
           <button onClick={() => navigate('/barcodes')}
-            className="w-full md:w-auto px-8 py-3 rounded-lg text-sm font-bold text-white transition-all flex items-center justify-center gap-2"
-            style={{ background: 'var(--primary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+            className={`w-full md:w-auto px-8 py-3 rounded-lg text-sm font-bold text-white transition-all flex items-center justify-center gap-2 ${styles.btnPrimary}`}
+          >
             Open POS Terminal
           </button>
         </div>
@@ -169,9 +169,9 @@ export default function StockOut() {
 
                     return (
                       <tr key={sale._id}
+                        className={!isVoided && !sale.returned ? styles.rowHover : ''}
                         style={{ background: rowBg, borderBottom: '1px solid var(--border-soft)', opacity: isVoided || sale.returned ? 0.75 : 1 }}
-                        onMouseEnter={e => { if (!isVoided && !sale.returned) e.currentTarget.style.background = 'var(--primary-light)' }}
-                        onMouseLeave={e => { if (!isVoided && !sale.returned) e.currentTarget.style.background = rowBg }}>
+                      >
 
                         <td className="px-5 py-3 text-xs font-black"
                           style={{ color: isVoided ? 'var(--danger-dark)' : 'var(--primary)', textDecoration: isVoided ? 'line-through' : 'none' }}>

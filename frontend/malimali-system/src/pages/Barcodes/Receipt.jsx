@@ -1,9 +1,9 @@
-import { useEffect, useRef, useState } from 'react'
+﻿import { useEffect, useRef, useState } from 'react'
 import { MdPrint, MdWarning } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import s from '@/styles/Barcodes.module.css'
+import { API_BASE_URL as API_BASE } from '@/config/api'
 
-const API_BASE = 'http://localhost:5000'
 
 export default function Receipt({ receipt, onClose }) {
   const { settings, currentUser, stores } = useApp()

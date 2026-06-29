@@ -5,6 +5,7 @@ import {
   MdLeaderboard, MdDownload
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { fmtQty } from '@/utils/utils'
 import styles from '@/styles/Reports.module.css'
 import * as XLSX from 'xlsx'
 import MonthlyReport from './MonthlyReport'
@@ -176,7 +177,7 @@ export default function Reports() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       <div className="flex-shrink-0 px-6 pt-6 pb-2">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-4">
@@ -230,7 +231,7 @@ export default function Reports() {
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         {activeTab === 'summary' && (
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
@@ -315,7 +316,7 @@ export default function Reports() {
                           <td className={styles.td}>{i + 1}</td>
                           <td className={styles.td} style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</td>
                           <td className={styles.td}>{p.category}</td>
-                          <td className={styles.td}>{p.qtySold}</td>
+                          <td className={styles.td}>{fmtQty(p.qtySold)}</td>
                           <td className={styles.td}>KSh {p.totalRevenue.toLocaleString()}</td>
                           <td className={styles.td}>KSh {p.totalCost.toLocaleString()}</td>
                           <td className={styles.td} style={{ fontWeight: '600', color: p.profit >= 0 ? 'var(--success-dark)' : 'var(--danger)' }}>

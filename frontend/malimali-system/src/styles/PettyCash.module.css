@@ -1,0 +1,17 @@
+.page {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-page);
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 768px) {
+  .page { overflow: visible; height: auto; min-height: 100%; }
+  .content { overflow: visible; flex: none; }
+}

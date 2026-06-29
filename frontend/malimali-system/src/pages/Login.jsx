@@ -3,8 +3,8 @@ import { MdLock, MdPerson, MdVisibility, MdVisibilityOff, MdClose, MdStore, MdTr
 import { useApp } from '@/context/AppContext'
 import { useSocketActions } from '@/context/SocketContext'
 import styles from '@/styles/Login.module.css'
+import { API_BASE_URL } from '@/config/api'
 
-const API_BASE_URL = 'http://localhost:5000'
 
 // ── Animated counter ──────────────────────────────────────────────────
 function Counter({ target, suffix = '' }) {
@@ -79,22 +79,25 @@ export default function Login({ onLogin }) {
   return (
     <>
       {/* ── Full page split layout ────────────────────────────────── */}
-      <div style={{
-        minHeight: '100vh', display: 'flex',
-        fontFamily: "'DM Sans', system-ui, sans-serif",
-      }}>
+      <div
+        className={styles.splitLayout}
+        style={{ minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}
+      >
 
         {/* ── LEFT — brand panel ──────────────────────────────────── */}
-        <div style={{
-          flex: '0 0 52%',
-          background: `linear-gradient(145deg, var(--sidebar-bg) 0%, var(--primary) 60%, var(--primary-dark) 100%)`,
-          display: 'flex', flexDirection: 'column', justifyContent: 'center',
-          padding: '60px 64px', position: 'relative', overflow: 'hidden',
-        }}>
-          {/* Decorative circles */}
-          <div style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', bottom: -60, left: -60, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', top: '40%', right: '10%', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
+        <div
+          className={styles.brandPanel}
+          style={{
+            background: `linear-gradient(145deg, var(--sidebar-bg) 0%, var(--primary) 60%, var(--primary-dark) 100%)`,
+            position: 'relative', overflow: 'hidden',
+          }}
+        >
+          {/* Decorative circles — desktop only */}
+          <div className={styles.brandDesktopOnly}>
+            <div style={{ position: 'absolute', top: -80, right: -80, width: 320, height: 320, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', bottom: -60, left: -60, width: 240, height: 240, borderRadius: '50%', background: 'rgba(255,255,255,0.04)', pointerEvents: 'none' }} />
+            <div style={{ position: 'absolute', top: '40%', right: '10%', width: 120, height: 120, borderRadius: '50%', background: 'rgba(255,255,255,0.03)', pointerEvents: 'none' }} />
+          </div>
 
           {/* Logo + company */}
           <div style={{
@@ -119,55 +122,64 @@ export default function Login({ onLogin }) {
               </div>
             </div>
 
-            <h1 style={{ fontSize: 38, fontWeight: 900, color: '#fff', lineHeight: 1.15, letterSpacing: '-0.03em', margin: '0 0 14px' }}>
-              Smart POS for<br />
-              <span style={{ color: 'rgba(255,255,255,0.5)' }}>Kenyan Business</span>
-            </h1>
-            <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: 0, maxWidth: 360 }}>
-              Manage sales, inventory, staff, suppliers and credit customers — all from one place.
-            </p>
+            <div className={styles.brandDesktopOnly}>
+              <h1 style={{ fontSize: 38, fontWeight: 900, color: '#fff', lineHeight: 1.15, letterSpacing: '-0.03em', margin: '0 0 14px' }}>
+                Smart POS for<br />
+                <span style={{ color: 'rgba(255,255,255,0.5)' }}>Kenyan Business</span>
+              </h1>
+              <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7, margin: 0, maxWidth: 360 }}>
+                Manage sales, inventory, staff, suppliers and credit customers — all from one place.
+              </p>
+            </div>
           </div>
 
-          {/* Animated stats grid */}
-          <div style={{
-            display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
-            opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(20px)',
-            transition: 'opacity 0.7s ease 0.15s, transform 0.7s ease 0.15s',
-          }}>
-            {stats.map((s, i) => (
-              <div key={i} style={{
-                background: 'rgba(255,255,255,0.07)',
-                border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 'var(--radius-lg)', padding: '16px 18px',
-                backdropFilter: 'blur(8px)',
-              }}>
-                <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.45)', marginBottom: 6 }}>{s.icon}</div>
-                <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
-                  {mounted ? <Counter target={s.value} suffix={s.suffix} /> : '0'}
+          {/* Animated stats grid — desktop only */}
+          <div className={styles.brandDesktopOnly}>
+            <div style={{
+              display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12,
+              opacity: mounted ? 1 : 0, transform: mounted ? 'translateY(0)' : 'translateY(20px)',
+              transition: 'opacity 0.7s ease 0.15s, transform 0.7s ease 0.15s',
+            }}>
+              {stats.map((s, i) => (
+                <div key={i} style={{
+                  background: 'rgba(255,255,255,0.07)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  borderRadius: 'var(--radius-lg)', padding: '16px 18px',
+                  backdropFilter: 'blur(8px)',
+                }}>
+                  <div style={{ fontSize: 20, color: 'rgba(255,255,255,0.45)', marginBottom: 6 }}>{s.icon}</div>
+                  <div style={{ fontSize: 24, fontWeight: 900, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
+                    {mounted ? <Counter target={s.value} suffix={s.suffix} /> : '0'}
+                  </div>
+                  <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
+                    {s.label}
+                  </div>
                 </div>
-                <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(255,255,255,0.35)', marginTop: 4 }}>
-                  {s.label}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Footer */}
-          <div style={{
-            marginTop: 44, fontSize: 10, color: 'rgba(255,255,255,0.25)',
-            fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
-            opacity: mounted ? 1 : 0, transition: 'opacity 0.8s ease 0.3s',
-          }}>
-            StanTech POS v3.0. All rights reserved.
+          {/* Footer — desktop only */}
+          <div className={styles.brandDesktopOnly}>
+            <div style={{
+              marginTop: 44, fontSize: 10, color: 'rgba(255,255,255,0.25)',
+              fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase',
+              opacity: mounted ? 1 : 0, transition: 'opacity 0.8s ease 0.3s',
+            }}>
+              StanTech POS v3.0. All rights reserved.
+            </div>
           </div>
         </div>
 
         {/* ── RIGHT — form panel ───────────────────────────────────── */}
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '40px 48px', background: 'var(--bg-page)',
-        }}>
+        <div
+          className={styles.formPanel}
+          style={{
+            flex: 1, display: 'flex', flexDirection: 'column',
+            alignItems: 'center',
+            background: 'var(--bg-page)',
+          }}
+        >
           <div style={{
             width: '100%', maxWidth: 400,
             opacity: mounted ? 1 : 0, transform: mounted ? 'translateX(0)' : 'translateX(20px)',
@@ -239,7 +251,12 @@ export default function Login({ onLogin }) {
                   onBlur={e => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none' }}
                   autoComplete="current-password"
                 />
-                <button className={styles.eyeBtn} style={{ color: 'var(--text-muted)' }} onClick={() => setShowPassword(v => !v)} type="button">
+                <button
+                  className={styles.eyeBtn}
+                  style={{ color: 'var(--text-muted)' }}
+                  onClick={() => setShowPassword(v => !v)}
+                  type="button"
+                >
                   {showPassword ? <MdVisibilityOff /> : <MdVisibility />}
                 </button>
               </div>
@@ -309,8 +326,12 @@ export default function Login({ onLogin }) {
             {/* Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-muted)' }}>
               <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>Account Recovery</span>
-              <button onClick={() => setShowHelp(false)} type="button"
-                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 22, display: 'flex', alignItems: 'center', padding: 0 }}>
+              <button
+                onClick={() => setShowHelp(false)}
+                type="button"
+                className={styles.closeBtn}
+                style={{ color: 'var(--text-muted)', fontSize: 22 }}
+              >
                 <MdClose />
               </button>
             </div>

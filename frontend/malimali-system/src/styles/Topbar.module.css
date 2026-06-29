@@ -1,0 +1,32 @@
+/* ── Icon buttons (warning, chat, bell, profile) ─────────────────────── */
+.iconBtn {
+  min-height: 36px;
+  min-width: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.iconBtn:active { opacity: 0.8; }
+
+@media (hover: hover) { .iconBtn:hover { background: var(--primary-light); } }
+
+@media (pointer: coarse) {
+  .iconBtn { min-height: 44px; min-width: 44px; }
+}
+
+/* ── Profile dropdown menu items ─────────────────────────────────────── */
+.menuBtn {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+@media (hover: hover) { .menuBtn:hover { background: var(--primary-light); } }
+.menuBtn:active { opacity: 0.8; }
+
+.menuBtnDanger {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+@media (hover: hover) { .menuBtnDanger:hover { background: var(--danger-light); } }
+.menuBtnDanger:active { opacity: 0.8; }

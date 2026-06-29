@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import {
   MdAdd, MdEdit, MdDelete, MdClose, MdLocalShipping,
   MdArchive, MdUnarchive, MdShoppingCart, MdFilterList,
@@ -6,6 +6,8 @@ import {
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import styles from '@/styles/Suppliers.module.css'
+import { API_BASE_URL } from '@/config/api'
 
 const emptyForm = {
   name: '', company: '', email: '', phone: '', address: '', notes: '', stores: []
@@ -49,8 +51,8 @@ export default function Suppliers() {
     setLoading(true)
     try {
       const url    = editingId
-        ? `http://localhost:5000/api/suppliers/${editingId}`
-        : 'http://localhost:5000/api/suppliers'
+        ? `${API_BASE_URL}/api/suppliers/${editingId}`
+        : `${API_BASE_URL}/api/suppliers`
       const method = editingId ? 'PUT' : 'POST'
       const res    = await fetch(url, {
         method,
@@ -68,7 +70,7 @@ export default function Suppliers() {
 
   const handleDelete = async (id) => {
     try {
-      const res  = await fetch(`http://localhost:5000/api/suppliers/${id}`, {
+      const res  = await fetch(`${API_BASE_URL}/api/suppliers/${id}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${currentUser?.token}` }
       })
       const data = await res.json()
@@ -79,7 +81,7 @@ export default function Suppliers() {
 
   const handleArchive = async (id) => {
     try {
-      const res  = await fetch(`http://localhost:5000/api/suppliers/${id}/archive`, {
+      const res  = await fetch(`${API_BASE_URL}/api/suppliers/${id}/archive`, {
         method: 'PATCH', headers: { Authorization: `Bearer ${currentUser?.token}` }
       })
       const data = await res.json()
@@ -129,7 +131,7 @@ export default function Suppliers() {
   )
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* Toast */}
       {toast && (
@@ -155,10 +157,8 @@ export default function Suppliers() {
             <MdFilterList size={16} /> {showArchived ? 'Showing All' : 'Show Archived'}
           </button>
           <button onClick={openAddModal}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition"
-            style={{ background: 'var(--primary)', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition ${styles.btnAdd}`}
+          >
             <MdAdd /> Add Supplier
           </button>
         </div>
@@ -179,7 +179,7 @@ export default function Suppliers() {
       </div>
 
       {/* Table */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}>
           <table className="w-full text-left">
             <thead>
@@ -212,9 +212,8 @@ export default function Suppliers() {
 
                 return (
                   <tr key={sup._id}
+                    className={styles.rowHover}
                     style={{ borderBottom: '1px solid var(--border-soft)', background: isArchived ? 'var(--bg-muted)' : i % 2 === 0 ? 'transparent' : 'var(--bg-muted)', opacity: isArchived ? 0.65 : 1 }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                    onMouseLeave={e => e.currentTarget.style.background = isArchived ? 'var(--bg-muted)' : i % 2 === 0 ? 'transparent' : 'var(--bg-muted)'}
                   >
                     <td className="px-4 py-3 text-center text-sm font-medium" style={{ color: 'var(--text-muted)' }}>{i + 1}</td>
 
@@ -274,31 +273,24 @@ export default function Suppliers() {
                         <div className="flex justify-center gap-2">
                           {!isArchived && (
                             <button onClick={() => navigate('/purchase-orders', { state: { supplierId: sup._id, supplierName: sup.name } })}
-                              title="Create PO" style={{ padding: 6, borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', color: 'var(--success)', cursor: 'pointer', display: 'flex' }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'var(--success-light)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              title="Create PO"
+                              className={`${styles.iconBtn} ${styles.iconBtnSuccess}`}>
                               <MdShoppingCart size={16} />
                             </button>
                           )}
                           <button onClick={() => openEditModal(sup)} title="Edit"
-                            style={{ padding: 6, borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', color: 'var(--primary)', cursor: 'pointer', display: 'flex' }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                            className={`${styles.iconBtn} ${styles.iconBtnPrimary}`}>
                             <MdEdit size={16} />
                           </button>
                           {isOwner && (
                             <button onClick={() => setArchiveId(sup._id)} title={isArchived ? 'Restore' : 'Archive'}
-                              style={{ padding: 6, borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', color: 'var(--warning-dark)', cursor: 'pointer', display: 'flex' }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'var(--warning-light)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              className={`${styles.iconBtn} ${styles.iconBtnWarning}`}>
                               {isArchived ? <MdUnarchive size={16} /> : <MdArchive size={16} />}
                             </button>
                           )}
                           {isOwner && (
                             <button onClick={() => setConfirmId(sup._id)} title="Delete"
-                              style={{ padding: 6, borderRadius: 'var(--radius-sm)', border: 'none', background: 'transparent', color: 'var(--danger)', cursor: 'pointer', display: 'flex' }}
-                              onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-light)'}
-                              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                              className={`${styles.iconBtn} ${styles.iconBtnDanger}`}>
                               <MdDelete size={16} />
                             </button>
                           )}

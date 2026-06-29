@@ -1,5 +1,6 @@
 import { MdEdit, MdDelete, MdStorefront, MdCalendarToday, MdWarning, MdScale } from 'react-icons/md'
 import styles from '@/styles/Products.module.css'
+import { fmtQty } from '@/utils/utils'
 
 export default function ProductCardRow({ product, stockBadge, openEdit, setRestockProduct, setDeleteConfirm }) {
   const today = new Date()
@@ -112,7 +113,7 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
       {/* ── Stock ────────────────────────────────────────── */}
       <td className="p-3 w-1/12">
         <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
-          {product.stock}
+          {fmtQty(product.stock)}
         </span>
         <span className="text-[10px] block" style={{ color: 'var(--text-muted)' }}>
           {unit}
@@ -161,42 +162,21 @@ export default function ProductCardRow({ product, stockBadge, openEdit, setResto
         <div className="flex items-center gap-1 flex-wrap">
           <button
             onClick={() => openEdit(product)}
-            className="p-1.5 rounded-lg transition"
+            className={`p-1.5 rounded-lg transition ${styles.actionBtnEdit}`}
             title="Edit"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'var(--primary-light)'
-              e.currentTarget.style.color = 'var(--primary)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = 'var(--text-muted)'
-            }}
           >
             <MdEdit className="text-base" />
           </button>
           <button
             onClick={() => setRestockProduct(product)}
-            className="px-2.5 py-1 text-xs font-bold rounded-lg text-white transition"
-            style={{ background: 'var(--success)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--success-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--success)'}
+            className={`px-2.5 py-1 text-xs font-bold rounded-lg text-white transition ${styles.actionBtnRestock}`}
           >
             Restock
           </button>
           <button
             onClick={() => setDeleteConfirm(product)}
-            className="p-1.5 rounded-lg transition"
+            className={`p-1.5 rounded-lg transition ${styles.actionBtnDelete}`}
             title="Delete"
-            style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={e => {
-              e.currentTarget.style.background = 'var(--danger-light)'
-              e.currentTarget.style.color = 'var(--danger)'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.background = 'transparent'
-              e.currentTarget.style.color = 'var(--text-muted)'
-            }}
           >
             <MdDelete className="text-base" />
           </button>

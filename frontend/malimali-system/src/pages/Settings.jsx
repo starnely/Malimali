@@ -1,5 +1,7 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
+import styles from '@/styles/Settings.module.css'
+import { API_BASE_URL as backendUrl } from '@/config/api'
 import {
   MdSave, MdStore, MdPayments, MdInventory,
   MdCloudUpload, MdCheckCircle, MdPhone, MdEmail,
@@ -107,7 +109,7 @@ export default function Settings() {
     if (!saveResult.success) { setError('Save failed before test. Check your settings.'); return }
 
     try {
-      const res  = await fetch('http://localhost:5000/api/setup/test-email', {
+      const res  = await fetch(`${backendUrl}/api/setup/test-email`, {
         method:  'POST',
         headers: { Authorization: `Bearer ${currentUser?.token}` },
       })
@@ -158,10 +160,9 @@ export default function Settings() {
   }
   const grid2 = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }
   const grid3 = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1.25rem' }
-  const backendUrl = 'http://localhost:5000'
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Fixed header ──────────────────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4" style={{ borderBottom: '1px solid var(--border-soft)', background: 'var(--bg-card)' }}>
@@ -194,7 +195,7 @@ export default function Settings() {
       </div>
 
       {/* ── Scrollable content ───────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      <div className="md:flex-1 md:overflow-y-auto px-6 py-5">
 
         {/* Toast messages */}
         {saved && (
@@ -216,7 +217,7 @@ export default function Settings() {
             <span style={titleIcon}><MdStore /></span>
             Branding &amp; Identity
           </div>
-          <div style={{ ...grid2, marginBottom: '1.25rem' }}>
+          <div className={styles.grid2} style={{ marginBottom: '1.25rem' }}>
             <div>
               <span style={label}>Business Name</span>
               <input style={inputBase} value={form.companyName || ''} onChange={e => handleChange('companyName', e.target.value)} onFocus={onFocus} onBlur={onBlur} placeholder="e.g. Family Stores Ltd" />
@@ -248,7 +249,7 @@ export default function Settings() {
             <span style={titleIcon}><MdPhone /></span>
             Contact Details
           </div>
-          <div style={grid3}>
+          <div className={styles.grid3}>
             <div>
               <span style={label}>Phone Number</span>
               <input style={inputBase} value={form.phone || ''} onChange={e => handleChange('phone', e.target.value)} onFocus={onFocus} onBlur={onBlur} placeholder="e.g. 0700 123 456" />
@@ -300,7 +301,7 @@ export default function Settings() {
             <span style={titleIcon}><MdReceipt /></span>
             Receipt &amp; Inventory
           </div>
-          <div style={{ ...grid3, marginBottom: '1.25rem' }}>
+          <div className={styles.grid3} style={{ marginBottom: '1.25rem' }}>
             <div>
               <span style={label}>Receipt ID Prefix</span>
               <input style={inputBase} value={form.receiptPrefix || ''} onChange={e => handleChange('receiptPrefix', e.target.value)} onFocus={onFocus} onBlur={onBlur} placeholder="RCP" />
@@ -400,7 +401,7 @@ export default function Settings() {
             Do <strong>not</strong> use your regular Gmail password.
           </div>
 
-          <div style={{ ...grid2, marginBottom: '1.25rem' }}>
+          <div className={styles.grid2} style={{ marginBottom: '1.25rem' }}>
             <div>
               <span style={label}>SMTP Host</span>
               <input style={inputBase} value={form.smtpHost || ''} onChange={e => handleChange('smtpHost', e.target.value)} onFocus={onFocus} onBlur={onBlur} placeholder="smtp.gmail.com" />
@@ -445,7 +446,7 @@ export default function Settings() {
             <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: 6 }}>
               <MdLanguage size={14} /> PDF Letterhead Details
             </div>
-            <div style={grid2}>
+            <div className={styles.grid2}>
               <div>
                 <span style={label}>Full Business Address (for PDF)</span>
                 <input style={inputBase} value={form.businessAddress || ''} onChange={e => handleChange('businessAddress', e.target.value)} onFocus={onFocus} onBlur={onBlur} placeholder="123 Kimathi St, Nairobi, Kenya" />

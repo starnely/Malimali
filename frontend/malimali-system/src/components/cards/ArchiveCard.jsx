@@ -3,6 +3,7 @@ import {
   MdAttachMoney, MdTrendingUp, MdPointOfSale,
   MdInventory, MdRefresh, MdStore
 } from 'react-icons/md'
+import { fmtQty } from '@/utils/utils'
 
 export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebtors }) {
   const pb = archive.paymentBreakdown || {}
@@ -89,7 +90,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                {archive.totalTransactions} transactions · {archive.totalItems} items sold
+                {archive.totalTransactions} transactions · {fmtQty(archive.totalItems || 0)} items sold
               </span>
               {archive.store && (
                 <span
@@ -133,7 +134,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
               { label: 'Total Revenue', value: `KSh ${(archive.totalRevenue || 0).toLocaleString()}`, color: 'var(--primary)',      bg: 'var(--primary-light)',  icon: <MdAttachMoney /> },
               { label: 'Total Profit',  value: `KSh ${(archive.totalProfit  || 0).toLocaleString()}`, color: 'var(--success-dark)', bg: 'var(--success-light)', icon: <MdTrendingUp />  },
               { label: 'Transactions',  value: archive.totalTransactions || 0,                        color: 'var(--warning-dark)', bg: 'var(--warning-light)', icon: <MdPointOfSale /> },
-              { label: 'Items Sold',    value: archive.totalItems        || 0,                        color: 'var(--info-dark)',    bg: 'var(--info-light)',    icon: <MdInventory />   },
+              { label: 'Items Sold',    value: fmtQty(archive.totalItems || 0),                      color: 'var(--info-dark)',    bg: 'var(--info-light)',    icon: <MdInventory />   },
             ].map((card, i) => (
               <div
                 key={i}

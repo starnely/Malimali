@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+﻿import { useState, useMemo, useEffect } from 'react'
 import {
   MdCheckCircle, MdBarChart, MdAccessTime,
   MdAttachMoney, MdTrendingUp, MdToday,
@@ -7,11 +7,13 @@ import {
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import { fmtQty } from '@/utils/utils'
 import EmployeeSalesModal from '@/components/modals/EmployeeSalesModal'
 import DailySummaryModal from '@/components/modals/DailySummaryModal'
 import styles from '@/styles/Dashboard.module.css'
 import Button from '@/components/shared/Button'
 import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
+import { API_BASE_URL } from '@/config/api'
 
 export default function Dashboard() {
   const {
@@ -61,7 +63,7 @@ export default function Dashboard() {
       try {
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
         const stockQuery = store ? `?store=${encodeURIComponent(store)}` : ''
-        const res = await fetch(`http://localhost:5000/api/products/low-stock${stockQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const res = await fetch(`${API_BASE_URL}/api/products/low-stock${stockQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
         if (active) setLowStockCount(data.count ?? data.products?.length ?? 0)
       } catch { if (active) setLowStockCount(0) }
@@ -95,7 +97,7 @@ export default function Dashboard() {
       try {
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
         const debtQuery = store ? `?store=${encodeURIComponent(store)}` : ''
-        const res = await fetch(`http://localhost:5000/api/purchase-orders/outstanding${debtQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const res = await fetch(`${API_BASE_URL}/api/purchase-orders/outstanding${debtQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
         if (active) { setSupplierDebt(data.totalOutstanding || 0); setSupplierDebtCount(data.count || 0); setPendingInvoiceCount(data.pendingInvoiceCount || 0) }
       } catch { if (active) { setSupplierDebt(0); setSupplierDebtCount(0) } }
@@ -115,7 +117,7 @@ export default function Dashboard() {
         if (!currentUser?.token) return
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
         const q = store ? `?store=${encodeURIComponent(store)}` : ''
-        fetch(`http://localhost:5000/api/purchase-orders/outstanding${q}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        fetch(`${API_BASE_URL}/api/purchase-orders/outstanding${q}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
           .then(r => r.json()).then(d => { setSupplierDebt(d.totalOutstanding || 0); setSupplierDebtCount(d.count || 0); setPendingInvoiceCount(d.pendingInvoiceCount || 0) }).catch(() => { })
       })
     }
@@ -208,11 +210,8 @@ export default function Dashboard() {
   const hourNow = new Date().getHours()
   const greeting = hourNow < 12 ? 'Morning' : hourNow < 17 ? 'Afternoon' : 'Evening'
 
-  const hoverLift = e => { e.currentTarget.style.boxShadow = 'var(--shadow-dropdown)'; e.currentTarget.style.transform = 'translateY(-2px)' }
-  const hoverReset = e => { e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = 'translateY(0)' }
-
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100%', background: 'var(--bg-page)', padding: '24px 28px 48px', gap: 20 }}>
+    <div className={styles.page}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'var(--text-muted)', marginBottom: 4 }}>
@@ -229,15 +228,15 @@ export default function Dashboard() {
       </div>
 
       <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
-        <div className={`${styles.card} ${styles['card-warning']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/sales-history')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div className={`${styles.card} ${styles['card-warning']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/sales-history')}>
           <div className={`${styles.icon} ${styles['icon-warning']}`}><MdToday style={{ fontSize: 20 }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Revenue</div>
             <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {todayRevenue.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{todayQty} items sold</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{fmtQty(todayQty)} items sold</div>
           </div>
         </div>
-        <div className={`${styles.card} ${styles[todayProfit >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div className={`${styles.card} ${styles[todayProfit >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')}>
           <div className={`${styles.icon} ${styles[todayProfit >= 0 ? 'icon-success' : 'icon-danger']}`}>
             {todayProfit >= 0 ? <MdArrowUpward style={{ fontSize: 20 }} /> : <MdArrowDownward style={{ fontSize: 20 }} />}
           </div>
@@ -247,7 +246,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{profitMargin}% margin</div>
           </div>
         </div>
-        <div className={`${styles.card} ${styles[expenseTotal > 0 ? 'card-danger' : 'card-primary']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/expenses')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div className={`${styles.card} ${styles[expenseTotal > 0 ? 'card-danger' : 'card-primary']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/expenses')}>
           <div className={`${styles.icon} ${styles[expenseTotal > 0 ? 'icon-danger' : 'icon-primary']}`}><MdAttachMoney style={{ fontSize: 20 }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Expenses</div>
@@ -255,7 +254,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{expenseLoading ? 'Loading...' : expenseTotal > 0 ? `${expenseCats} categor${expenseCats !== 1 ? 'ies' : 'y'}` : 'None logged today'}</div>
           </div>
         </div>
-        <div className={`${styles.card} ${styles[netPosition >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div className={`${styles.card} ${styles[netPosition >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')}>
           <div className={`${styles.icon} ${styles[netPosition >= 0 ? 'icon-success' : 'icon-danger']}`}><MdTrendingUp style={{ fontSize: 20 }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Net Position</div>
@@ -266,13 +265,13 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
-        <div onClick={() => navigate('/products', { state: { filter: 'lowStock' } })} className={styles['animate-slideUp']} style={{ background: lowStockCount > 0 ? '#fff7ed' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? '#ea580c' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div onClick={() => navigate('/products', { state: { filter: 'lowStock' } })} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: lowStockCount > 0 ? '#fff7ed' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? '#ea580c' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: lowStockCount > 0 ? '#fed7aa' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdWarning style={{ color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
           <div style={{ fontSize: 26, fontWeight: 900, color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{stockLoading ? '—' : lowStockCount}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', marginBottom: 2 }}>Low Stock</div>
           <div style={{ fontSize: 11, color: lowStockCount > 0 ? '#92400e' : 'var(--text-muted)' }}>{stockLoading ? 'Checking...' : lowStockCount === 0 ? 'All levels OK ✓' : 'Click to view'}</div>
         </div>
-        <div onClick={() => navigate('/purchase-orders')} className={styles['animate-slideUp']} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? '#fecaca' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div onClick={() => navigate('/purchase-orders')} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? '#fecaca' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: supplierDebt > 0 ? '#fecaca' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdPayments style={{ color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
           <div style={{ fontSize: supplierDebt > 0 ? 18 : 26, fontWeight: 900, color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{supplierDebtLoading ? '—' : supplierDebt > 0 ? `KSh ${supplierDebt.toLocaleString()}` : '✓'}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Supplier Debt</div>
@@ -281,7 +280,7 @@ export default function Dashboard() {
             <div style={{ fontSize: 10, color: 'var(--warning-dark)', marginTop: 3 }}>⚠ {pendingInvoiceCount} awaiting invoice</div>
           )}
         </div>
-        <div onClick={() => navigate('/sales-history')} className={styles['animate-slideUp']} style={{ background: safeReturns.length > 0 ? 'var(--info-light)' : 'var(--bg-card)', border: `1px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }} onMouseEnter={hoverLift} onMouseLeave={hoverReset}>
+        <div onClick={() => navigate('/sales-history')} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: safeReturns.length > 0 ? 'var(--info-light)' : 'var(--bg-card)', border: `1px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: safeReturns.length > 0 ? 'var(--info)' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdShoppingCart style={{ color: safeReturns.length > 0 ? '#fff' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
           <div style={{ fontSize: 26, fontWeight: 900, color: safeReturns.length > 0 ? 'var(--info-dark)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{safeReturns.length}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: safeReturns.length > 0 ? 'var(--info-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Pending Returns</div>
@@ -300,7 +299,7 @@ export default function Dashboard() {
           <h2 className={styles.title} style={{ margin: 0 }}>
             <MdBarChart style={{ color: 'var(--primary)', fontSize: 18 }} /> Sales by Employee Today
           </h2>
-          {sellerStats.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{sellerStats.length} active · {todayQty} items</span>}
+          {sellerStats.length > 0 && <span style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{sellerStats.length} active · {fmtQty(todayQty)} items</span>}
         </div>
         {sellerStats.length === 0 ? (
           <div className={styles.empty}><div style={{ fontSize: 32, marginBottom: 8 }}>📊</div>No sales recorded today</div>
@@ -328,7 +327,7 @@ export default function Dashboard() {
                   <div style={{ height: 4, borderRadius: 4, background: 'var(--border-soft)', overflow: 'hidden', marginBottom: 5 }}>
                     <div style={{ height: '100%', width: `${share}%`, background: 'var(--primary)', borderRadius: 4, transition: 'width 0.5s ease' }} />
                   </div>
-                  <div className={styles.muted}>{s.count} sales · {s.qty} items · {share}% of today</div>
+                  <div className={styles.muted}>{s.count} sales · {fmtQty(s.qty)} items · {share}% of today</div>
                 </div>
               )
             })}
@@ -352,7 +351,7 @@ function DebtWidget({ summary, loading, onNavigate }) {
     <div className={styles.box} style={{ padding: '20px 24px', cursor: 'pointer' }} onClick={onNavigate}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
         <h2 className={styles.title} style={{ margin: 0 }}><MdPeopleAlt style={{ color: 'var(--primary)' }} /> Debtor Tracker</h2>
-        <button onClick={e => { e.stopPropagation(); onNavigate() }} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View All →</button>
+        <button onClick={e => { e.stopPropagation(); onNavigate() }} className={styles.widgetAction} style={{ fontSize: 12, fontWeight: 700, color: 'var(--primary)', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>View All →</button>
       </div>
       {!summary || summary.activeCount === 0 ? (
         <div className={styles.empty} style={{ padding: '12px 0' }}>✅ No outstanding credit balances</div>
@@ -377,7 +376,7 @@ function DebtWidget({ summary, loading, onNavigate }) {
                 <MdWarning style={{ color: '#ea580c', fontSize: 16, flexShrink: 0 }} />
                 {summary.overdueCount} customer{summary.overdueCount !== 1 ? 's have' : ' has'} passed their payment deadline
               </div>
-              <button onClick={e => { e.stopPropagation(); onNavigate() }} style={{ padding: '5px 12px', background: '#ea580c', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Follow Up</button>
+              <button onClick={e => { e.stopPropagation(); onNavigate() }} className={styles.widgetAction} style={{ padding: '5px 12px', background: '#ea580c', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Follow Up</button>
             </div>
           )}
         </>

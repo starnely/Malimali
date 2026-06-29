@@ -16,10 +16,17 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  min-height: 36px;
+  min-width: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-.btnBlue:hover {
-  background: var(--primary);
-  color: #fff;
+@media (hover: hover) {
+  .btnBlue:hover { background: var(--primary); color: #fff; }
+}
+.btnBlue:active { background: var(--primary); color: #fff; }
+@media (pointer: coarse) {
+  .btnBlue { min-height: 44px; min-width: 44px; }
 }
 
 .btnYellow {
@@ -33,10 +40,17 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  min-height: 36px;
+  min-width: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-.btnYellow:hover {
-  background: var(--warning);
-  color: #fff;
+@media (hover: hover) {
+  .btnYellow:hover { background: var(--warning); color: #fff; }
+}
+.btnYellow:active { background: var(--warning); color: #fff; }
+@media (pointer: coarse) {
+  .btnYellow { min-height: 44px; min-width: 44px; }
 }
 
 .btnRed {
@@ -50,17 +64,80 @@
   align-items: center;
   justify-content: center;
   transition: all 0.15s ease;
+  min-height: 36px;
+  min-width: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-.btnRed:hover {
-  background: var(--danger);
-  color: #fff;
+@media (hover: hover) {
+  .btnRed:hover { background: var(--danger); color: #fff; }
+}
+.btnRed:active { background: var(--danger); color: #fff; }
+@media (pointer: coarse) {
+  .btnRed { min-height: 44px; min-width: 44px; }
 }
 
 .rowHover {
   transition: background 0.15s ease;
+  touch-action: manipulation;
 }
-.rowHover:hover {
-  background: var(--primary-light) !important;
+@media (hover: hover) {
+  .rowHover:hover { background: var(--primary-light) !important; }
+}
+.rowHover:active { background: var(--primary-light) !important; }
+
+.btnAdd {
+  background: var(--primary);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .btnAdd:hover { background: var(--primary-dark); }
+}
+.btnAdd:active { background: var(--primary-dark); }
+@media (pointer: coarse) {
+  .btnAdd { min-height: 44px; }
+}
+
+.modalSave {
+  background: var(--primary);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .modalSave:hover { background: var(--primary-dark); }
+}
+.modalSave:active { background: var(--primary-dark); }
+@media (pointer: coarse) {
+  .modalSave { min-height: 44px; }
+}
+
+.modalDelete {
+  background: var(--danger);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .modalDelete:hover { background: var(--danger-dark); }
+}
+.modalDelete:active { background: var(--danger-dark); }
+@media (pointer: coarse) {
+  .modalDelete { min-height: 44px; }
 }
 
 @keyframes fadeIn {

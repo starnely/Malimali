@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+﻿import { useState, useEffect, useRef, useCallback } from 'react'
 import { MdPointOfSale, MdTableChart, MdBarChart, MdStorefront } from 'react-icons/md'
 import JsBarcode from 'jsbarcode'
 import { useApp } from '@/context/AppContext'
@@ -10,8 +10,8 @@ import CheckoutModal from './CheckoutModal'
 import ProductBarcodesTable from './ProductBarcodesTable'
 import ScanPanel from './ScanPanel'
 import GenerateBarcodes from './GenerateBarcodes'
+import { API_BASE_URL as API } from '@/config/api'
 
-const API = 'http://localhost:5000'
 
 export default function Barcodes() {
   const {
@@ -472,8 +472,11 @@ export default function Barcodes() {
               key={t.id}
               onClick={() => setTab(t.id)}
               className={`${p.posTabBtn} ${tab === t.id ? p.posTabBtnActive : ''}`}
+              aria-label={t.label}
+              title={t.label}
             >
-              {t.icon} {t.label}
+              {t.icon}
+              <span className={p.posTabBtnLabel}>{t.label}</span>
               {t.id === 'scan' && cartCount > 0 && (
                 <span className={p.posTabCartBadge}>{cartCount}</span>
               )}

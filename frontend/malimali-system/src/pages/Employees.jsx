@@ -84,7 +84,7 @@ export default function Employees() {
   const onBlur  = (key) => (e) => { e.target.style.borderColor = formErrors[key] ? 'var(--danger)' : 'var(--border-medium)'; e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-muted)' }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Fixed header ─────────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4">
@@ -99,10 +99,7 @@ export default function Employees() {
           </div>
           <button
             onClick={openAdd}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition"
-            style={{ background: 'var(--primary)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition ${styles.btnAdd}`}
           >
             <MdAdd /> Add New Staff
           </button>
@@ -121,7 +118,7 @@ export default function Employees() {
       </div>
 
       {/* ── Scrollable content ───────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}>
           <table className="w-full border-collapse">
             <thead>
@@ -272,10 +269,8 @@ export default function Employees() {
                   Cancel
                 </button>
                 <button onClick={handleSave}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition"
-                  style={{ background: 'var(--primary)', border: 'none', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition ${styles.modalSave}`}
+                >
                   {editUser ? 'Update Account' : 'Create Account'}
                 </button>
               </div>
@@ -303,10 +298,8 @@ export default function Employees() {
                   Cancel
                 </button>
                 <button onClick={() => { deleteUser(confirmDelete._id); setConfirmDelete(null) }}
-                  className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition"
-                  style={{ background: 'var(--danger)', border: 'none', cursor: 'pointer' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-dark)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'var(--danger)'}>
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition ${styles.modalDelete}`}
+                >
                   Yes, Delete
                 </button>
               </div>

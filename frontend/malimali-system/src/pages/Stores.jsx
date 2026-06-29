@@ -1,17 +1,20 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { MdAdd, MdEdit, MdDelete, MdClose, MdStorefront } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { API_BASE_URL } from '@/config/api'
+import styles from '@/styles/Stores.module.css'
 
 const emptyForm = { name: '', location: '', phone: '' }
 
 export default function Stores() {
-  const { stores, fetchStores, currentUser } = useApp()
+  const { stores, fetchStores, fetchProducts, currentUser } = useApp()
 
-  const [showModal,  setShowModal]  = useState(false)
-  const [loading,    setLoading]    = useState(false)
-  const [editingId,  setEditingId]  = useState(null)
-  const [confirmId,  setConfirmId]  = useState(null)
-  const [formData,   setFormData]   = useState(emptyForm)
+  const [showModal,      setShowModal]      = useState(false)
+  const [loading,        setLoading]        = useState(false)
+  const [editingId,      setEditingId]      = useState(null)
+  const [confirmId,      setConfirmId]      = useState(null)
+  const [formData,       setFormData]       = useState(emptyForm)
+  const [cascadeWarning, setCascadeWarning] = useState(false)
 
   useEffect(() => {
     if (currentUser?.token) fetchStores()
@@ -20,10 +23,11 @@ export default function Stores() {
   const handleSubmit = async () => {
     if (!formData.name.trim()) return
     setLoading(true)
+    setCascadeWarning(false)
     try {
       const url    = editingId
-        ? `http://localhost:5000/api/stores/${editingId}`
-        : 'http://localhost:5000/api/stores'
+        ? `${API_BASE_URL}/api/stores/${editingId}`
+        : `${API_BASE_URL}/api/stores`
       const method = editingId ? 'PUT' : 'POST'
       const res    = await fetch(url, {
         method,
@@ -39,6 +43,8 @@ export default function Stores() {
       setFormData(emptyForm)
       setEditingId(null)
       await fetchStores()
+      await fetchProducts()
+      if (data.cascadeWarning) setCascadeWarning(true)
     } catch (err) {
       console.error(err)
     } finally {
@@ -48,7 +54,7 @@ export default function Stores() {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/stores/${id}`, {
+      await fetch(`${API_BASE_URL}/api/stores/${id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${currentUser?.token}` },
       })
@@ -72,7 +78,17 @@ export default function Stores() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+
+      {/* ── Cascade warning banner ─────────────────────── */}
+      {cascadeWarning && (
+        <div className="flex-shrink-0 mx-6 mt-4 flex items-start gap-2.5 p-3.5 rounded-xl text-xs font-medium"
+          style={{ background: 'var(--warning-light)', border: '1px solid var(--warning-dark)', color: 'var(--warning-dark)' }}>
+          <span className="flex-shrink-0 mt-0.5">⚠️</span>
+          <span>Store renamed, but some linked records (products, sales, expenses) may not have updated. Please contact your administrator to run a data repair.</span>
+          <button onClick={() => setCascadeWarning(false)} className="ml-auto flex-shrink-0 font-bold opacity-60 hover:opacity-100">✕</button>
+        </div>
+      )}
 
       {/* ── Fixed header ───────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4 flex justify-between items-center">
@@ -86,17 +102,14 @@ export default function Stores() {
         </div>
         <button
           onClick={openAddModal}
-          className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition"
-          style={{ background: 'var(--primary)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition ${styles.btnAdd}`}
         >
           <MdAdd /> Add Branch
         </button>
       </div>
 
       {/* ── Scrollable content ──────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         <div
           className="rounded-xl overflow-hidden"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}
@@ -129,12 +142,11 @@ export default function Stores() {
                 stores.map((store, i) => (
                   <tr
                     key={store._id || i}
+                    className={styles.rowHover}
                     style={{
                       borderBottom: '1px solid var(--border-soft)',
                       background: i % 2 === 0 ? 'transparent' : 'var(--bg-muted)',
                     }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                    onMouseLeave={e => e.currentTarget.style.background = i % 2 === 0 ? 'transparent' : 'var(--bg-muted)'}
                   >
                     <td className="px-4 py-3 text-center text-sm font-medium" style={{ color: 'var(--text-muted)' }}>
                       {i + 1}
@@ -177,19 +189,13 @@ export default function Stores() {
                         <div className="flex justify-center gap-3">
                           <button
                             onClick={() => openEditModal(store)}
-                            className="p-1.5 rounded-lg transition"
-                            style={{ color: 'var(--primary)' }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            className={styles.iconEdit}
                           >
                             <MdEdit size={17} />
                           </button>
                           <button
                             onClick={() => setConfirmId(store._id)}
-                            className="p-1.5 rounded-lg transition"
-                            style={{ color: 'var(--danger)' }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-light)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                            className={styles.iconDelete}
                           >
                             <MdDelete size={17} />
                           </button>

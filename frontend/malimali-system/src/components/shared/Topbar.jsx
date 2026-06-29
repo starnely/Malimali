@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import {
   MdNotifications, MdPerson, MdWarning, MdClose, MdLocationOn,
   MdAccessTime, MdLogout, MdAccountCircle, MdLockClock, MdChat,
@@ -9,6 +9,8 @@ import { useSocket } from '@/context/SocketContext'
 import { useLocation, useNavigate } from 'react-router-dom'
 import ChatModal from '@/components/modals/ChatModal'
 import DailySummaryModal from '@/components/modals/DailySummaryModal'
+import { API_BASE_URL as backendUrl } from '@/config/api'
+import tb from '@/styles/Topbar.module.css'
 
 const pageTitles = {
   '/': 'Dashboard',
@@ -153,7 +155,6 @@ export default function TopBar() {
   const [showDailySummary, setShowDailySummary] = useState(false)
   const [showChat, setShowChat] = useState(false)
 
-  const backendUrl = 'http://localhost:5000'
   const alreadyClosed = hasClosedShiftToday?.() || false
 
   useEffect(() => {
@@ -301,11 +302,11 @@ export default function TopBar() {
 
       {/* ── TopBar ──────────────────────────────────────────────────── */}
       <div
-        className="h-[62px] flex items-center justify-between px-6 sticky top-0 z-50"
+        className="h-[62px] flex items-center justify-between px-3 sm:px-6 sticky top-0 z-50"
         style={{ background: 'var(--topbar-bg)', borderBottom: '1px solid var(--topbar-border)', boxShadow: 'var(--topbar-shadow)' }}
       >
         {/* LEFT */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
           {settings?.logo ? (
             <img src={`${backendUrl}${settings.logo}`} alt="Logo" className="w-8 h-8 object-contain rounded-lg flex-shrink-0"
               style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-soft)', padding: '3px' }} />
@@ -314,16 +315,16 @@ export default function TopBar() {
               {businessName.charAt(0).toUpperCase()}
             </div>
           )}
-          <div>
-            <h1 className="text-base font-bold leading-none" style={{ color: 'var(--text-primary)' }}>{pageTitle}</h1>
-            <div className="flex items-center gap-1 mt-1">
-              <span className="text-[11px] font-semibold" style={{ color: 'var(--primary)' }}>{businessName}</span>
+          <div className="min-w-0">
+            <h1 className="text-base font-bold leading-none truncate" style={{ color: 'var(--text-primary)' }}>{pageTitle}</h1>
+            <div className="flex items-center gap-1 mt-1 overflow-hidden">
+              <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--primary)' }}>{businessName}</span>
               {settings?.location && (
-                <>
+                <span className="hidden min-[500px]:inline-flex items-center gap-1">
                   <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>·</span>
                   <MdLocationOn className="text-[11px]" style={{ color: 'var(--text-muted)' }} />
                   <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{settings.location}</span>
-                </>
+                </span>
               )}
             </div>
           </div>
@@ -383,7 +384,7 @@ export default function TopBar() {
           {/* Low stock warning — owner only */}
           {isOwner && (
             <button onClick={() => navigate('/products', { state: { filter: 'lowStock' } })}
-              className="relative p-2 rounded-lg transition"
+              className={`relative p-2 rounded-lg transition ${tb.iconBtn}`}
               style={{ background: lowStockCount > 0 ? 'var(--warning-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
               onMouseEnter={e => e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'var(--bg-muted)'}
               onMouseLeave={e => e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'transparent'}>
@@ -398,7 +399,7 @@ export default function TopBar() {
           )}
 
           {/* Chat */}
-          <button onClick={handleOpenChat} className="relative p-2 rounded-lg transition"
+          <button onClick={handleOpenChat} className={`relative p-2 rounded-lg transition ${tb.iconBtn}`}
             style={{ background: unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
             onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
             onMouseLeave={e => e.currentTarget.style.background = unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent'}>
@@ -412,10 +413,8 @@ export default function TopBar() {
           </button>
 
           {/* Notifications bell */}
-          <button onClick={handleOpenNotifications} className="relative p-2 rounded-lg transition"
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <button onClick={handleOpenNotifications} className={`relative p-2 rounded-lg transition ${tb.iconBtn}`}
+            style={{ border: 'none', cursor: 'pointer' }}>
             <MdNotifications className="text-xl" style={{ color: 'var(--text-primary)' }} />
             {unreadCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
@@ -431,7 +430,7 @@ export default function TopBar() {
           <div className="relative">
             <button
               onClick={(e) => { e.stopPropagation(); setShowProfileMenu(!showProfileMenu) }}
-              className="flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all"
+              className={`flex items-center gap-2.5 px-2.5 py-1.5 rounded-xl transition-all ${tb.iconBtn}`}
               style={showProfileMenu
                 ? { background: 'var(--primary-light)', border: '1px solid var(--primary-muted)' }
                 : { border: '1px solid transparent' }
@@ -482,29 +481,23 @@ export default function TopBar() {
                   </div>
                   <div className="p-2">
                     <button onClick={() => { navigate('/profile'); setShowProfileMenu(false) }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition"
-                      style={{ color: 'var(--text-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${tb.menuBtn}`}
+                      style={{ color: 'var(--text-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                       <MdAccountCircle className="text-xl flex-shrink-0" style={{ color: 'var(--primary)' }} />
                       My Profile
                     </button>
                     {canSeeSettings && (
                       <button onClick={() => { navigate('/settings'); setShowProfileMenu(false) }}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition"
-                        style={{ color: 'var(--text-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                        className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${tb.menuBtn}`}
+                        style={{ color: 'var(--text-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                         <MdSettings className="text-xl flex-shrink-0" style={{ color: 'var(--primary)' }} />
                         Settings
                       </button>
                     )}
                     <div className="my-1.5 mx-2" style={{ height: 1, background: 'var(--border-soft)' }} />
                     <button onClick={() => { logout(); setShowProfileMenu(false) }}
-                      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition"
-                      style={{ color: 'var(--danger-dark)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-light)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${tb.menuBtnDanger}`}
+                      style={{ color: 'var(--danger-dark)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                       <MdLogout className="text-xl flex-shrink-0" />
                       Sign Out
                     </button>

@@ -39,12 +39,17 @@
   padding: 0.875rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  touch-action: manipulation;
+  user-select: none;
 }
-.employeeCard:hover {
-  box-shadow: var(--shadow-card);
-  transform: scale(1.02);
-  border-color: var(--primary-muted);
+@media (hover: hover) {
+  .employeeCard:hover {
+    box-shadow: var(--shadow-card);
+    transform: scale(1.02);
+    border-color: var(--primary-muted);
+  }
 }
+.employeeCard:active { transform: scale(0.99); }
 
 .muted {
   font-size: 0.75rem;
@@ -63,12 +68,15 @@
 .row:last-child {
   border-bottom: none;
 }
-.row:hover {
-  background: var(--bg-muted);
-  border-radius: var(--radius-sm);
-  padding-left: 6px;
-  padding-right: 6px;
+@media (hover: hover) {
+  .row:hover {
+    background: var(--bg-muted);
+    border-radius: var(--radius-sm);
+    padding-left: 6px;
+    padding-right: 6px;
+  }
 }
+.row:active { background: var(--bg-muted); }
 
 /* ── Stat Cards ─────────────────────────────────────────── */
 .card {
@@ -81,11 +89,16 @@
   gap: 0.875rem;
   box-shadow: var(--shadow-card);
   transition: all 0.2s ease;
+  touch-action: manipulation;
+  user-select: none;
 }
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.09);
+  }
 }
+.card:active { transform: scale(0.98); }
 
 /* Primary — Total Stock */
 .card-primary {
@@ -160,3 +173,38 @@
 
 .animate-fadeIn { animation: fadeIn 0.4s ease-out; }
 .animate-slideUp { animation: slideUp 0.4s ease-out; }
+
+/* ── Page layout ─────────────────────────────────────────── */
+.page {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+  background: var(--bg-page);
+  padding: 24px 28px 48px;
+  gap: 20px;
+}
+@media (max-width: 480px) {
+  .page { padding: 16px 16px 40px; gap: 12px; }
+}
+
+/* ── Metric tiles (Low Stock, Supplier Debt, Returns) ────── */
+.metricTile {
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .metricTile:hover { transform: translateY(-2px); }
+}
+.metricTile:active { transform: scale(0.98); }
+
+/* ── Small widget action buttons ─────────────────────────── */
+.widgetAction {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 8px;
+  touch-action: manipulation;
+  user-select: none;
+}
+.widgetAction:active { opacity: 0.8; }
+@media (pointer: coarse) { .widgetAction { min-height: 44px; } }

@@ -1,5 +1,7 @@
 import { MdClose, MdInventory } from 'react-icons/md'
 import FormInput from './FormInput'
+import styles from '@/styles/Products.module.css'
+import { fmtQty } from '@/utils/utils'
 
 export default function RestockModal({ restockProduct, restockQty, setRestockQty, confirmRestock, setRestockProduct }) {
   if (!restockProduct) return null
@@ -13,7 +15,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
       style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
     >
       <div
-        className="w-[380px] rounded-xl overflow-hidden"
+        className="w-[90vw] max-w-[380px] rounded-xl overflow-hidden"
         style={{
           background: 'var(--bg-card)',
           boxShadow: 'var(--shadow-dropdown)',
@@ -31,10 +33,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
           </div>
           <button
             onClick={() => setRestockProduct(null)}
-            className="w-7 h-7 rounded-md flex items-center justify-center transition"
-            style={{ color: 'rgba(255,255,255,0.6)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            className={`w-7 h-7 rounded-md flex items-center justify-center transition ${styles.restockCloseBtn}`}
           >
             <MdClose size={18} />
           </button>
@@ -53,14 +52,14 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
               <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 Current stock:
                 <span className="font-bold ml-1" style={{ color: 'var(--primary)' }}>
-                  {restockProduct.stock} {unit}
+                  {fmtQty(restockProduct.stock)} {unit}
                 </span>
               </span>
               {restockQty && Number(restockQty) > 0 && (
                 <>
                   <span style={{ color: 'var(--text-muted)' }}>→</span>
                   <span className="text-xs font-bold" style={{ color: 'var(--success-dark)' }}>
-                    {newTotal} {unit} after restock
+                    {fmtQty(newTotal)} {unit} after restock
                   </span>
                 </>
               )}
@@ -82,7 +81,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
 
           {Number(restockQty) > 0 && (
             <p style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>
-              Max 10,000 {unit} per restock. Current: {restockProduct.stock} → New: {Number(restockProduct.stock) + Number(restockQty)} {unit}
+              Max 10,000 {unit} per restock. Current: {fmtQty(restockProduct.stock)} → New: {fmtQty(Number(restockProduct.stock) + Number(restockQty))} {unit}
             </p>
           )}
 
@@ -91,19 +90,13 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
             <button
               onClick={confirmRestock}
               disabled={!restockQty || Number(restockQty) <= 0}
-              className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition"
-              style={{ background: 'var(--primary)' }}
-              onMouseEnter={e => { if (restockQty && Number(restockQty) > 0) e.currentTarget.style.background = 'var(--primary-dark)' }}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition ${styles.restockUpdateBtn}`}
             >
               Update Stock
             </button>
             <button
               onClick={() => setRestockProduct(null)}
-              className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition"
-              style={{ background: 'var(--bg-muted)', color: 'var(--text-secondary)', border: '1px solid var(--border-soft)' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--border-soft)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-muted)'}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition ${styles.restockCancelBtn}`}
             >
               Cancel
             </button>

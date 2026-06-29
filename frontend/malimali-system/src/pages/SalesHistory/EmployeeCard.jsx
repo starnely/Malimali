@@ -1,5 +1,7 @@
 import { MdExpandMore, MdExpandLess, MdFilterList, MdCheckCircle, MdTimer } from 'react-icons/md'
+import { fmtQty } from '@/utils/utils'
 import DateGroup from './DateGroup'
+import styles from '@/styles/SalesHistory.module.css'
 
 export default function EmployeeCard({
   cashier, cashierSales, expandedEmployee, setExpandedEmployee,
@@ -63,12 +65,12 @@ export default function EmployeeCard({
   const isClosed = employeeData?.shiftStatus === 'closed'
 
   return (
-    <div className="mb-4 rounded-xl overflow-hidden transition-shadow duration-200"
+    <div className="mb-4 rounded-xl transition-shadow duration-200"
       style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}>
-      <div onClick={() => setExpandedEmployee(prev => prev === cashier ? null : cashier)}
-        className="flex justify-between items-center px-5 py-4 cursor-pointer transition-colors duration-150"
-        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <div
+        onClick={() => setExpandedEmployee(prev => prev === cashier ? null : cashier)}
+        className={`flex justify-between items-center px-5 py-4 cursor-pointer ${styles.stickyEmployeeHeader} ${styles.cardHeaderHover}`}
+      >
         <div className="flex items-center gap-3">
           <div className="relative">
             <div className="w-10 h-10 rounded-full flex items-center justify-center text-sm font-black"
@@ -94,7 +96,7 @@ export default function EmployeeCard({
               )}
             </div>
             <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
-              {cashierTx} transactions · {cashierItems} items
+              {cashierTx} transactions · {fmtQty(cashierItems)} items
             </div>
           </div>
         </div>
@@ -108,7 +110,7 @@ export default function EmployeeCard({
       </div>
 
       {isExpanded && (
-        <div style={{ borderTop: '1px solid var(--border-soft)', background: 'var(--bg-muted)' }}>
+        <div className="rounded-b-xl overflow-hidden" style={{ borderTop: '1px solid var(--border-soft)', background: 'var(--bg-muted)' }}>
           <div className="flex items-center gap-2 px-5 py-3 flex-wrap">
             <MdFilterList style={{ color: 'var(--text-muted)' }} />
             <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Filter {cashier}'s sales:</span>

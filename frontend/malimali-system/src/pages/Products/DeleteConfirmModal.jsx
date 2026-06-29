@@ -1,4 +1,5 @@
 import { MdWarning } from 'react-icons/md'
+import styles from '@/styles/Products.module.css'
 
 export default function DeleteConfirmModal({ deleteConfirm, handleDeleteConfirmed, setDeleteConfirm }) {
   if (!deleteConfirm) return null
@@ -9,7 +10,7 @@ export default function DeleteConfirmModal({ deleteConfirm, handleDeleteConfirme
       style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)',backdropFilter: 'blur(3px)' }}
     >
       <div
-        className="w-[360px] rounded-xl p-6"
+        className="w-[90vw] max-w-[360px] rounded-xl p-6"
         style={{
           background: 'var(--bg-card)',
           boxShadow: 'var(--shadow-dropdown)',
@@ -47,23 +48,13 @@ export default function DeleteConfirmModal({ deleteConfirm, handleDeleteConfirme
         <div className="flex gap-2.5">
           <button
             onClick={() => setDeleteConfirm(null)}
-            className="flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold transition"
-            style={{
-              border: '1px solid var(--border-medium)',
-              color: 'var(--text-secondary)',
-              background: 'var(--bg-card)',
-            }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-muted)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-semibold transition ${styles.deleteModalCancelBtn}`}
           >
             Cancel
           </button>
           <button
             onClick={handleDeleteConfirmed}
-            className="flex-1 px-3 py-2.5 rounded-lg text-sm font-bold text-white transition"
-            style={{ background: 'var(--danger)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--danger)'}
+            className={`flex-1 px-3 py-2.5 rounded-lg text-sm font-bold text-white transition ${styles.deleteModalConfirmBtn}`}
           >
             Yes, Delete
           </button>

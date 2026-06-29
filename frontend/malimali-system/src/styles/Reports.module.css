@@ -8,11 +8,13 @@
   gap: 1rem;
   box-shadow: var(--shadow-card);
   transition: all 0.18s ease;
+  touch-action: manipulation;
+  user-select: none;
 }
-.card:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-dropdown);
+@media (hover: hover) {
+  .card:hover { transform: translateY(-2px); box-shadow: var(--shadow-dropdown); }
 }
+.card:active { transform: translateY(-1px); box-shadow: var(--shadow-dropdown); }
 
 /* Left border accent per color */
 .card-blue   { border-left: 4px solid var(--primary);      }
@@ -48,10 +50,12 @@
 
 .rowHover {
   transition: background 0.15s;
+  touch-action: manipulation;
 }
-.rowHover:hover {
-  background: var(--primary-light) !important;
+@media (hover: hover) {
+  .rowHover:hover { background: var(--primary-light) !important; }
 }
+.rowHover:active { background: var(--primary-light) !important; }
 
 @keyframes fadeIn {
   from { opacity: 0; }

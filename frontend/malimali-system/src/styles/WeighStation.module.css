@@ -1,0 +1,135 @@
+/* ── Main layout grid ─────────────────────────────────────────────── */
+.mainGrid {
+  display: grid;
+  grid-template-columns: 1fr 390px;
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .mainGrid {
+    grid-template-columns: 1fr 360px;
+  }
+}
+
+@media (max-width: 768px) {
+  .mainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Scrollable product list ──────────────────────────────────────── */
+.productScroll {
+  max-height: 420px;
+  overflow-y: auto;
+  touch-action: pan-y;
+}
+
+/* ── Product list item buttons ────────────────────────────────────── */
+.productBtn {
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* ── Mode toggle (Enter Weight / Enter Amount) ────────────────────── */
+.modeToggleBtn {
+  flex: 1;
+  min-height: 44px;
+  padding: 0 8px;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  touch-action: manipulation;
+  user-select: none;
+  transition: all 0.15s;
+}
+
+/* ── Quick weight / amount preset buttons ─────────────────────────── */
+.presetBtn {
+  min-height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 700;
+  border: 1px solid var(--border-medium);
+  cursor: pointer;
+  font-family: inherit;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.presetBtn:active {
+  filter: brightness(0.9);
+}
+
+@media (pointer: coarse) {
+  .presetBtn {
+    min-height: 44px;
+    padding: 0 14px;
+  }
+}
+
+/* ── Copies +/− quantity buttons ──────────────────────────────────── */
+.copiesBtn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-card);
+  cursor: pointer;
+  color: var(--text-secondary);
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.copiesBtn:active {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+@media (pointer: coarse) {
+  .copiesBtn {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* ── Copies count input ───────────────────────────────────────────── */
+.copiesInput {
+  width: 44px;
+  height: 36px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 800;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-medium);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  outline: none;
+}
+
+@media (pointer: coarse) {
+  .copiesInput {
+    height: 44px;
+    font-size: 15px;
+  }
+}
+
+/* ── General action / CTA buttons (touch-action only) ─────────────── */
+.ctaBtn {
+  touch-action: manipulation;
+  user-select: none;
+}

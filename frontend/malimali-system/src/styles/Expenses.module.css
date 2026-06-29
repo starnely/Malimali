@@ -156,9 +156,10 @@
   transition: background 0.12s;
 }
 
-.breakdownHeader:hover {
-  background: var(--bg-muted);
+@media (hover: hover) {
+  .breakdownHeader:hover { background: var(--bg-muted); }
 }
+.breakdownHeader:active { background: var(--bg-muted); }
 
 .breakdownHeader h2 {
   font-size: 13px;
@@ -304,9 +305,10 @@
   border-bottom: none;
 }
 
-.table tbody tr:hover {
-  background: var(--primary-light);
+@media (hover: hover) {
+  .table tbody tr:hover { background: var(--primary-light); }
 }
+.table tbody tr:active { background: var(--primary-light); }
 
 /* ── Category badge ────────────────────────────────────────────────── */
 .catBadge {
@@ -361,6 +363,8 @@
 .modalClose {
   width: 28px;
   height: 28px;
+  min-height: 36px;
+  min-width: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -370,11 +374,15 @@
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.modalClose:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: white;
+@media (hover: hover) {
+  .modalClose:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+}
+.modalClose:active { background: rgba(255, 255, 255, 0.1); color: white; }
+@media (pointer: coarse) {
+  .modalClose { min-height: 44px; min-width: 44px; }
 }
 
 .modalBody {
@@ -451,9 +459,10 @@
   height: 36px;
 }
 
-.btnPrimary:hover {
-  background: var(--primary-dark);
+@media (hover: hover) {
+  .btnPrimary:hover { background: var(--primary-dark); }
 }
+.btnPrimary:active { background: var(--primary-dark); }
 
 .btnPrimary:disabled {
   background: var(--border-medium);
@@ -477,14 +486,16 @@
   height: 36px;
 }
 
-.btnSecondary:hover {
-  border-color: var(--primary);
-  color: var(--primary);
+@media (hover: hover) {
+  .btnSecondary:hover { border-color: var(--primary); color: var(--primary); }
 }
+.btnSecondary:active { border-color: var(--primary); color: var(--primary); }
 
 .iconBtn {
   width: 30px;
   height: 30px;
+  min-height: 36px;
+  min-width: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -493,15 +504,20 @@
   cursor: pointer;
   background: transparent;
   transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (pointer: coarse) {
+  .iconBtn { min-height: 44px; min-width: 44px; }
 }
 
 .iconBtn.danger {
   color: var(--danger);
 }
-
-.iconBtn.danger:hover {
-  background: var(--danger-light);
+@media (hover: hover) {
+  .iconBtn.danger:hover { background: var(--danger-light); }
 }
+.iconBtn.danger:active { background: var(--danger-light); }
 
 .empty {
   text-align: center;
@@ -525,6 +541,9 @@
 }
 
 @media (max-width: 768px) {
+  .page { overflow: visible; height: auto; min-height: 100%; }
+  .content { overflow: visible; flex: none; }
+
   .header {
     padding: 16px;
   }

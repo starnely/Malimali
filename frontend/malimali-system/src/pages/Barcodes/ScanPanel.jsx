@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+﻿import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MdPointOfSale, MdWarning, MdCheckCircle,
   MdRemove, MdAdd, MdDelete, MdSearch,
@@ -7,6 +7,8 @@ import {
 } from 'react-icons/md'
 import p from '@/styles/POS.module.css'
 import { isWeightBarcode } from '@/utils/barcodeUtils'
+import { fmtQty } from '@/utils/utils'
+import { API_BASE_URL } from '@/config/api'
 
 export default function ScanPanel({
   cart = [], cartTotal = 0, cartCount = 0,
@@ -69,9 +71,9 @@ export default function ScanPanel({
 
   const stockBadge = (stock) => {
     if (stock <= 0) return { label: 'Out of stock', color: 'var(--danger-dark)', bg: 'var(--danger-light)' }
-    if (stock <= 3) return { label: `${stock} left`, color: '#92400e', bg: '#fef3c7' }
-    if (stock <= 6) return { label: `${stock} left`, color: '#854f0b', bg: '#faeeda' }
-    return { label: `${stock} in stock`, color: 'var(--success-dark)', bg: 'var(--success-light)' }
+    if (stock <= 3) return { label: `${fmtQty(stock)} left`, color: '#92400e', bg: '#fef3c7' }
+    if (stock <= 6) return { label: `${fmtQty(stock)} left`, color: '#854f0b', bg: '#faeeda' }
+    return { label: `${fmtQty(stock)} in stock`, color: 'var(--success-dark)', bg: 'var(--success-light)' }
   }
 
   const commitManual = async () => {
@@ -88,7 +90,7 @@ export default function ScanPanel({
       try {
         const token = currentUser?.token ||
           JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.token
-        const res = await fetch('http://localhost:5000/api/weigh-station/decode', {
+        const res = await fetch(`${API_BASE_URL}/api/weigh-station/decode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
           body: JSON.stringify({ barcode: code }),
@@ -281,7 +283,7 @@ export default function ScanPanel({
             <span className={p.posLastScannedPrice}>
               KSh {Number(lastScanned.sellPrice).toLocaleString()}
             </span>
-            <span className={p.posLastScannedStock}>{lastScanned.stock} left</span>
+            <span className={p.posLastScannedStock}>{fmtQty(lastScanned.stock)} left</span>
           </div>
         )}
 

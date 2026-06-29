@@ -1,10 +1,12 @@
-import { useState, useMemo, useEffect } from 'react'
+﻿import { useState, useMemo, useEffect } from 'react'
 import {
   MdChevronLeft, MdChevronRight, MdTrendingUp, MdAttachMoney,
   MdInventory, MdStorefront, MdDownload, MdReceiptLong, MdPeopleAlt, MdWarning
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { fmtQty } from '@/utils/utils'
 import * as XLSX from 'xlsx'
+import { API_BASE_URL } from '@/config/api'
 
 const XL_PRIMARY = '185FA5'
 const XL_PRIMARY_DARK = '0C447C'
@@ -63,7 +65,7 @@ export default function MonthlyReport() {
       try {
         const token = currentUser?.token
         if (!token) return
-        const res = await fetch('http://localhost:5000/api/customers/repayments/month?' +
+        const res = await fetch(`${API_BASE_URL}/api/customers/repayments/month?` +
           new URLSearchParams({
             year: String(year),
             month: String(month + 1),
@@ -89,7 +91,7 @@ export default function MonthlyReport() {
         if (!token) return
         const params = new URLSearchParams({ year: String(year), month: String(month + 1) })
         if (selectedStore !== 'All') params.set('store', selectedStore)
-        const res = await fetch(`http://localhost:5000/api/expenses/monthly?${params}`, {
+        const res = await fetch(`${API_BASE_URL}/api/expenses/monthly?${params}`, {
           headers: { Authorization: `Bearer ${token}` }
         })
         if (!res.ok) throw new Error()
@@ -111,7 +113,7 @@ export default function MonthlyReport() {
         if (!token) return
         const params = new URLSearchParams({ year: String(year), month: String(month + 1) })
         if (selectedStore !== 'All') params.set('store', selectedStore)
-        const url = `http://localhost:5000/api/expired/?${params}`
+        const url = `${API_BASE_URL}/api/expired/?${params}`
         const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } })
         if (!res.ok) throw new Error()
         const data = await res.json()
@@ -187,6 +189,7 @@ export default function MonthlyReport() {
 
   const formatCardValue = (key, val) => {
     if (['revenue', 'profit', 'debtCollected', 'expenses', 'expiredLoss', 'netProfit'].includes(key)) return `KSh ${val.toLocaleString()}`
+    if (key === 'items') return String(fmtQty(val || 0))
     return val.toLocaleString()
   }
 
@@ -522,7 +525,7 @@ export default function MonthlyReport() {
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-primary)', fontWeight: '500' }}>
                         {new Date(d.date + 'T00:00:00').toLocaleDateString('en-KE', { weekday: 'short', day: 'numeric', month: 'short' })}
                       </td>
-                      <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-secondary)' }}>{d.items}</td>
+                      <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-secondary)' }}>{fmtQty(d.items || 0)}</td>
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>KSh {d.revenue.toLocaleString()}</td>
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: d.profit >= 0 ? 'var(--success-dark)' : 'var(--danger)', fontWeight: '600' }}>KSh {d.profit.toLocaleString()}</td>
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-muted)' }}>{d.transactions}</td>
@@ -558,7 +561,7 @@ export default function MonthlyReport() {
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <span style={{ fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>KSh {data.revenue.toLocaleString()}</span>
-                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>· {data.qty} pcs</span>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>· {fmtQty(data.qty || 0)} pcs</span>
                     </div>
                   </div>
                   <div style={{ height: '4px', background: 'var(--bg-muted)', borderRadius: '2px' }}>
@@ -580,7 +583,7 @@ export default function MonthlyReport() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '5px', alignItems: 'flex-start' }}>
                     <div>
                       <div style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600' }}>{name}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>{data.count} sales · {data.qty} items</div>
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>{data.count} sales · {fmtQty(data.qty || 0)} items</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <div style={{ fontSize: '12px', color: 'var(--success-dark)', fontWeight: '600' }}>KSh {data.revenue.toLocaleString()}</div>

@@ -6,6 +6,7 @@ import {
   MdAccessTime, MdExpandMore, MdExpandLess, MdCall,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import s from '@/styles/Customers.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────
 function daysUntil(dateStr) {
@@ -192,7 +193,7 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
     <div style={{ borderTop: '2px solid var(--border-soft)' }}>
 
       {/* Financial summary bar */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', background: 'var(--bg-muted)' }}>
+      <div className={s.statGrid} style={{ background: 'var(--bg-muted)' }}>
         {[
           { label: 'Total Borrowed', value: `KSh ${totalCredit.toLocaleString()}`,                           color: 'var(--text-primary)'  },
           { label: 'Total Paid',     value: `KSh ${totalPaid.toLocaleString()}`,                              color: 'var(--success-dark)'  },
@@ -200,7 +201,7 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
           { label: 'Credit Sales',   value: `${sales?.length || 0} sale${sales?.length !== 1 ? 's' : ''}`,   color: 'var(--primary)'       },
           { label: 'Payments Made',  value: `${repayments?.length || 0} payment${repayments?.length !== 1 ? 's' : ''}`, color: 'var(--success-dark)' },
         ].map((s, i) => (
-          <div key={s.label} style={{ padding: '10px 14px', borderRight: i < 4 ? '1px solid var(--border-soft)' : 'none', borderBottom: '1px solid var(--border-soft)' }}>
+          <div key={s.label} style={{ padding: '10px 14px' }}>
             <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 3 }}>{s.label}</div>
             <div style={{ fontSize: 13, fontWeight: 900, color: s.color }}>{s.value}</div>
           </div>
@@ -208,10 +209,10 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
       </div>
 
       {/* Sales + Payments side by side */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+      <div className={s.salesPayGrid}>
 
         {/* Credit Sales */}
-        <div style={{ borderRight: '1px solid var(--border-soft)' }}>
+        <div className={s.creditSalesCol}>
           <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border-soft)', background: 'var(--bg-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
             <MdReceiptLong style={{ color: 'var(--primary)', fontSize: 14 }} />
             <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
@@ -297,13 +298,13 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
       {/* Actions */}
       <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border-soft)', display: 'flex', gap: 8, background: 'var(--bg-card)' }}>
         {customer.balance > 0 && (
-          <button onClick={() => onRecord(customer)}
+          <button className={s.actionBtn} onClick={() => onRecord(customer)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: 'var(--primary)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             <MdPayment /> Record Payment
           </button>
         )}
         {isOwner && (
-          <button onClick={() => onBlacklist(customer)}
+          <button className={s.actionBtn} onClick={() => onBlacklist(customer)}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 'var(--radius-md)', border: 'none', background: customer.blacklisted ? 'var(--success)' : 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
             {customer.blacklisted ? <><MdCheckCircle /> Remove Blacklist</> : <><MdBlock /> Blacklist</>}
           </button>
@@ -550,8 +551,8 @@ export default function Customers() {
       </div>
 
       {/* Filters */}
-      <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-soft)', padding: '12px 16px', marginBottom: 16, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', boxShadow: 'var(--shadow-card)' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+      <div className={s.filterRow} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-soft)', marginBottom: 16, boxShadow: 'var(--shadow-card)' }}>
+        <div className={s.filterSearch}>
           <MdSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 18 }} />
           <input type="text" placeholder="Search name or phone..." value={search} onChange={e => setSearch(e.target.value)}
             style={{ width: '100%', paddingLeft: 34, paddingRight: search ? 32 : 12, paddingTop: 8, paddingBottom: 8, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
@@ -561,29 +562,32 @@ export default function Customers() {
           {search && <button onClick={() => setSearch('')} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18 }}><MdClose /></button>}
         </div>
 
-        {isOwner && stores.length > 0 && (
-          <select value={storeFilter} onChange={e => setStoreFilter(e.target.value)}
-            style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}>
-            <option value="">All Stores</option>
-            {stores.map(st => <option key={st._id} value={st.name}>{st.name}</option>)}
-          </select>
-        )}
-
-        {[
-          { value: 'all',         label: 'All'             },
-          { value: 'overdue',     label: '⚠️ Overdue'      },
-          { value: 'blacklisted', label: '🚫 Blacklisted'  },
-        ].map(f => (
-          <button key={f.value} onClick={() => setStatusFilter(f.value)}
-            style={{ padding: '6px 13px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${statusFilter === f.value ? 'var(--primary)' : 'var(--border-medium)'}`, background: statusFilter === f.value ? 'var(--primary)' : 'var(--bg-muted)', color: statusFilter === f.value ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>
-            {f.label}
+        <div className={s.filterControls}>
+          {isOwner && stores.length > 0 && (
+            <select className={s.storeSelect} value={storeFilter} onChange={e => setStoreFilter(e.target.value)}
+              style={{ padding: '8px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}>
+              <option value="">All Stores</option>
+              {stores.map(st => <option key={st._id} value={st.name}>{st.name}</option>)}
+            </select>
+          )}
+          <button className={s.refreshBtn} onClick={load} disabled={loading}
+            style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 13px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>
+            <MdRefresh style={{ fontSize: 16 }} /> Refresh
           </button>
-        ))}
+        </div>
 
-        <button onClick={load} disabled={loading}
-          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '8px 13px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>
-          <MdRefresh style={{ fontSize: 16 }} /> Refresh
-        </button>
+        <div className={s.filterPills}>
+          {[
+            { value: 'all',         label: 'All'             },
+            { value: 'overdue',     label: '⚠️ Overdue'      },
+            { value: 'blacklisted', label: '🚫 Blacklisted'  },
+          ].map(f => (
+            <button key={f.value} className={s.filterPill} onClick={() => setStatusFilter(f.value)}
+              style={{ padding: '6px 13px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${statusFilter === f.value ? 'var(--primary)' : 'var(--border-medium)'}`, background: statusFilter === f.value ? 'var(--primary)' : 'var(--bg-muted)', color: statusFilter === f.value ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>
+              {f.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* Customer list */}

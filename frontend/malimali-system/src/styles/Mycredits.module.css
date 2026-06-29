@@ -147,6 +147,7 @@
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
+  min-height: 36px;
   border-radius: 999px;
   border: 1.5px solid var(--border-soft);
   background: transparent;
@@ -156,9 +157,19 @@
   cursor: pointer;
   font-family: inherit;
   transition: all 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.filterTab:hover {
+@media (hover: hover) {
+  .filterTab:hover {
+    background: var(--bg-muted);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+}
+
+.filterTab:active {
   background: var(--bg-muted);
   border-color: var(--primary);
   color: var(--primary);
@@ -170,10 +181,17 @@
   color: #fff;
 }
 
-.filterActive:hover {
+@media (hover: hover) {
+  .filterActive:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: #fff;
+  }
+}
+
+.filterActive:active {
   background: var(--primary-dark);
   border-color: var(--primary-dark);
-  color: #fff;
 }
 
 .filterBadge {
@@ -200,9 +218,11 @@
   color: #dc2626;
 }
 
-.filterOverduePulse:not(.filterActive):hover {
-  background: #fef2f2;
-  border-color: #dc2626;
+@media (hover: hover) {
+  .filterOverduePulse:not(.filterActive):hover {
+    background: #fef2f2;
+    border-color: #dc2626;
+  }
 }
 
 /* ── Refresh Button ──────────────────────────────────────────────────── */
@@ -211,6 +231,7 @@
   align-items: center;
   gap: 6px;
   padding: 9px 16px;
+  min-height: 36px;
   border: 1.5px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--bg-card);
@@ -221,9 +242,15 @@
   font-family: inherit;
   transition: all 0.15s;
   flex-shrink: 0;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.refreshBtn:hover { background: var(--bg-muted); border-color: var(--primary); color: var(--primary); }
+@media (hover: hover) {
+  .refreshBtn:hover { background: var(--bg-muted); border-color: var(--primary); color: var(--primary); }
+}
+
+.refreshBtn:active { background: var(--bg-muted); border-color: var(--primary); color: var(--primary); }
 .refreshBtn:disabled { cursor: not-allowed; opacity: 0.6; }
 .spinning { animation: spin 1s linear infinite; }
 
@@ -272,9 +299,11 @@
   transition: box-shadow 0.15s, transform 0.15s;
 }
 
-.saleCard:hover {
-  box-shadow: var(--shadow-dropdown);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .saleCard:hover {
+    box-shadow: var(--shadow-dropdown);
+    transform: translateY(-1px);
+  }
 }
 
 .cardOverdue  { border-top-color: #dc2626; background: #fffafa; }
@@ -490,6 +519,7 @@
 .recordBtn {
   width: 100%;
   padding: 9px 16px;
+  min-height: 36px;
   background: var(--primary);
   color: #fff;
   border: none;
@@ -499,12 +529,23 @@
   cursor: pointer;
   font-family: inherit;
   transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.recordBtn:hover { background: var(--primary-dark); }
+@media (hover: hover) {
+  .recordBtn:hover { background: var(--primary-dark); }
+}
+
+.recordBtn:active { background: var(--primary-dark); }
 
 .recordBtnOverdue { background: #dc2626; }
-.recordBtnOverdue:hover { background: #b91c1c; }
+
+@media (hover: hover) {
+  .recordBtnOverdue:hover { background: #b91c1c; }
+}
+
+.recordBtnOverdue:active { background: #b91c1c; }
 
 .settledTag {
   display: flex;
@@ -602,6 +643,7 @@
 
 .quickAmt {
   padding: 5px 10px;
+  min-height: 36px;
   border: 1.5px solid var(--border-soft);
   border-radius: var(--radius-sm);
   font-size: 12px;
@@ -611,13 +653,20 @@
   color: var(--text-secondary);
   font-family: inherit;
   transition: all 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.quickAmt:hover { background: var(--bg-muted); }
+@media (hover: hover) {
+  .quickAmt:hover { background: var(--bg-muted); }
+}
+
+.quickAmt:active { background: var(--bg-muted); }
 .quickAmt.active { background: var(--primary); color: #fff; border-color: var(--primary); }
 
 .quickAmtFull {
   padding: 5px 10px;
+  min-height: 36px;
   border: 1.5px solid var(--primary);
   border-radius: var(--radius-sm);
   font-size: 12px;
@@ -627,8 +676,11 @@
   color: var(--primary);
   font-family: inherit;
   transition: all 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
+.quickAmtFull:active { background: var(--primary-light); }
 .quickAmtFull.active { background: var(--primary); color: #fff; }
 
 .modalFooter {
@@ -640,6 +692,7 @@
 .modalBtnCancel {
   flex: 1;
   padding: 11px;
+  min-height: 44px;
   border: 1.5px solid var(--border-soft);
   border-radius: var(--radius-md);
   font-weight: 600;
@@ -649,13 +702,20 @@
   color: var(--text-secondary);
   font-family: inherit;
   transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.modalBtnCancel:hover { background: var(--bg-muted); }
+@media (hover: hover) {
+  .modalBtnCancel:hover { background: var(--bg-muted); }
+}
+
+.modalBtnCancel:active { background: var(--bg-muted); }
 
 .modalBtnConfirm {
   flex: 2;
   padding: 11px;
+  min-height: 44px;
   border: none;
   border-radius: var(--radius-md);
   font-weight: 700;
@@ -665,9 +725,15 @@
   background: var(--primary);
   color: #fff;
   transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.modalBtnConfirm:hover:not(:disabled) { background: var(--primary-dark); }
+@media (hover: hover) {
+  .modalBtnConfirm:hover:not(:disabled) { background: var(--primary-dark); }
+}
+
+.modalBtnConfirm:active:not(:disabled) { background: var(--primary-dark); }
 .modalBtnConfirm:disabled { background: var(--primary-muted); cursor: not-allowed; }
 
 /* ── Toast ───────────────────────────────────────────────────────────── */
@@ -720,9 +786,14 @@
   -webkit-user-select: none;
   user-select: none;
   transition: background 0.12s;
+  touch-action: manipulation;
 }
 
-.snapshot:hover { background: var(--bg-muted); }
+@media (hover: hover) {
+  .snapshot:hover { background: var(--bg-muted); }
+}
+
+.snapshot:active { background: var(--bg-muted); }
 
 .snapshotLeft {
   display: flex;
@@ -814,6 +885,7 @@
   align-items: center;
   gap: 5px;
   padding: 6px 12px;
+  min-height: 36px;
   border-radius: 999px;
   border: 1.5px solid var(--border-soft);
   background: transparent;
@@ -824,10 +896,39 @@
   font-family: inherit;
   margin-left: auto;
   transition: all 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.expandAllBtn:hover {
+@media (hover: hover) {
+  .expandAllBtn:hover {
+    background: var(--bg-muted);
+    color: var(--text-secondary);
+    border-color: var(--text-muted);
+  }
+}
+
+.expandAllBtn:active {
   background: var(--bg-muted);
   color: var(--text-secondary);
-  border-color: var(--text-muted);
+}
+
+/* ── Touch / coarse pointer overrides ───────────────────────────────── */
+@media (pointer: coarse) {
+  .filterTab    { min-height: 44px; }
+  .refreshBtn   { min-height: 44px; }
+  .expandAllBtn { min-height: 44px; }
+  .quickAmt     { min-height: 44px; }
+  .quickAmtFull { min-height: 44px; }
+  .recordBtn    { min-height: 44px; }
+}
+
+/* ── Narrow mobile ───────────────────────────────────────────────────── */
+@media (max-width: 480px) {
+  .page { padding: 16px; }
+  .toast {
+    left: 20px;
+    right: 20px;
+    max-width: calc(100vw - 40px);
+  }
 }

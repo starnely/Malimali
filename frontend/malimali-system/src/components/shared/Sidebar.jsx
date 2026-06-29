@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import {
   MdDashboard, MdInventory,
@@ -6,13 +6,15 @@ import {
   MdMenu, MdClose, MdPerson, MdDocumentScanner, MdCategory, MdLocalShipping, MdStorefront,
   MdWarning, MdPeopleAlt, MdCreditCard,
   MdShoppingCart, MdAttachMoney, MdAccountBalanceWallet,
-  MdExpandMore, MdExpandLess, MdLogout, MdReceiptLong, MdScale
+  MdExpandMore, MdExpandLess, MdLogout, MdReceiptLong, MdScale, MdArchive
 } from 'react-icons/md'
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
+import { API_BASE_URL as backendUrl } from '@/config/api'
 
 const ownerLinks = [
   { to: '/', label: 'Dashboard', icon: <MdDashboard /> },
+  { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner /> },
   {
     label: 'Products', icon: <MdInventory />, key: 'products',
     children: [
@@ -25,6 +27,7 @@ const ownerLinks = [
   { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
   { to: '/reports', label: 'Reports', icon: <MdBarChart /> },
   { to: '/daily-report', label: 'Daily Z-Report', icon: <MdReceiptLong /> },
+  { to: '/daily-archives', label: 'Daily Archives', icon: <MdArchive /> },
   { to: '/weigh-station', label: 'Weigh Station', icon: <MdScale /> },
   { to: '/customers', label: 'Debtors', icon: <MdPeopleAlt /> },
   { to: '/employees', label: 'Staff Management', icon: <MdPerson /> },
@@ -47,6 +50,7 @@ const ownerLinks = [
 
 const managerLinks = [
   { to: '/', label: 'Dashboard', icon: <MdDashboard /> },
+  { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner /> },
   {
     label: 'Products', icon: <MdInventory />, key: 'products',
     children: [
@@ -58,6 +62,7 @@ const managerLinks = [
   { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
   { to: '/reports', label: 'Store Reports', icon: <MdBarChart /> },
   { to: '/daily-report', label: 'Daily Z-Report', icon: <MdReceiptLong /> },
+  { to: '/daily-archives', label: 'Daily Archives', icon: <MdArchive /> },
   { to: '/weigh-station', label: 'Weigh Station', icon: <MdScale /> },
   { to: '/customers', label: 'Debtors', icon: <MdPeopleAlt /> },
   {
@@ -147,7 +152,6 @@ export default function Sidebar() {
   const navigate = useNavigate()
   const [isOpen, setIsOpen] = useState(false)
 
-  const backendUrl = 'http://localhost:5000'
   const companyName = settings?.companyName || settings?.businessName || 'Business Retail'
 
   const getLinks = () => {

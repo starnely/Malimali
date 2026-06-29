@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { fmtQty } from '@/utils/utils'
 import { MdClose, MdPerson, MdPrint } from 'react-icons/md'
 
 export default function EmployeeSalesModal({ employee, sales, products = [], date, onClose }) {
@@ -56,7 +57,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
           <div className="flex-shrink-0 grid grid-cols-4 gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border-soft)' }}>
             {[
               { label: 'Transactions', value: employeeSales.length, color: 'var(--primary)', bg: 'var(--primary-light)' },
-              { label: 'Items Sold', value: totalItems, color: 'var(--success-dark)', bg: 'var(--success-light)' },
+              { label: 'Items Sold', value: fmtQty(totalItems), color: 'var(--success-dark)', bg: 'var(--success-light)' },
               { label: 'Revenue', value: `KSh ${totalRevenue.toLocaleString()}`, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
               { label: 'Profit', value: `KSh ${totalProfit.toLocaleString()}`, color: 'var(--info-dark)', bg: 'var(--info-light)' },
             ].map((card, i) => (
@@ -88,7 +89,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                       <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-soft)' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{i + 1}</td>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>{sale.receiptId || '—'}</td>
-                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)' }}>{saleItems}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)' }}>{fmtQty(saleItems)}</td>
                         <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>KSh {saleRevenue.toLocaleString()}</td>
                         <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--success-dark)', fontWeight: 600 }}>KSh {saleProfit.toLocaleString()}</td>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{sale.time || '—'}</td>
@@ -99,7 +100,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                 <tfoot style={{ position: 'sticky', bottom: 0 }}>
                   <tr style={{ background: 'var(--bg-muted)', borderTop: '2px solid var(--border-medium)' }}>
                     <td colSpan={2} style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Totals</td>
-                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{totalItems}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{fmtQty(totalItems)}</td>
                     <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>KSh {totalRevenue.toLocaleString()}</td>
                     <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--success-dark)' }}>KSh {totalProfit.toLocaleString()}</td>
                     <td />

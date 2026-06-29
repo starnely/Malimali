@@ -1,4 +1,5 @@
 import SaleCard from './SaleCard'
+import { fmtQty } from '@/utils/utils'
 
 const DAY_COLORS = [
   { bg: 'var(--primary-light)', border: 'var(--primary-muted)', header: 'var(--primary-light)', text: 'var(--primary-dark)' }, // Sun
@@ -59,7 +60,7 @@ export default function DateGroup({ date, sales, isOwner, setReturnModal, setVoi
         </span>
         <div className="flex items-center gap-4">
           <span className="text-xs font-semibold" style={{ color: color.text, opacity: 0.7 }}>
-            {dayQty} items
+            {fmtQty(dayQty)} items
           </span>
           <span className="text-sm font-black" style={{ color: color.text }}>
             KSh {dateTotal.toLocaleString()}

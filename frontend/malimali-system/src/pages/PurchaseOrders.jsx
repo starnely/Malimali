@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import {
   MdShoppingCart, MdAdd, MdClose, MdSend,
@@ -11,6 +11,8 @@ import {
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/PurchaseOrders.module.css'
+import { API_BASE_URL } from '@/config/api'
+import { fmtQty } from '@/utils/utils'
 
 const STATUS_LABELS = {
   draft: { label: 'Draft', icon: '📝' },
@@ -136,7 +138,7 @@ export default function PurchaseOrders() {
   }
 
   const handleDownloadPDF = (po) => {
-    window.open(`http://localhost:5000/api/purchase-orders/${po._id}/pdf?token=${currentUser?.token}`, '_blank')
+    window.open(`${API_BASE_URL}/api/purchase-orders/${po._id}/pdf?token=${currentUser?.token}`, '_blank')
   }
 
   // Derive store list: prefer context stores array, fall back to unique stores from orders
@@ -228,7 +230,6 @@ export default function PurchaseOrders() {
           placeholder='Search PO number or supplier…'
           value={searchText}
           onChange={e => setSearchText(e.target.value)}
-          style={{ minWidth: 220 }}
         />
       </div>
 
@@ -247,6 +248,7 @@ export default function PurchaseOrders() {
               <p>No purchase orders match <strong>"{searchText}"</strong>. Try a different search term.</p>
             </div>
           ) : (
+            <>
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -329,6 +331,83 @@ export default function PurchaseOrders() {
                 })}
               </tbody>
             </table>
+            <div className={styles.mobileCards}>
+              {pagedOrders.map(po => {
+                const ps = PAYMENT_STATUS[po.paymentStatus]
+                const hasInvoice = po.invoiceAmount > 0
+                return (
+                  <div key={po._id} className={styles.poCard}>
+                    <div className={styles.poCardHeader}>
+                      <div>
+                        <div className={styles.poCardPoNumber}>{po.poNumber}</div>
+                        <div className={styles.poCardDate}>{po.date}</div>
+                      </div>
+                      <span className={`${styles.badge} ${styles[po.status]}`}>
+                        {STATUS_LABELS[po.status]?.icon} {STATUS_LABELS[po.status]?.label}
+                      </span>
+                    </div>
+                    <div className={styles.poCardSupplier}>
+                      <div className={styles.poCardSupplierName}>{po.supplierName}</div>
+                      {po.supplierPhone && <div className={styles.poCardSupplierPhone}>{po.supplierPhone}</div>}
+                    </div>
+                    <div className={styles.poCardFields}>
+                      <div className={styles.poCardField}>
+                        <span className={styles.poCardFieldLabel}>Store</span>
+                        <span className={styles.poCardFieldValue}>
+                          <MdStore size={12} style={{ color: 'var(--text-muted)', verticalAlign: 'middle', marginRight: 3 }} />{po.store || '—'}
+                        </span>
+                      </div>
+                      <div className={styles.poCardField}>
+                        <span className={styles.poCardFieldLabel}>Items</span>
+                        <span className={styles.poCardFieldValue}>
+                          <span style={{ fontWeight: 700, color: 'var(--primary)' }}>{po.items?.length}</span> items · {po.items?.reduce((s, i) => s + i.qtyOrdered, 0)} units
+                        </span>
+                      </div>
+                      <div className={styles.poCardField}>
+                        <span className={styles.poCardFieldLabel}>Value</span>
+                        <span className={styles.poCardFieldValue}>
+                          <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>KSh {(po.totalOrderedCost || 0).toLocaleString()}</span>
+                          {po.status === 'partial' && <span style={{ fontSize: 11, color: 'var(--success-dark)', marginLeft: 6 }}>Rcvd: KSh {(po.totalReceivedCost || 0).toLocaleString()}</span>}
+                        </span>
+                      </div>
+                      <div className={styles.poCardField}>
+                        <span className={styles.poCardFieldLabel}>Invoice</span>
+                        <span className={styles.poCardFieldValue}>
+                          {hasInvoice ? (
+                            <>
+                              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>KSh {po.invoiceAmount.toLocaleString()}</div>
+                              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3, padding: '2px 8px', borderRadius: 12, fontSize: 11, fontWeight: 700, background: ps?.bg, color: ps?.color }}>
+                                {po.paymentStatus === 'paid' ? '✅' : po.paymentStatus === 'partial' ? '⏳' : '💰'} {ps?.label}
+                                {po.balance > 0 && <span style={{ marginLeft: 4 }}>· KSh {po.balance.toLocaleString()} due</span>}
+                              </div>
+                            </>
+                          ) : (po.status === 'received' || po.status === 'partial') ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>
+                              ⚠ Invoice due
+                            </span>
+                          ) : (
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', fontStyle: 'italic' }}>No invoice yet</span>
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                    <div className={styles.poCardActions}>
+                      <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => setViewingPO(po)} title="View"><MdVisibility size={16} /></button>
+                      <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => handleDownloadPDF(po)} title="PDF"><MdPictureAsPdf size={16} /></button>
+                      {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => setEmailPO(po)} title="Email"><MdMarkEmailRead size={16} /></button>}
+                      {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => handleSend(po)} title="Mark sent"><MdSend size={16} /></button>}
+                      {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setReceivingPO(po)} title="Receive stock"><MdInventory size={16} /></button>}
+                      {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setInvoicePO(po)} title="Record invoice"><MdReceipt size={16} /></button>}
+                      {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setPayingPO(po)} title="Pay supplier"><MdPayments size={16} /></button>}
+                      {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setEditingPO(po)} title="Edit"><MdEdit size={16} /></button>}
+                      {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleCancel(po)} title="Cancel"><MdCancel size={16} /></button>}
+                      {isOwner && (po.status === 'draft' || po.status === 'cancelled') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(po)} title="Delete"><MdDelete size={16} /></button>}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            </>
           )}
           {!loading && filteredOrders.length > PAGE_SIZE && (
             <div className={styles.pagination}>
@@ -440,8 +519,10 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
   const [open, setOpen] = useState(false)
   const [activeIdx, setActiveIdx] = useState(-1)
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 })
+  const [panelMaxH, setPanelMaxH] = useState(270)
   const [hovered, setHovered] = useState(false)
   const containerRef = useRef(null)
+  const panelRef = useRef(null)
 
   const selected = options.find(p => p._id === value)
 
@@ -454,13 +535,13 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
   const normalGroup = visible.filter(p => !isLow(p))
   const flat = [...lowGroup, ...normalGroup]
 
-  const PANEL_MAX_H = 270
-
   const calcPos = () => {
     if (!containerRef.current) return
+    const maxH = Math.min(270, Math.floor(window.innerHeight * 0.38))
     const rect = containerRef.current.getBoundingClientRect()
     const spaceBelow = window.innerHeight - rect.bottom
-    const flipUp = spaceBelow < PANEL_MAX_H
+    const flipUp = spaceBelow < maxH
+    setPanelMaxH(maxH)
     setPos({
       top:    flipUp ? undefined : rect.bottom + 2,
       bottom: flipUp ? window.innerHeight - rect.top + 2 : undefined,
@@ -483,11 +564,16 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
-  // Close on any scroll so the fixed panel doesn't drift from the input
+  // Close on any scroll so the fixed panel doesn't drift from the input.
+  // Exclude scrolls that originate inside the panel itself (user browsing the list).
   useEffect(() => {
     if (!open) return
-    window.addEventListener('scroll', close, true)
-    return () => window.removeEventListener('scroll', close, true)
+    const onScroll = (e) => {
+      if (panelRef.current && panelRef.current.contains(e.target)) return
+      close()
+    }
+    window.addEventListener('scroll', onScroll, true)
+    return () => window.removeEventListener('scroll', onScroll, true)
   }, [open])
 
   const select = (id) => { onChange(id); close() }
@@ -519,7 +605,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
   }
 
   const panel = (
-    <div style={{
+    <div ref={panelRef} style={{
       position: 'fixed',
       top:    pos.top,
       bottom: pos.bottom,
@@ -529,8 +615,9 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
       background: 'var(--bg-card)',
       border: '1px solid var(--border-medium)',
       borderRadius: 'var(--radius-sm)',
-      maxHeight: 270,
+      maxHeight: panelMaxH,
       overflowY: 'auto',
+      touchAction: 'pan-y',
       boxShadow: '0 4px 14px rgba(0,0,0,0.14)',
     }}>
       {flat.length === 0 && (
@@ -562,7 +649,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
               >
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
                 <span style={{ marginLeft: 7, color: 'var(--warning-dark)', fontSize: 11 }}>
-                  stock: {p.stock ?? p.quantity ?? 0}{p.unit ? ` ${p.unit}` : ''} · reorder at {reorder}
+                  stock: {fmtQty(p.stock ?? p.quantity ?? 0)}{p.unit ? ` ${p.unit}` : ''} · reorder at {reorder}
                 </span>
                 {isUsed && <span style={{ marginLeft: 7, fontSize: 10, color: 'var(--text-muted)' }}>(already added)</span>}
               </div>
@@ -595,7 +682,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
               >
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
                 <span style={{ marginLeft: 7, color: 'var(--text-muted)', fontSize: 11 }}>
-                  (stock: {p.stock ?? p.quantity ?? 0} {p.unit || 'pcs'})
+                  (stock: {fmtQty(p.stock ?? p.quantity ?? 0)} {p.unit || 'pcs'})
                 </span>
                 {isUsed && <span style={{ marginLeft: 7, fontSize: 10, color: 'var(--text-muted)' }}>(already added)</span>}
               </div>
@@ -954,6 +1041,66 @@ function CreatePOModal({
                 })}
               </tbody>
             </table>
+            <div className={styles.mobileItemsList}>
+              {items.map((item, i) => {
+                const productMeta = storeProducts.find(p => p._id === item.productId)
+                const reorderLevel = productMeta?.reorderLevel ?? productMeta?.reorderPoint ?? null
+                const productUnit = productMeta?.unit || 'pcs'
+                return (
+                  <div key={i} className={styles.mobileItem}>
+                    <div className={styles.mobileItemTop}>
+                      <div style={{ flex: 1 }}>
+                        <ProductCombobox
+                          value={item.productId}
+                          options={storeProducts}
+                          usedIds={new Set(items.filter((_, idx) => idx !== i).map(it => it.productId).filter(Boolean))}
+                          disabled={!selectedStore}
+                          onChange={productId => onProductChange(i, productId)}
+                        />
+                        {reorderLevel != null && (
+                          <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+                            <MdWarning size={11} /> Reorder at {reorderLevel} {productUnit}
+                          </div>
+                        )}
+                        {item.productId && items.filter(it => it.productId === item.productId).length > 1 && (
+                          <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 3 }}>⚠️ Duplicate — remove one row</div>
+                        )}
+                      </div>
+                      <button className={styles.itemDeleteBtn} onClick={() => removeItem(i)} title="Remove item">
+                        <MdDelete size={16} />
+                      </button>
+                    </div>
+                    <div className={styles.mobileItemInputs}>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Qty</div>
+                        <input
+                          type='number' min={1}
+                          value={item.qtyOrdered}
+                          onChange={e => updateItem(i, 'qtyOrdered', e.target.value)}
+                        />
+                        {item.productId && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{productUnit}</div>}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>Cost (KSh)</div>
+                        <input
+                          type='number' min={0} step='0.01'
+                          value={item.unitCost}
+                          onChange={e => updateItem(i, 'unitCost', e.target.value)}
+                        />
+                        {item.productId && productMeta?.buyPrice != null && (
+                          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>
+                            Buy: KSh {productMeta.buyPrice.toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                    <div className={styles.mobileItemTotal}>
+                      Total: <span style={{ fontWeight: 700, color: 'var(--primary)' }}>KSh {(Number(item.qtyOrdered) * Number(item.unitCost)).toLocaleString()}</span>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
             <div className={styles.addItemRow}>
               <button className={styles.btnSecondary} onClick={addItem} disabled={!selectedStore}>
                 <MdAdd /> Add Item
@@ -1005,7 +1152,7 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
       fd.append('invoiceAmount', invoiceAmount)
       fd.append('invoiceDate', invoiceDate)
       if (photoFile) fd.append('invoicePhoto', photoFile)
-      const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/invoice`, {
+      const res = await fetch(`${API_BASE_URL}/api/purchase-orders/${po._id}/invoice`, {
         method: 'PATCH', headers: { Authorization: `Bearer ${currentUser?.token}` }, body: fd,
       })
       const data = await res.json()
@@ -1083,7 +1230,7 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
     let cancelled = false
     async function loadPayments() {
       try {
-        const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/payments`, { headers: { Authorization: `Bearer ${token}` } })
+        const res = await fetch(`${API_BASE_URL}/api/purchase-orders/${po._id}/payments`, { headers: { Authorization: `Bearer ${token}` } })
         const data = await res.json()
         if (!cancelled && data.success) setPayments(data.payments || [])
       } catch { /* silent */ }
@@ -1101,10 +1248,10 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
         const y = now.getFullYear(); const m = now.getMonth() + 1; const mm = String(m).padStart(2, '0')
         const from = `${y}-${mm}-01`; const to = `${y}-${mm}-${new Date(y, m, 0).getDate()}`
         const [salesRes, expRes, outstandingRes, spRes] = await Promise.all([
-          fetch(`http://localhost:5000/api/sales`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`http://localhost:5000/api/expenses/summary?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`http://localhost:5000/api/purchase-orders/outstanding`, { headers: { Authorization: `Bearer ${token}` } }),
-          fetch(`http://localhost:5000/api/purchase-orders/supplier-payments?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/api/sales`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/api/expenses/summary?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/api/purchase-orders/outstanding`, { headers: { Authorization: `Bearer ${token}` } }),
+          fetch(`${API_BASE_URL}/api/purchase-orders/supplier-payments?from=${from}&to=${to}`, { headers: { Authorization: `Bearer ${token}` } }),
         ])
         const [salesData, expData, outstandingData, spData] = await Promise.all([
           salesRes.json().catch(() => ({ sales: [] })),
@@ -1140,7 +1287,7 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
     if (method === 'bank' && !reference.trim()) { setError('Bank reference number is required.'); return }
     setPaying(true)
     try {
-      const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/payments`, {
+      const res = await fetch(`${API_BASE_URL}/api/purchase-orders/${po._id}/payments`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ amount: Number(amount), method, reference, notes }),
       })
@@ -1165,7 +1312,7 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
           <button className={styles.modalClose} onClick={onClose}><MdClose /></button>
         </div>
         <div className={styles.modalBody}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 16 }}>
+          <div className={styles.paymentSummaryGrid} style={{ gap: 10, marginBottom: 16 }}>
             {[
               { label: 'Invoice Amount', value: `KSh ${(po.invoiceAmount || 0).toLocaleString()}`, color: 'var(--text-primary)' },
               { label: 'Already Paid', value: `KSh ${(po.amountPaid || 0).toLocaleString()}`, color: 'var(--success-dark)' },
@@ -1491,7 +1638,7 @@ function ReceiveModal({ po, products, onClose, onReceived, receivePurchaseOrder 
                 </div>
 
                 {/* Three input columns */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                <div className={styles.receiveInputGrid} style={{ gap: 10 }}>
                   {/* Qty */}
                   <div>
                     <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 4 }}>Qty Now ({itemUnit})</div>
@@ -1608,7 +1755,7 @@ function EmailPOModal({ po, currentUser, onClose, onSent }) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient.trim())) { setError('Enter a valid email address.'); return }
     setSending(true)
     try {
-      const res = await fetch(`http://localhost:5000/api/purchase-orders/${po._id}/send-email`, {
+      const res = await fetch(`${API_BASE_URL}/api/purchase-orders/${po._id}/send-email`, {
         method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
         body: JSON.stringify({ recipientEmail: recipient.trim(), subject, message }),
       })

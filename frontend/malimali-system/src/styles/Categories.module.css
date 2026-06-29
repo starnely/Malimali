@@ -1,0 +1,96 @@
+.tableCard {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-soft);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  max-height: calc(100vh - 320px);
+  display: flex;
+  flex-direction: column;
+}
+
+.tableScroll {
+  overflow-y: auto;
+  flex: 1;
+  overflow-x: auto;
+}
+
+.btnAdd {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: var(--radius-md);
+  border: none;
+  background: var(--primary);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .btnAdd:hover { background: var(--primary-dark); }
+}
+.btnAdd:active { background: var(--primary-dark); }
+@media (pointer: coarse) {
+  .btnAdd { min-height: 44px; }
+}
+
+.rowHover {
+  transition: background 0.1s;
+}
+@media (hover: hover) {
+  .rowHover:hover { background: var(--primary-light) !important; }
+}
+.rowHover:active { background: var(--primary-light) !important; }
+
+.iconEdit {
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  min-width: 36px;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  transition: background 0.15s;
+}
+@media (hover: hover) {
+  .iconEdit:hover { background: var(--primary-light); }
+}
+.iconEdit:active { background: var(--primary-light); }
+
+.iconDelete {
+  padding: 6px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  min-width: 36px;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  transition: background 0.15s;
+}
+@media (hover: hover) {
+  .iconDelete:not(:disabled):hover { background: var(--danger-light); }
+}
+.iconDelete:not(:disabled):active { background: var(--danger-light); }
+
+@media (max-width: 768px) {
+  .tableCard { max-height: none; overflow: visible; flex: none; }
+  .tableScroll { overflow: visible; flex: none; overflow-x: auto; }
+}

@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import { MdDownload, MdPrint, MdQrCodeScanner, MdScale } from 'react-icons/md'
 import BarcodeImage from './BarcodeImage'
 import s from '@/styles/Barcodes.module.css'
+import { fmtQty } from '@/utils/utils'
 
 export default function GenerateBarcodes({ products = [], searchQuery = '', setSearchQuery, handleDownload }) {
   const labelPrintRef = useRef(null)
@@ -114,7 +115,7 @@ export default function GenerateBarcodes({ products = [], searchQuery = '', setS
                     KSh {Number(product.sellPrice || 0).toLocaleString()}
                   </div>
                   <div className={`${s.barcodeCardStock} ${product.stock <= 5 ? s.barcodeCardStockLow : s.barcodeCardStockOk}`}>
-                    Stock: {product.stock ?? 0} {product.unit || 'pcs'}
+                    Stock: {fmtQty(product.stock ?? 0)} {product.unit || 'pcs'}
                   </div>
                   <div className={`${s.barcodeCardBarcode} barcode-text`}>
                     BC: {product.barcode || 'System Assigned'}

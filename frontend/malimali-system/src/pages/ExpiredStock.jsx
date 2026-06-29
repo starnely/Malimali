@@ -1,6 +1,8 @@
-import { useState, useEffect, useMemo, useCallback } from 'react'
+﻿import { useState, useEffect, useMemo, useCallback } from 'react'
 import { MdWarning, MdDelete, MdStorefront, MdRefresh, MdTrendingDown, MdClose } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { API_BASE_URL } from '@/config/api'
+import styles from '@/styles/ExpiredStock.module.css'
 
 export default function ExpiredStock() {
   const { currentUser, products, fetchProducts, isOwner, isManager, stores } = useApp()
@@ -23,7 +25,7 @@ export default function ExpiredStock() {
     try {
       setLoading(true)
       const params = storeFilter !== 'All' ? `?store=${encodeURIComponent(storeFilter)}` : ''
-      const res = await fetch(`http://localhost:5000/api/expired${params}`, {
+      const res = await fetch(`${API_BASE_URL}/api/expired${params}`, {
         headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -62,7 +64,7 @@ export default function ExpiredStock() {
     }
     try {
       setMoving(true)
-      const res = await fetch(`http://localhost:5000/api/expired/move/${moveModal._id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/expired/move/${moveModal._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ quantity: qty, notes: moveNotes }),
@@ -85,7 +87,7 @@ export default function ExpiredStock() {
   const handleAutoCheck = async () => {
     try {
       setChecking(true)
-      const res = await fetch('http://localhost:5000/api/expired/auto-check', {
+      const res = await fetch(`${API_BASE_URL}/api/expired/auto-check`, {
         method: 'POST', headers: { Authorization: `Bearer ${token}` },
       })
       const data = await res.json()
@@ -99,7 +101,7 @@ export default function ExpiredStock() {
 
   const handleDelete = async (id) => {
     try {
-      await fetch(`http://localhost:5000/api/expired/${id}`, {
+      await fetch(`${API_BASE_URL}/api/expired/${id}`, {
         method: 'DELETE', headers: { Authorization: `Bearer ${token}` },
       })
       setConfirmId(null)
@@ -115,7 +117,7 @@ export default function ExpiredStock() {
   const storeOptions = ['All', ...(stores || []).map(s => s.name || s).filter(Boolean)]
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Fixed header ───────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-4">
@@ -173,7 +175,7 @@ export default function ExpiredStock() {
       </div>
 
       {/* ── Scrollable content ──────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
 
         {/* Expiring soon warning — filtered by store */}
         {expiringProducts.length > 0 && (isOwner || isManager) && (
@@ -212,10 +214,7 @@ export default function ExpiredStock() {
                     {(isOwner || isManager) && (
                       <button
                         onClick={() => { setMoveModal(p); setMoveQty(String(p.stock)) }}
-                        className="px-2.5 py-1 text-xs font-bold text-white rounded-lg transition"
-                        style={{ background: 'var(--danger)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-dark)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'var(--danger)'}
+                        className={`px-2.5 py-1 text-xs font-bold text-white rounded-lg transition ${styles.moveBtn}`}
                       >
                         Move
                       </button>

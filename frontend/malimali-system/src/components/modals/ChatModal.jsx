@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+﻿import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import {
   MdChat, MdClose, MdSend, MdCampaign,
   MdDoneAll, MdDone, MdSearch
@@ -6,6 +6,7 @@ import {
 import { useApp } from '@/context/AppContext'
 import { useSocket } from '@/context/SocketContext'
 import styles from '@/styles/ChatModal.module.css'
+import { API_BASE_URL } from '@/config/api'
 
 export default function ChatModal({ onClose }) {
   const {
@@ -48,7 +49,7 @@ export default function ChatModal({ onClose }) {
     if (isOwner) return
     const token = currentUser?.token
     if (!token) return
-    fetch('http://localhost:5000/api/messages/owner-id', {
+    fetch(`${API_BASE_URL}/api/messages/owner-id`, {
       headers: { Authorization: `Bearer ${token}` }
     })
       .then(r => r.json())

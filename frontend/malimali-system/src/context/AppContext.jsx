@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
+﻿import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { useSocket, useSocketActions } from './SocketContext';
+import { API_BASE_URL } from '@/config/api'
 
 /* @refresh reload */
 const AppContext = createContext()
@@ -28,6 +29,7 @@ export function AppProvider({ children }) {
 
   // ── CORE STATE ─────────────────────────────────────────────────────────
   const [isSetupComplete, setIsSetupComplete] = useState(null)
+  const [connectionError, setConnectionError] = useState(false)
   const [currentUser, setCurrentUser] = useState(() => load('pos_system_user', null))
   const [users, setUsers] = useState([])
   const [products, setProducts] = useState([])
@@ -69,6 +71,7 @@ export function AppProvider({ children }) {
 
   const tokenRef = useRef(currentUser?.token ?? null)
   tokenRef.current = currentUser?.token ?? null
+  const retryTimerRef = useRef(null)
 
   const { refreshSocket } = useSocketActions();
   const refreshSocketRef = useRef(refreshSocket)
@@ -108,25 +111,33 @@ export function AppProvider({ children }) {
   authFetchRef.current = authFetch
 
   // ── SETUP CHECK ────────────────────────────────────────────────────────
-  useEffect(() => {
-    const checkSetup = async () => {
-      try {
-        const res = await fetch('http://localhost:5000/api/setup/status');
-        if (!res.ok) throw new Error(`Server responded with ${res.status}`);
-        const data = await res.json();
-        setIsSetupComplete(data.isSetup && data.hasOwner);
-        if (data.isSetup) {
-          const settingsRes = await fetch('http://localhost:5000/api/setup/details');
-          const settingsData = await settingsRes.json();
-          setSettings(settingsData.settings || settingsData);
-        }
-      } catch (err) {
-        console.error('Setup check failed:', err);
-        setIsSetupComplete(false);
+  const runSetupCheck = useCallback(async () => {
+    if (retryTimerRef.current) {
+      clearTimeout(retryTimerRef.current)
+      retryTimerRef.current = null
+    }
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/setup/status`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const data = await res.json()
+      setConnectionError(false)
+      setIsSetupComplete(data.isSetup && data.hasOwner)
+      if (data.isSetup) {
+        const settingsRes = await fetch(`${API_BASE_URL}/api/setup/details`)
+        const settingsData = await settingsRes.json()
+        setSettings(settingsData.settings || settingsData)
       }
-    };
-    checkSetup();
-  }, []);
+    } catch (err) {
+      console.error('Setup check failed:', err)
+      setConnectionError(true)
+      retryTimerRef.current = setTimeout(runSetupCheck, 5000)
+    }
+  }, [])
+
+  useEffect(() => {
+    runSetupCheck()
+    return () => { if (retryTimerRef.current) clearTimeout(retryTimerRef.current) }
+  }, [runSetupCheck])
 
   // ── FETCH HELPERS — all use authFetch ─────────────────────────────────
   const fetchProducts = useCallback(async () => {
@@ -134,7 +145,7 @@ export function AppProvider({ children }) {
       const user = JSON.parse(localStorage.getItem('pos_system_user') || '{}')
       const params = new URLSearchParams()
       if (user.role !== 'owner' && user.store) params.set('store', user.store)
-      const res = await authFetchRef.current(`http://localhost:5000/api/products?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/products?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setProducts(data.success && Array.isArray(data.products) ? data.products : [])
@@ -143,7 +154,7 @@ export function AppProvider({ children }) {
 
   const fetchSales = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/sales')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/sales`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setSales(data.success && Array.isArray(data.sales) ? data.sales : [])
@@ -152,7 +163,7 @@ export function AppProvider({ children }) {
 
   const fetchReturns = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/returns')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/returns`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setReturns(data.success && Array.isArray(data.returns) ? data.returns : [])
@@ -161,7 +172,7 @@ export function AppProvider({ children }) {
 
   const fetchUsers = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/auth/employees')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/auth/employees`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       if (Array.isArray(data)) setUsers(data)
@@ -172,7 +183,7 @@ export function AppProvider({ children }) {
 
   const fetchArchives = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/archives')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/archives`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       const archivesArray = data.success && Array.isArray(data.archives) ? data.archives : [];
@@ -205,7 +216,7 @@ export function AppProvider({ children }) {
 
   const fetchStores = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/stores')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/stores`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setStores(data.success && Array.isArray(data.stores) ? data.stores : [])
@@ -214,7 +225,7 @@ export function AppProvider({ children }) {
 
   const fetchCategories = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/categories')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/categories`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setCategories(data.success && Array.isArray(data.categories) ? data.categories : [])
@@ -223,7 +234,7 @@ export function AppProvider({ children }) {
 
   const fetchSuppliers = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/suppliers?all=true')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/suppliers?all=true`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setSuppliers(data.success && Array.isArray(data.suppliers) ? data.suppliers : [])
@@ -238,7 +249,7 @@ export function AppProvider({ children }) {
       if (filters.search) params.set('search', filters.search);
       if (filters.overdue) params.set('overdue', 'true');
       if (filters.blacklisted) params.set('blacklisted', 'true');
-      const res = await authFetchRef.current(`http://localhost:5000/api/customers?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/customers?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       return Array.isArray(data) ? data : [];
@@ -247,7 +258,7 @@ export function AppProvider({ children }) {
 
   const fetchCustomer = useCallback(async (customerId) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/customers/${customerId}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/customers/${customerId}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       return await res.json();
     } catch (err) { console.error('Error fetching customer:', err); return null; }
@@ -255,7 +266,7 @@ export function AppProvider({ children }) {
 
   const recordRepayment = useCallback(async (customerId, amount, notes = '') => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/customers/${customerId}/repayments`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/customers/${customerId}/repayments`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: Number(amount), notes })
@@ -268,7 +279,7 @@ export function AppProvider({ children }) {
 
   const blacklistCustomer = useCallback(async (customerId, blacklisted, reason = '') => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/customers/${customerId}/blacklist`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/customers/${customerId}/blacklist`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ blacklisted, reason })
@@ -282,7 +293,7 @@ export function AppProvider({ children }) {
   const checkCustomerCredit = useCallback(async (name, phone, store) => {
     try {
       const params = new URLSearchParams({ search: phone || name, store });
-      const res = await authFetchRef.current(`http://localhost:5000/api/customers?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/customers?${params}`)
       if (!res || !res.ok) return null;
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) return null;
@@ -303,7 +314,7 @@ export function AppProvider({ children }) {
       if (filters.paymentStatus) params.set('paymentStatus', filters.paymentStatus);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       return data.purchaseOrders || [];
@@ -312,7 +323,7 @@ export function AppProvider({ children }) {
 
   const fetchPurchaseOrder = useCallback(async (id) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders/${id}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       return data.purchaseOrder || null;
@@ -321,7 +332,7 @@ export function AppProvider({ children }) {
 
   const createPurchaseOrder = useCallback(async (payload) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/purchase-orders', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -333,7 +344,7 @@ export function AppProvider({ children }) {
 
   const updatePurchaseOrder = useCallback(async (id, payload) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -345,7 +356,7 @@ export function AppProvider({ children }) {
 
   const sendPurchaseOrder = useCallback(async (id) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}/send`, { method: 'PATCH' });
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders/${id}/send`, { method: 'PATCH' });
       const data = await res.json();
       return res.ok ? { success: true, purchaseOrder: data.purchaseOrder } : { success: false, message: data.message };
     } catch { return { success: false, message: 'Network error' }; }
@@ -353,7 +364,7 @@ export function AppProvider({ children }) {
 
   const receivePurchaseOrder = useCallback(async (id, items) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}/receive`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders/${id}/receive`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ items })
@@ -366,7 +377,7 @@ export function AppProvider({ children }) {
 
   const cancelPurchaseOrder = useCallback(async (id, reason = '') => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}/cancel`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders/${id}/cancel`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason })
@@ -378,7 +389,7 @@ export function AppProvider({ children }) {
 
   const deletePurchaseOrder = useCallback(async (id) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/purchase-orders/${id}`, { method: 'DELETE' });
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders/${id}`, { method: 'DELETE' });
       const data = await res.json();
       return res.ok ? { success: true } : { success: false, message: data.message };
     } catch { return { success: false, message: 'Network error' }; }
@@ -393,7 +404,7 @@ export function AppProvider({ children }) {
       if (filters.category) params.set('category', filters.category);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
-      const res = await authFetchRef.current(`http://localhost:5000/api/expenses?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/expenses?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       return data.expenses || [];
@@ -407,7 +418,7 @@ export function AppProvider({ children }) {
       if (filters.date) params.set('date', filters.date);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
-      const res = await authFetchRef.current(`http://localhost:5000/api/expenses/summary?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/expenses/summary?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       return await res.json();
     } catch (err) { console.error('fetchExpenseSummary error:', err); return { summary: [], grandTotal: 0 }; }
@@ -415,7 +426,7 @@ export function AppProvider({ children }) {
 
   const logExpense = useCallback(async (payload) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/expenses', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/expenses`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -427,7 +438,7 @@ export function AppProvider({ children }) {
 
   const deleteExpense = useCallback(async (id, reason = '') => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/expenses/${id}`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/expenses/${id}`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reason })
@@ -442,7 +453,7 @@ export function AppProvider({ children }) {
     try {
       const params = new URLSearchParams();
       if (store) params.set('store', store);
-      const res = await authFetchRef.current(`http://localhost:5000/api/petty-cash/today?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/petty-cash/today?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       return await res.json();
     } catch (err) { console.error('fetchPettyCashToday error:', err); return { record: null }; }
@@ -454,7 +465,7 @@ export function AppProvider({ children }) {
       if (filters.store) params.set('store', filters.store);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
-      const res = await authFetchRef.current(`http://localhost:5000/api/petty-cash/history?${params}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/petty-cash/history?${params}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       return data.records || [];
@@ -463,7 +474,7 @@ export function AppProvider({ children }) {
 
   const openPettyCash = useCallback(async (store, openingFloat = 0, notes = '') => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/petty-cash/open', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/petty-cash/open`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ store, openingFloat: Number(openingFloat), notes })
@@ -475,7 +486,7 @@ export function AppProvider({ children }) {
 
   const addPettyCashTransaction = useCallback(async (store, type, amount, description = '', expenseCategory = 'other') => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/petty-cash/transaction', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/petty-cash/transaction`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ store, type, amount: Number(amount), description, expenseCategory })
@@ -487,7 +498,7 @@ export function AppProvider({ children }) {
 
   const closePettyCash = useCallback(async (store, closingFloat, notes = '') => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/petty-cash/close', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/petty-cash/close`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ store, closingFloat: Number(closingFloat), notes })
@@ -500,7 +511,7 @@ export function AppProvider({ children }) {
   // ── MESSAGES ───────────────────────────────────────────────────────────
   const fetchConversations = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/messages/conversations')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/messages/conversations`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       setConversations(data.success ? data.conversations : []);
@@ -509,7 +520,7 @@ export function AppProvider({ children }) {
 
   const fetchThread = useCallback(async (userId) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/messages/thread/${userId}`)
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/messages/thread/${userId}`)
       if (!res || !res.ok) throw new Error(`Status: ${res?.status}`)
       const data = await res.json()
       if (data.success) { setMessages(data.messages); fetchConversations(); }
@@ -519,7 +530,7 @@ export function AppProvider({ children }) {
 
   const sendMessage = useCallback(async (receiverId, content) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/messages', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ receiverId, content })
@@ -532,7 +543,7 @@ export function AppProvider({ children }) {
 
   const sendBroadcast = useCallback(async (content) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/messages/broadcast', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/messages/broadcast`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content })
@@ -545,7 +556,7 @@ export function AppProvider({ children }) {
 
   const fetchUnreadMsgCount = useCallback(async () => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/messages/unread-count')
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/messages/unread-count`)
       if (!res || !res.ok) return;
       const data = await res.json()
       if (data.success) setUnreadMsgCount(data.unreadCount);
@@ -584,7 +595,7 @@ export function AppProvider({ children }) {
   // ── LOGIN ──────────────────────────────────────────────────────────────
   const login = async (username, password) => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/login', {
+      const res = await fetch(`${API_BASE_URL}/api/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password })
@@ -624,7 +635,7 @@ export function AppProvider({ children }) {
       return { success: false, message: 'Password must contain at least one uppercase letter and one number.' };
     }
     try {
-      const res = await fetch('http://localhost:5000/api/setup/initialize', { method: 'POST', body: formData });
+      const res = await fetch(`${API_BASE_URL}/api/setup/initialize`, { method: 'POST', body: formData });
       const data = await res.json();
       if (res.ok && data.success) { setIsSetupComplete(true); return { success: true }; }
       if (data.error && data.error.includes('E11000')) return { success: false, message: 'This email is already registered.' };
@@ -635,7 +646,7 @@ export function AppProvider({ children }) {
   // ── RECORD SALE ────────────────────────────────────────────────────────
   const recordMultipleSales = async (cartItems, paymentInfo = {}) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/sales', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/sales`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -670,7 +681,7 @@ export function AppProvider({ children }) {
         fetchSales(); fetchProducts();
         if (paymentInfo.paymentMethod === 'credit' && data.sale?._id) {
           try {
-            await authFetchRef.current('http://localhost:5000/api/customers/from-sale', {
+            await authFetchRef.current(`${API_BASE_URL}/api/customers/from-sale`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
@@ -696,7 +707,7 @@ export function AppProvider({ children }) {
   // The caller listens on socket event "mpesa_result" for the final outcome.
   const initiateMpesaPayment = async ({ phone, amount, cartItems, discount, finalTotal, customerName }) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/mpesa/stk-push', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/mpesa/stk-push`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -724,7 +735,7 @@ export function AppProvider({ children }) {
   const checkMpesaStatus = async (checkoutRequestId) => {
     try {
       const res = await authFetchRef.current(
-        `http://localhost:5000/api/mpesa/status/${checkoutRequestId}`
+        `${API_BASE_URL}/api/mpesa/status/${checkoutRequestId}`
       )
       return await res.json()
     } catch (err) {
@@ -736,7 +747,7 @@ export function AppProvider({ children }) {
   // ── RETURNS ────────────────────────────────────────────────────────────
   const processReturn = async (saleId, returnItems, reason, customerName) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/returns', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/returns`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ saleId, items: returnItems, reason, customerName })
@@ -749,7 +760,7 @@ export function AppProvider({ children }) {
 
   const approveReturn = async (returnId) => {
     try {
-      await authFetchRef.current(`http://localhost:5000/api/returns/${returnId}/approve`, { method: 'PATCH' })
+      await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/approve`, { method: 'PATCH' })
       fetchReturns(); fetchProducts(); fetchSales()
       return true
     } catch (err) { console.error('Operation failed:', err); return false }
@@ -757,7 +768,7 @@ export function AppProvider({ children }) {
 
   const rejectReturn = async (returnId) => {
     try {
-      await authFetchRef.current(`http://localhost:5000/api/returns/${returnId}/reject`, { method: 'PATCH' })
+      await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/reject`, { method: 'PATCH' })
       fetchReturns(); fetchSales()
       return true
     } catch (err) { console.error('Operation failed:', err); return false }
@@ -766,7 +777,7 @@ export function AppProvider({ children }) {
   // ── USER MANAGEMENT ────────────────────────────────────────────────────
   const addUser = async (form) => {
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/auth/register', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/auth/register`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
       });
       const data = await res.json();
@@ -777,7 +788,7 @@ export function AppProvider({ children }) {
 
   const updateUser = async (id, form) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/auth/${id}`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/auth/${id}`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form)
       })
       const data = await res.json()
@@ -788,7 +799,7 @@ export function AppProvider({ children }) {
 
   const deleteUser = async (id) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/auth/${id}`, { method: 'DELETE' })
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/auth/${id}`, { method: 'DELETE' })
       const data = await res.json()
       if (data.success) setUsers(prev => prev.filter(u => u._id !== id))
       return data
@@ -797,7 +808,7 @@ export function AppProvider({ children }) {
 
   const toggleUserStatus = async (id) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/auth/${id}/toggle`, { method: 'PATCH' })
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/auth/${id}/toggle`, { method: 'PATCH' })
       if (!res || !res.ok) throw new Error(`Server rejected request with status: ${res?.status}`);
       const data = await res.json()
       if (data.success) fetchUsers()
@@ -811,7 +822,7 @@ export function AppProvider({ children }) {
       const formData = new FormData()
       Object.keys(newSettings).forEach(key => { if (key !== 'logoFile') formData.append(key, newSettings[key]) })
       if (newSettings.logoFile) formData.append('logo', newSettings.logoFile)
-      const res = await authFetchRef.current('http://localhost:5000/api/setup/update', { method: 'PUT', body: formData })
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/setup/update`, { method: 'PUT', body: formData })
       const data = await res.json()
       if (data.success) { setSettings(data.settings); localStorage.setItem('pos_system_settings', JSON.stringify(data.settings)); return { success: true } }
       return { success: false }
@@ -997,7 +1008,7 @@ export function AppProvider({ children }) {
   // ── VOID SALE ──────────────────────────────────────────────────────────
   const voidSale = async (saleId, managerUsername, managerPassword, reason, voidType = 'whole', items = []) => {
     try {
-      const res = await authFetchRef.current(`http://localhost:5000/api/sales/${saleId}/void`, {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/sales/${saleId}/void`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ managerUsername, managerPassword, reason, voidType, items })
@@ -1030,7 +1041,7 @@ export function AppProvider({ children }) {
         return q + Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
       }, 0) || 0), 0)
     try {
-      const res = await authFetchRef.current('http://localhost:5000/api/archives', {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/archives`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ employeeName, date: today, revenue, transactions, itemsSold, openingFloat: 0, actualCash: Number(actualCash) || 0 })
@@ -1129,7 +1140,7 @@ export function AppProvider({ children }) {
     <AppContext.Provider value={{
       socket,
       settings, setSettings, updateSettings,
-      isSetupComplete, setupOwner,
+      isSetupComplete, connectionError, retrySetupCheck: runSetupCheck, setupOwner,
       currentUser, login, logout,
       isOwner,
       isEmployee: currentUser?.role === 'employee',

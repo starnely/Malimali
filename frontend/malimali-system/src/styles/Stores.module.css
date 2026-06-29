@@ -1,0 +1,71 @@
+.btnAdd {
+  background: var(--primary);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .btnAdd:hover { background: var(--primary-dark); }
+}
+.btnAdd:active { background: var(--primary-dark); }
+@media (pointer: coarse) {
+  .btnAdd { min-height: 44px; }
+}
+
+.rowHover {
+  transition: background 0.15s;
+}
+@media (hover: hover) {
+  .rowHover:hover { background: var(--primary-light) !important; }
+}
+.rowHover:active { background: var(--primary-light) !important; }
+
+.iconEdit {
+  color: var(--primary);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+  min-height: 36px;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .iconEdit:hover { background: var(--primary-light); }
+}
+.iconEdit:active { background: var(--primary-light); }
+@media (pointer: coarse) {
+  .iconEdit { min-height: 44px; min-width: 44px; }
+}
+
+.iconDelete {
+  color: var(--danger);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: background 0.15s;
+  min-height: 36px;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .iconDelete:hover { background: var(--danger-light); }
+}
+.iconDelete:active { background: var(--danger-light); }
+@media (pointer: coarse) {
+  .iconDelete { min-height: 44px; min-width: 44px; }
+}

@@ -5,9 +5,8 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.critical:hover {
-  background: var(--danger);
-  color: #fff;
+@media (hover: hover) {
+  .critical:hover { background: var(--danger); color: #fff; }
 }
 
 .low {
@@ -16,9 +15,8 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.low:hover {
-  background: var(--warning);
-  color: #fff;
+@media (hover: hover) {
+  .low:hover { background: var(--warning); color: #fff; }
 }
 
 .inStock {
@@ -27,9 +25,8 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.inStock:hover {
-  background: var(--success);
-  color: #fff;
+@media (hover: hover) {
+  .inStock:hover { background: var(--success); color: #fff; }
 }
 
 /* ── Expiry Badges ──────────────────────────────────────── */
@@ -56,13 +53,346 @@
   border-top: 1px solid var(--border-soft);
   transition: background 0.15s;
 }
-.tableRow:hover {
-  background: var(--primary-light);
+@media (hover: hover) {
+  .tableRow:hover { background: var(--primary-light); }
 }
 .tableRowExpired {
   background: var(--danger-light);
   opacity: 0.85;
 }
+
+/* ── Add Product Button (Products.jsx) ──────────────────── */
+.addBtn {
+  background: var(--primary);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .addBtn:hover { background: var(--primary-dark); } }
+.addBtn:active { opacity: 0.85; }
+
+/* ── Desktop Table Container (hidden at ≤768px) ─────────── */
+@media (max-width: 768px) {
+  .productTableContainer { display: none; }
+}
+
+/* ── Mobile Product Cards ───────────────────────────────── */
+/* Hide rule FIRST — show rule (media query) must come AFTER */
+.mobileProductList { display: none; }
+
+@media (max-width: 768px) {
+  .mobileProductList {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 0 16px 16px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+.mobileProductCard {
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  box-sizing: border-box;
+  box-shadow: var(--shadow-card);
+}
+
+.mobileProductCardExpired {
+  background: var(--danger-light);
+  border-color: var(--danger);
+  opacity: 0.85;
+}
+
+.mobileProductHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mobileProductInfo { flex: 1; min-width: 0; }
+
+.mobileProductName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.mobileProductMeta {
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mobileProductBadges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex-shrink: 0;
+}
+
+.mobileProductPrices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.mobileProductPriceCell {
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+.mobileProductPriceLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.mobileProductPriceValue {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobileProductPriceUnit {
+  font-size: 10px;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+.mobileProductActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.mobileActionEdit {
+  border: 1px solid var(--border-medium);
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .mobileActionEdit:hover {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+}
+.mobileActionEdit:active { background: var(--primary-light); color: var(--primary); }
+
+.mobileActionRestock {
+  flex: 1;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--success);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  min-height: 44px;
+  touch-action: manipulation;
+  user-select: none;
+  text-align: center;
+}
+@media (hover: hover) { .mobileActionRestock:hover { background: var(--success-dark); } }
+.mobileActionRestock:active { opacity: 0.85; }
+
+.mobileActionDelete {
+  border: 1px solid var(--border-medium);
+  background: var(--bg-muted);
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  min-height: 44px;
+  min-width: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+  flex-shrink: 0;
+}
+@media (hover: hover) {
+  .mobileActionDelete:hover {
+    background: var(--danger-light);
+    color: var(--danger);
+    border-color: var(--danger);
+  }
+}
+.mobileActionDelete:active { background: var(--danger-light); color: var(--danger); }
+
+/* ── ProductCardRow Action Buttons (desktop) ─────────────── */
+.actionBtnEdit {
+  color: var(--text-muted);
+  min-height: 36px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .actionBtnEdit:hover { background: var(--primary-light); color: var(--primary); }
+}
+.actionBtnEdit:active { background: var(--primary-light); color: var(--primary); opacity: 0.85; }
+@media (pointer: coarse) { .actionBtnEdit { min-height: 44px; min-width: 44px; } }
+
+.actionBtnRestock {
+  background: var(--success);
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .actionBtnRestock:hover { background: var(--success-dark); } }
+.actionBtnRestock:active { opacity: 0.85; }
+@media (pointer: coarse) { .actionBtnRestock { min-height: 44px; } }
+
+.actionBtnDelete {
+  color: var(--text-muted);
+  min-height: 36px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .actionBtnDelete:hover { background: var(--danger-light); color: var(--danger); }
+}
+.actionBtnDelete:active { background: var(--danger-light); color: var(--danger); opacity: 0.85; }
+@media (pointer: coarse) { .actionBtnDelete { min-height: 44px; min-width: 44px; } }
+
+/* ── ProductFormPanel Buttons ─────────────────────────────── */
+.formCloseBtn {
+  color: rgba(255, 255, 255, 0.6);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .formCloseBtn:hover { background: rgba(255, 255, 255, 0.1); } }
+.formCloseBtn:active { background: rgba(255, 255, 255, 0.15); }
+
+.formSaveBtn {
+  background: var(--primary);
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .formSaveBtn:hover { background: var(--primary-dark); } }
+.formSaveBtn:active { opacity: 0.85; }
+
+.formSaveBtnDisabled {
+  background: var(--border-medium);
+  cursor: not-allowed;
+  touch-action: manipulation;
+}
+
+.formCancelBtn {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-soft);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .formCancelBtn:hover { background: var(--border-soft); } }
+.formCancelBtn:active { opacity: 0.85; }
+
+.formPrintBtn {
+  background: var(--primary);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .formPrintBtn:hover { background: var(--primary-dark); } }
+.formPrintBtn:active { opacity: 0.85; }
+
+/* ── RestockModal Buttons ─────────────────────────────────── */
+.restockCloseBtn {
+  color: rgba(255, 255, 255, 0.6);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .restockCloseBtn:hover { background: rgba(255, 255, 255, 0.1); } }
+.restockCloseBtn:active { background: rgba(255, 255, 255, 0.15); }
+
+.restockUpdateBtn {
+  background: var(--primary);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .restockUpdateBtn:hover { background: var(--primary-dark); } }
+.restockUpdateBtn:active { opacity: 0.85; }
+.restockUpdateBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.restockCancelBtn {
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-soft);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .restockCancelBtn:hover { background: var(--border-soft); } }
+.restockCancelBtn:active { opacity: 0.85; }
+
+/* ── DeleteConfirmModal Buttons ───────────────────────────── */
+.deleteModalCancelBtn {
+  background: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-medium);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .deleteModalCancelBtn:hover { background: var(--bg-muted); } }
+.deleteModalCancelBtn:active { opacity: 0.85; }
+
+.deleteModalConfirmBtn {
+  background: var(--danger);
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) { .deleteModalConfirmBtn:hover { background: var(--danger-dark); } }
+.deleteModalConfirmBtn:active { opacity: 0.85; }
+
+/* ── ProductFilters Dropdown Items ────────────────────────── */
+.filterDropdownItemActive {
+  background: var(--primary-light);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.filterDropdownItemInactive {
+  background: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .filterDropdownItemInactive:hover { background: var(--bg-muted); }
+}
+.filterDropdownItemInactive:active { background: var(--bg-muted); opacity: 0.8; }
 
 /* ── Form Panel ─────────────────────────────────────────── */
 .formPanel {

@@ -1,14 +1,16 @@
-import { useState, useEffect, useCallback } from 'react'
+﻿import { useState, useEffect, useCallback } from 'react'
 import { MdAdd } from 'react-icons/md'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { useWindowSize } from '@/hooks/useWindowSize'
+import styles from '@/styles/Products.module.css'
 
 import ProductFilters from './ProductFilters'
 import ProductList from './ProductList'
 import ProductFormPanel from './ProductFormPanel'
 import RestockModal from './RestockModal'
 import DeleteConfirmModal from './DeleteConfirmModal'
+import { API_BASE_URL } from '@/config/api'
 
 const emptyForm = {
   name: '', category: '', supplier: '', store: '',
@@ -122,7 +124,7 @@ export default function Products() {
 
   const printBarcode = useCallback(() => {
     if (savedBarcode) {
-      window.open(`http://localhost:5000/api/products/barcode/${savedBarcode}`, '_blank')
+      window.open(`${API_BASE_URL}/api/products/barcode/${savedBarcode}`, '_blank')
     }
   }, [savedBarcode])
 
@@ -168,8 +170,8 @@ export default function Products() {
 
     try {
       const url = editProduct
-        ? `http://localhost:5000/api/products/${editProduct._id}`
-        : 'http://localhost:5000/api/products'
+        ? `${API_BASE_URL}/api/products/${editProduct._id}`
+        : `${API_BASE_URL}/api/products`
       const method = editProduct ? 'PUT' : 'POST'
       const res = await fetch(url, {
         method,
@@ -207,7 +209,7 @@ export default function Products() {
       return
     }
     try {
-      const res = await fetch(`http://localhost:5000/api/products/${restockProduct._id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/products/${restockProduct._id}`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
@@ -249,7 +251,7 @@ export default function Products() {
   const handleDeleteConfirmed = async () => {
     if (!deleteConfirm) return
     try {
-      await fetch(`http://localhost:5000/api/products/${deleteConfirm._id}`, {
+      await fetch(`${API_BASE_URL}/api/products/${deleteConfirm._id}`, {
         method: 'DELETE',
         headers: { Authorization: `Bearer ${currentUser?.token}` }
       })
@@ -284,11 +286,11 @@ export default function Products() {
   const isOverlay = isMobile
 
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex min-h-screen md:h-screen md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Main Content ─────────────────────────────────── */}
       <div
-        className={`flex flex-col flex-1 min-w-0 min-h-0 overflow-hidden transition-all duration-300
+        className={`flex flex-col md:flex-1 md:min-w-0 md:min-h-0 md:overflow-hidden transition-all duration-300
           ${showModal && !isOverlay ? 'mr-[480px]' : ''}`}
       >
         {/* Header */}
@@ -312,10 +314,7 @@ export default function Products() {
             </div>
             <button
               onClick={openAdd}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition"
-              style={{ background: 'var(--primary)' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition ${styles.addBtn}`}
             >
               <MdAdd className="text-lg" /> Add Product
             </button>

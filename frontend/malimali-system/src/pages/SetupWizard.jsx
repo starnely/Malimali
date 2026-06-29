@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
 import { MdVisibility, MdVisibilityOff, MdErrorOutline } from 'react-icons/md'
 import AuthLayout from '@/components/shared/AuthLayout'
+import styles from '@/styles/SetupWizard.module.css'
 
 const SetupWizard = () => {
   const { setupOwner } = useApp()
@@ -72,24 +73,10 @@ const SetupWizard = () => {
 
   const stepLabels = ['Business', 'Admin', 'Activate']
 
-  const btnPrimary = {
-    width: '100%', background: 'var(--primary)', color: '#fff', border: 'none',
-    padding: '12px', borderRadius: 'var(--radius-md)', fontWeight: '600',
-    cursor: 'pointer', fontSize: '14px', transition: 'all 0.15s',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-  }
-  const btnSecondary = {
-    width: '100%', background: 'transparent', color: 'var(--text-secondary)',
-    border: '1px solid var(--border-medium)', padding: '12px',
-    borderRadius: 'var(--radius-md)', fontWeight: '600',
-    cursor: 'pointer', fontSize: '14px', transition: 'all 0.15s',
-  }
-  const btnSuccess = { ...btnPrimary, background: 'var(--success)' }
-
   return (
     <AuthLayout>
-      <div className="flex flex-col w-full max-w-lg rounded-2xl overflow-hidden shadow-xl border bg-white"
-        style={{ maxHeight: '90vh', borderColor: 'var(--border-soft)' }}>
+      <div className={`flex flex-col w-full max-w-lg rounded-2xl overflow-hidden shadow-xl border bg-white ${styles.card}`}
+        style={{ borderColor: 'var(--border-soft)' }}>
 
         {/* Hero Banner */}
         <div className="px-6 pt-6 pb-5 flex-shrink-0" style={{ background: 'linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%)' }}>
@@ -172,9 +159,7 @@ const SetupWizard = () => {
                       style={{ '--file-bg': 'var(--primary-light)', '--file-color': 'var(--primary)' }} />
                   </div>
                 </div>
-                <button type="submit" style={btnPrimary}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+                <button type="submit" className={styles.btnPrimary}>
                   Continue
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3" />
@@ -208,8 +193,7 @@ const SetupWizard = () => {
                       placeholder="Min. 6 characters" onChange={handleChange}
                       style={{ ...inputBase, paddingRight: '44px' }} onFocus={onFocus} onBlur={onBlur} required />
                     <button type="button" tabIndex="-1" onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2 transition-colors"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                      className={`absolute right-3.5 top-1/2 -translate-y-1/2 ${styles.visBtn}`}>
                       {showPassword ? <MdVisibilityOff size={19} /> : <MdVisibility size={19} />}
                     </button>
                   </div>
@@ -231,18 +215,15 @@ const SetupWizard = () => {
                       style={{ ...inputBase, paddingRight: '44px', ...getConfirmBorderStyle() }}
                       onFocus={onFocus} onBlur={onBlur} required />
                     <button type="button" tabIndex="-1" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3.5 top-1/2 -translate-y-1/2"
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                      className={`absolute right-3.5 top-1/2 -translate-y-1/2 ${styles.visBtn}`}>
                       {showConfirmPassword ? <MdVisibilityOff size={19} /> : <MdVisibility size={19} />}
                     </button>
                   </div>
                 </div>
 
                 <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => setStep(1)} style={{ ...btnSecondary, width: '33%' }}>Back</button>
-                  <button type="submit" style={{ ...btnPrimary, width: '67%' }}
-                    onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+                  <button type="button" onClick={() => setStep(1)} className={styles.btnSecondary} style={{ width: '33%' }}>Back</button>
+                  <button type="submit" className={styles.btnPrimary} style={{ width: '67%' }}>
                     Next step
                   </button>
                 </div>
@@ -264,11 +245,8 @@ const SetupWizard = () => {
                   style={{ ...inputBase, textAlign: 'center', letterSpacing: '0.25em', fontFamily: 'monospace', textTransform: 'uppercase' }}
                   onFocus={onFocus} onBlur={onBlur} required />
                 <div className="flex gap-3 pt-1">
-                  <button type="button" disabled={loading} onClick={() => setStep(2)} style={{ ...btnSecondary, width: '33%', opacity: loading ? 0.5 : 1 }}>Back</button>
-                  <button type="submit" disabled={loading}
-                    style={{ ...btnSuccess, width: '67%', opacity: loading ? 0.5 : 1 }}
-                    onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--success-dark)' }}
-                    onMouseLeave={e => { if (!loading) e.currentTarget.style.background = 'var(--success)' }}>
+                  <button type="button" disabled={loading} onClick={() => setStep(2)} className={styles.btnSecondary} style={{ width: '33%' }}>Back</button>
+                  <button type="submit" disabled={loading} className={styles.btnSuccess} style={{ width: '67%' }}>
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : <>Activate system ✓</>}

@@ -1,4 +1,5 @@
 import { MdAttachMoney, MdInventory, MdReceipt } from 'react-icons/md'
+import { fmtQty } from '@/utils/utils'
 
 export default function SalesStats({ isOwner, filtered, category }) {
 
@@ -52,7 +53,7 @@ export default function SalesStats({ isOwner, filtered, category }) {
     },
     {
       label: 'Items Sold',
-      value: totalItemsSold,
+      value: fmtQty(totalItemsSold),
       icon: <MdInventory />,
       color: 'var(--warning-dark)',
       bg: 'var(--warning-light)',
@@ -60,7 +61,7 @@ export default function SalesStats({ isOwner, filtered, category }) {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3 mb-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 mb-3">
       {cards.map((card, i) => (
         <div
           key={i}

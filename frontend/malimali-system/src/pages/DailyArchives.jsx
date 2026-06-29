@@ -39,7 +39,7 @@ export default function DailyArchives() {
     : allSummaries
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
       {debtorPanel && (
         <DebtorPanel date={debtorPanel} onClose={() => setDebtorPanel(null)} />
       )}
@@ -121,7 +121,7 @@ export default function DailyArchives() {
       </div>
 
       {/* ── Scrollable content ──────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         {filtered.length === 0 ? (
           <div
             className="rounded-xl p-12 text-center"

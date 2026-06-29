@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useState, useCallback, useRef, startTransition } from "react";
+﻿import { createContext, useContext, useEffect, useState, useCallback, useRef, startTransition } from "react";
 import { io } from "socket.io-client";
+import { API_BASE_URL } from '@/config/api'
 
 const SocketContext = createContext(null);
 
@@ -38,7 +39,7 @@ export function SocketProvider({ children }) {
       socketRef.current = null;
     }
 
-    const newSocket = io("http://localhost:5000", {
+    const newSocket = io(API_BASE_URL, {
       auth: { token: currentUser.token },
       reconnectionAttempts: 5,
       reconnectionDelay:    1000,

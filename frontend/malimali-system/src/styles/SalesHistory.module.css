@@ -5,20 +5,12 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.returned:hover {
-  background: var(--danger);
-  color: #fff;
-}
 
 .partialReturn {
   background: var(--warning-light);
   color: var(--warning-dark);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
-}
-.partialReturn:hover {
-  background: var(--warning);
-  color: #fff;
 }
 
 /* ── Payment Method Badges ──────────────────────────────── */
@@ -28,20 +20,12 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.paymentMpesa:hover {
-  background: var(--info);
-  color: #fff;
-}
 
 .paymentCredit {
   background: var(--warning-light);
   color: var(--warning-dark);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
-}
-.paymentCredit:hover {
-  background: var(--warning);
-  color: #fff;
 }
 
 .paymentSplit {
@@ -50,10 +34,6 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.paymentSplit:hover {
-  background: var(--primary);
-  color: #fff;
-}
 
 .paymentCash {
   background: var(--success-light);
@@ -61,21 +41,12 @@
   font-weight: 600;
   transition: all 0.2s ease-in-out;
 }
-.paymentCash:hover {
-  background: var(--success);
-  color: #fff;
-}
 
-/* ── New: Card and Bank payment badges ──────────────────── */
 .paymentCard {
   background: var(--primary-light);
   color: var(--primary-dark);
   font-weight: 600;
   transition: all 0.2s ease-in-out;
-}
-.paymentCard:hover {
-  background: var(--primary);
-  color: #fff;
 }
 
 .paymentBank {
@@ -84,10 +55,6 @@
   font-weight: 600;
   border: 1px solid var(--border-medium);
   transition: all 0.2s ease-in-out;
-}
-.paymentBank:hover {
-  background: var(--text-secondary);
-  color: #fff;
 }
 
 /* ── Item Status Badges ─────────────────────────────────── */
@@ -130,16 +97,20 @@
   background: var(--danger-light);
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 0 10px;
+  min-height: 36px;
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  touch-action: manipulation;
+  user-select: none;
 }
-.returnBtn:hover {
+
+.returnBtn:active {
   background: var(--danger);
   color: #fff;
 }
@@ -151,19 +122,98 @@
   background: transparent;
   font-size: 11px;
   font-weight: 600;
-  padding: 3px 8px;
+  padding: 0 10px;
+  min-height: 36px;
   border-radius: 6px;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 4px;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  touch-action: manipulation;
+  user-select: none;
 }
-.voidBtn:hover {
+
+.voidBtn:active {
   background: var(--danger);
   color: #fff;
 }
+
+/* ── Employee card header — hover on mouse devices only ─── */
+.cardHeaderHover {
+  transition: background 0.15s;
+}
+
+/* ── Category filter chips ──────────────────────────────── */
+.categoryChip {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* ── Store filter chips ─────────────────────────────────── */
+.storeChip {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+/* ── Sticky employee card header ────────────────────────── */
+.stickyEmployeeHeader {
+  position: sticky;
+  top: 56px;       /* mobile: clears the 56px fixed topbar */
+  z-index: 10;
+  background: var(--bg-card);
+}
+
+@media (min-width: 768px) {
+  .stickyEmployeeHeader { top: 0; } /* desktop: top of md:overflow-y-auto container */
+}
+
+/* ── Hover states (mouse / trackpad devices only) ────────── */
+@media (hover: hover) {
+  .returned:hover       { background: var(--danger);         color: #fff; }
+  .partialReturn:hover  { background: var(--warning);        color: #fff; }
+  .paymentMpesa:hover   { background: var(--info);           color: #fff; }
+  .paymentCredit:hover  { background: var(--warning);        color: #fff; }
+  .paymentSplit:hover   { background: var(--primary);        color: #fff; }
+  .paymentCash:hover    { background: var(--success);        color: #fff; }
+  .paymentCard:hover    { background: var(--primary);        color: #fff; }
+  .paymentBank:hover    { background: var(--text-secondary); color: #fff; }
+  .returnBtn:hover      { background: var(--danger);         color: #fff; }
+  .voidBtn:hover        { background: var(--danger);         color: #fff; }
+  .cardHeaderHover:hover { background: var(--bg-muted); }
+}
+
+/* ── Touch screens — enlarge tap targets ─────────────────── */
+@media (pointer: coarse) {
+  .returnBtn    { min-height: 44px; padding: 0 12px; }
+  .voidBtn      { min-height: 44px; padding: 0 12px; }
+  .categoryChip { min-height: 44px; }
+  .storeChip    { min-height: 44px; }
+}
+
+/* ── Filter dropdown items ──────────────────────────────── */
+.filterDropdownItemActive {
+  background: var(--primary-light);
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.filterDropdownItemInactive {
+  background: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .filterDropdownItemInactive:hover { background: var(--bg-muted); }
+}
+.filterDropdownItemInactive:active { background: var(--bg-muted); opacity: 0.8; }
 
 /* ── Animations ─────────────────────────────────────────── */
 @keyframes fadeIn {

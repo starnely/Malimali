@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import JsBarcode from 'jsbarcode'
+import w from '@/styles/WeighStation.module.css'
 import {
   MdScale, MdPrint, MdDownload,
   MdSearch, MdCheckCircle, MdWarning,
@@ -7,8 +8,8 @@ import {
   MdAttachMoney, MdFitnessCenter, MdContentCopy,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { API_BASE_URL as API } from '@/config/api'
 
-const API = 'http://localhost:5000'
 
 function formatWeight(grams) {
   if (grams >= 1000) return `${(grams / 1000).toFixed(3)} kg`
@@ -371,6 +372,7 @@ export default function WeighStation() {
         </div>
         <button
           onClick={loadProducts}
+          className={w.ctaBtn}
           style={{
             display: 'flex', alignItems: 'center', gap: 6,
             padding: '8px 16px', borderRadius: 'var(--radius-md)',
@@ -383,7 +385,7 @@ export default function WeighStation() {
         </button>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 390px', gap: 20, alignItems: 'start' }}>
+      <div className={w.mainGrid}>
 
         {/* ── LEFT: Product Selector ─────────────────────────────── */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-lg)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
@@ -406,7 +408,7 @@ export default function WeighStation() {
             </div>
           </div>
 
-          <div style={{ maxHeight: 420, overflowY: 'auto' }}>
+          <div className={w.productScroll}>
             {loading ? (
               <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
                 Loading weighed products...
@@ -427,6 +429,7 @@ export default function WeighStation() {
                   <button
                     key={p._id}
                     onClick={() => { setSelectedProduct(p); setResult(null); setError(''); setWeightGrams(''); setAmountInput('') }}
+                    className={w.productBtn}
                     style={{
                       width: '100%', textAlign: 'left', padding: '12px 20px',
                       borderBottom: '1px solid var(--border-soft)',
@@ -496,14 +499,11 @@ export default function WeighStation() {
                   <button
                     key={opt.key}
                     onClick={() => switchMode(opt.key)}
+                    className={w.modeToggleBtn}
                     style={{
-                      flex: 1, padding: '8px', borderRadius: 'var(--radius-md)',
-                      fontWeight: 700, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                       border: `1.5px solid ${inputMode === opt.key ? 'var(--primary)' : 'var(--border-medium)'}`,
                       background: inputMode === opt.key ? 'var(--primary)' : 'var(--bg-muted)',
                       color: inputMode === opt.key ? '#fff' : 'var(--text-secondary)',
-                      transition: 'all 0.15s',
                     }}
                   >
                     {opt.icon} {opt.label}
@@ -522,6 +522,7 @@ export default function WeighStation() {
                   <button
                     onClick={() => adjustWeight(-10)}
                     disabled={!selectedProduct}
+                    className={w.ctaBtn}
                     style={{ width: 36, height: 44, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: selectedProduct ? 1 : 0.4 }}
                   ><MdRemove size={16} /></button>
                   <input
@@ -538,6 +539,7 @@ export default function WeighStation() {
                   <button
                     onClick={() => adjustWeight(10)}
                     disabled={!selectedProduct}
+                    className={w.ctaBtn}
                     style={{ width: 36, height: 44, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', color: 'var(--text-secondary)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, opacity: selectedProduct ? 1 : 0.4 }}
                   ><MdAdd size={16} /></button>
                 </div>
@@ -547,9 +549,8 @@ export default function WeighStation() {
                       <button
                         key={g}
                         onClick={() => { setWeightGrams(String(g)); setResult(null); setError('') }}
+                        className={w.presetBtn}
                         style={{
-                          padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 700,
-                          border: '1px solid var(--border-medium)', cursor: 'pointer', fontFamily: 'inherit',
                           background: Number(weightGrams) === g ? 'var(--primary)' : 'var(--bg-muted)',
                           color: Number(weightGrams) === g ? '#fff' : 'var(--text-secondary)',
                         }}
@@ -590,9 +591,8 @@ export default function WeighStation() {
                       <button
                         key={amt}
                         onClick={() => { setAmountInput(String(amt)); setResult(null); setError('') }}
+                        className={w.presetBtn}
                         style={{
-                          padding: '4px 10px', borderRadius: 'var(--radius-sm)', fontSize: 12, fontWeight: 700,
-                          border: '1px solid var(--border-medium)', cursor: 'pointer', fontFamily: 'inherit',
                           background: Number(amountInput) === amt ? 'var(--primary)' : 'var(--bg-muted)',
                           color: Number(amountInput) === amt ? '#fff' : 'var(--text-secondary)',
                         }}
@@ -639,6 +639,7 @@ export default function WeighStation() {
             <button
               onClick={handleGenerate}
               disabled={!canGenerate || generating}
+              className={w.ctaBtn}
               style={{
                 width: '100%', padding: '12px', borderRadius: 'var(--radius-md)',
                 background: (!canGenerate || generating) ? 'var(--border-medium)' : 'var(--primary)',
@@ -654,6 +655,7 @@ export default function WeighStation() {
             {result && (
               <button
                 onClick={handleReset}
+                className={w.ctaBtn}
                 style={{ width: '100%', padding: '8px', borderRadius: 'var(--radius-md)', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border-soft)', fontSize: 12, fontWeight: 600, cursor: 'pointer', marginTop: 8, fontFamily: 'inherit' }}
               >
                 Weigh Another Item
@@ -725,7 +727,7 @@ export default function WeighStation() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginLeft: 'auto' }}>
                   <button
                     onClick={() => setCopies(c => Math.max(1, Number(c) - 1))}
-                    style={{ width: 26, height: 26, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
+                    className={w.copiesBtn}
                   ><MdRemove size={13} /></button>
                   <input
                     type="number"
@@ -733,11 +735,11 @@ export default function WeighStation() {
                     max={200}
                     value={copies}
                     onChange={e => setCopies(Math.max(1, Math.min(200, Number(e.target.value) || 1)))}
-                    style={{ width: 44, height: 26, textAlign: 'center', fontSize: 13, fontWeight: 800, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)', outline: 'none' }}
+                    className={w.copiesInput}
                   />
                   <button
                     onClick={() => setCopies(c => Math.min(200, Number(c) + 1))}
-                    style={{ width: 26, height: 26, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}
+                    className={w.copiesBtn}
                   ><MdAdd size={13} /></button>
                 </div>
               </div>
@@ -750,12 +752,14 @@ export default function WeighStation() {
               <div style={{ display: 'flex', gap: 8 }}>
                 <button
                   onClick={handlePrint}
+                  className={w.ctaBtn}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-md)', background: 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: 13, border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: 'inherit' }}
                 >
                   <MdPrint size={16} /> Print {Number(copies) > 1 ? `${copies} Labels` : 'Label'}
                 </button>
                 <button
                   onClick={handleDownload}
+                  className={w.ctaBtn}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-md)', background: 'var(--bg-muted)', color: 'var(--text-secondary)', fontWeight: 700, fontSize: 13, border: '1px solid var(--border-soft)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontFamily: 'inherit' }}
                 >
                   <MdDownload size={16} /> Download
@@ -790,6 +794,7 @@ export default function WeighStation() {
           <button
             onClick={handlePLUExport}
             disabled={exportingPLU}
+            className={w.ctaBtn}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderRadius: 'var(--radius-md)', background: exportingPLU ? 'var(--border-medium)' : 'var(--primary)', color: '#fff', fontWeight: 700, fontSize: 12, border: 'none', cursor: exportingPLU ? 'not-allowed' : 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
           >
             <MdSyncAlt size={15} />

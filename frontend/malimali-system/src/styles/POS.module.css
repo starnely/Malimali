@@ -71,9 +71,18 @@
   font-family: inherit;
   position: relative;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 
-.posTabBtn:hover:not(.posTabBtnActive) {
+@media (hover: hover) {
+  .posTabBtn:hover:not(.posTabBtnActive) {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
+}
+
+.posTabBtn:active:not(.posTabBtnActive) {
   background: var(--primary-light);
   color: var(--primary);
   border-color: var(--primary);
@@ -125,10 +134,19 @@
   min-height: 0;
 }
 
+@media (max-width: 1100px) {
+  .posTerminal {
+    grid-template-columns: 1fr 300px;
+  }
+}
+
 @media (max-width: 960px) {
   .posTerminal {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr auto;
+  }
+  .posRight {
+    max-height: 42vh;
   }
 }
 
@@ -203,23 +221,30 @@
 
 .posSearchClear {
   position: absolute;
-  right: 8px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   background: var(--border-soft);
   border: none;
   border-radius: 50%;
-  width: 17px;
-  height: 17px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: var(--text-muted);
   transition: all 0.12s;
+  touch-action: manipulation;
 }
 
-.posSearchClear:hover {
+@media (hover: hover) {
+  .posSearchClear:hover {
+    background: var(--border-medium);
+  }
+}
+
+.posSearchClear:active {
   background: var(--border-medium);
 }
 
@@ -379,6 +404,8 @@
   padding: 8px 14px;
   overflow-x: auto;
   scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
   background: var(--bg-card);
   border-bottom: 1px solid var(--border-soft);
 }
@@ -387,7 +414,10 @@
 
 .posCatPill {
   flex-shrink: 0;
-  padding: 4px 13px;
+  min-height: 36px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 600;
@@ -398,9 +428,18 @@
   transition: all 0.13s;
   font-family: inherit;
   white-space: nowrap;
+  user-select: none;
 }
 
-.posCatPill:hover:not(.posCatPillActive) {
+@media (hover: hover) {
+  .posCatPill:hover:not(.posCatPillActive) {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
+}
+
+.posCatPill:active:not(.posCatPillActive) {
   border-color: var(--primary);
   color: var(--primary);
   background: var(--primary-light);
@@ -416,6 +455,7 @@
 .posProductGrid {
   flex: 1;
   overflow-y: auto;
+  touch-action: pan-y;
   padding: 10px 14px;
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
@@ -445,12 +485,16 @@
   transition: all 0.13s;
   box-shadow: var(--shadow-card);
   font-family: inherit;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.posProductCard:hover:not(.posProductCardDisabled) {
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .posProductCard:hover:not(.posProductCardDisabled) {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-1px);
+  }
 }
 
 .posProductCard:active:not(.posProductCardDisabled) {
@@ -574,7 +618,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 4px 9px;
+  padding: 7px 11px;
   border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.2);
   background: rgba(255, 255, 255, 0.08);
@@ -584,9 +628,18 @@
   cursor: pointer;
   transition: all 0.13s;
   font-family: inherit;
+  touch-action: manipulation;
 }
 
-.posClearBtn:hover {
+@media (hover: hover) {
+  .posClearBtn:hover {
+    background: rgba(239, 68, 68, 0.25);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #fff;
+  }
+}
+
+.posClearBtn:active {
   background: rgba(239, 68, 68, 0.25);
   border-color: rgba(239, 68, 68, 0.4);
   color: #fff;
@@ -595,6 +648,7 @@
 .posOrderItems {
   flex: 1;
   overflow-y: auto;
+  touch-action: pan-y;
 }
 
 .posOrderEmpty {
@@ -646,8 +700,8 @@
 }
 
 .posQtyBtn {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 5px;
   border: 1px solid var(--border-medium);
   background: var(--bg-muted);
@@ -658,9 +712,18 @@
   transition: all 0.1s;
   color: var(--text-secondary);
   flex-shrink: 0;
+  touch-action: manipulation;
 }
 
-.posQtyBtn:hover:not(:disabled) {
+@media (hover: hover) {
+  .posQtyBtn:hover:not(:disabled) {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
+}
+
+.posQtyBtn:active:not(:disabled) {
   background: var(--primary-light);
   border-color: var(--primary);
   color: var(--primary);
@@ -684,8 +747,8 @@
 }
 
 .posOrderDeleteBtn {
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
   border-radius: 5px;
   border: none;
   background: var(--danger-light);
@@ -696,9 +759,17 @@
   color: var(--danger);
   flex-shrink: 0;
   transition: all 0.1s;
+  touch-action: manipulation;
 }
 
-.posOrderDeleteBtn:hover {
+@media (hover: hover) {
+  .posOrderDeleteBtn:hover {
+    background: var(--danger);
+    color: #fff;
+  }
+}
+
+.posOrderDeleteBtn:active {
   background: var(--danger);
   color: #fff;
 }
@@ -751,12 +822,21 @@
   font-family: inherit;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   letter-spacing: 0.01em;
+  touch-action: manipulation;
 }
 
-.posChargeBtn:hover:not(.posChargeBtnDisabled) {
+@media (hover: hover) {
+  .posChargeBtn:hover:not(.posChargeBtnDisabled) {
+    background: var(--success-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  }
+}
+
+.posChargeBtn:active:not(.posChargeBtnDisabled) {
   background: var(--success-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.18);
+  transform: translateY(0);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .posChargeBtnDisabled {
@@ -800,9 +880,16 @@
   text-align: left;
   font-family: inherit;
   transition: background 0.12s;
+  touch-action: manipulation;
 }
 
-.posManualMatchRow:hover:not(:disabled) {
+@media (hover: hover) {
+  .posManualMatchRow:hover:not(:disabled) {
+    background: var(--primary-light);
+  }
+}
+
+.posManualMatchRow:active:not(:disabled) {
   background: var(--primary-light);
 }
 
@@ -889,4 +976,33 @@
   color: var(--primary);
   font-style: italic;
   opacity: 0.7;
+}
+
+/* ── Tab label — visible by default, hidden on narrow screens ─────── */
+.posTabBtnLabel {
+  /* no overrides needed at wide widths */
+}
+
+@media (max-width: 767px) {
+  /* Hide text labels — keep icons + aria-label for accessibility */
+  .posTabBtnLabel {
+    display: none;
+  }
+  /* "POS Terminal" title is redundant on phones — reclaim ~90px */
+  .posTabBarTitle {
+    display: none;
+  }
+  /* Tighten horizontal padding so icon-only buttons don't waste space */
+  .posTabBtn {
+    padding: 6px 10px;
+  }
+}
+
+/* ── Touch device overrides (@media pointer: coarse) ─────────────── */
+@media (pointer: coarse) {
+  .posCatPill        { min-height: 44px; padding: 0 16px; }
+  .posQtyBtn         { width: 44px; height: 44px; border-radius: 8px; }
+  .posOrderDeleteBtn { width: 44px; height: 44px; border-radius: 8px; }
+  .posSearchClear    { width: 36px; height: 36px; right: 4px; }
+  .posClearBtn       { padding: 10px 14px; }
 }

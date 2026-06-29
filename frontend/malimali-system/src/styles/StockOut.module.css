@@ -1,0 +1,25 @@
+.btnPrimary {
+  background: var(--primary);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .btnPrimary:hover { background: var(--primary-dark); }
+}
+.btnPrimary:active { background: var(--primary-dark); }
+@media (pointer: coarse) {
+  .btnPrimary { min-height: 44px; }
+}
+
+.rowHover {
+  transition: background 0.15s;
+}
+@media (hover: hover) {
+  .rowHover:hover { background: var(--primary-light) !important; }
+}
+.rowHover:active { background: var(--primary-light) !important; }

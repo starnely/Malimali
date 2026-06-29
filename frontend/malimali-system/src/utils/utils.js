@@ -153,6 +153,14 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All", 
 }
 
 /**
+ * Format a stock/quantity number for display — strips IEEE 754 float noise.
+ * 53.546000000000001 → 53.546 | 5 → 5 | 1.5 → 1.5
+ */
+export function fmtQty(n) {
+  return +Number(n).toFixed(3)
+}
+
+/**
  * Format numbers into Kenyan Shillings.
  */
 export function formatCurrency(amount) {

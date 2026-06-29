@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+﻿import { useState, useEffect, useMemo, useRef } from 'react'
 import {
   MdAttachMoney, MdTrendingUp, MdInventory, MdReceiptLong,
   MdPeopleAlt, MdAccountBalanceWallet, MdRefresh, MdDownload,
@@ -6,8 +6,10 @@ import {
   MdChevronLeft, MdChevronRight, MdLocalShipping,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
-import { buildLiveSummary } from '@/utils/utils'
+import { buildLiveSummary, fmtQty } from '@/utils/utils'
 import * as XLSX from 'xlsx'
+import { API_BASE_URL } from '@/config/api'
+import styles from '@/styles/DailyReport.module.css'
 
 const TODAY_EAT = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
 
@@ -91,7 +93,7 @@ export default function DailyReport() {
     const load = async () => {
       try {
         const res = await fetch(
-          `http://localhost:5000/api/customers/repayments/month?year=${yr}&month=${mo}&store=${encodeURIComponent(storeParam)}`,
+          `${API_BASE_URL}/api/customers/repayments/month?year=${yr}&month=${mo}&store=${encodeURIComponent(storeParam)}`,
           { headers: { Authorization: `Bearer ${currentUser?.token}` } }
         )
         if (!res.ok) throw new Error()
@@ -150,8 +152,8 @@ export default function DailyReport() {
     const load = async () => {
       try {
         const url = storeParam
-          ? `http://localhost:5000/api/purchase-orders/outstanding?store=${encodeURIComponent(storeParam)}`
-          : `http://localhost:5000/api/purchase-orders/outstanding`
+          ? `${API_BASE_URL}/api/purchase-orders/outstanding?store=${encodeURIComponent(storeParam)}`
+          : `${API_BASE_URL}/api/purchase-orders/outstanding`
         const res = await fetch(url, { headers: { Authorization: `Bearer ${currentUser?.token}` } })
         if (!res.ok) throw new Error()
         const data = await res.json()
@@ -172,7 +174,7 @@ export default function DailyReport() {
       try {
         const params = new URLSearchParams({ date: selectedDate })
         if (storeParam) params.set('store', storeParam)
-        const url = `http://localhost:5000/api/expired/?${params}`
+        const url = `${API_BASE_URL}/api/expired/?${params}`
         const res = await fetch(url, { headers: { Authorization: `Bearer ${currentUser?.token}` } })
         const data = await res.json()
         if (!res.ok) throw new Error()
@@ -257,7 +259,7 @@ export default function DailyReport() {
     sc(r, 0, 'SUMMARY', sec); mc(r, 0, COLS - 1); r++
     ;[
       ['Total Revenue',              `KSh ${fmt(summary.totalRevenue)}`,  'Transactions',    String(summary.totalTransactions)],
-      ['Gross Profit',               `KSh ${fmt(summary.totalProfit)}`,   'Items Sold',      String(summary.totalItems)],
+      ['Gross Profit',               `KSh ${fmt(summary.totalProfit)}`,   'Items Sold',      String(fmtQty(summary?.totalItems || 0))],
       ['Cost of Goods',              `KSh ${fmt(summary.totalCOGS)}`,     '',                ''],
       ['Total Expenses',             `KSh ${fmt(expenseTotal)}`,          'Net Profit',      `KSh ${fmt(netProfit)}`],
       ['Inventory Loss (Expired)',   `KSh ${fmt(expiredLoss)}`,           '',                ''],
@@ -382,7 +384,7 @@ export default function DailyReport() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-page)' }}>
+    <div className={styles.page}>
 
       {/* ── Header ── */}
       <div style={{ flexShrink: 0, padding: '20px 24px 14px', borderBottom: '1px solid var(--border-soft)', background: 'var(--bg-card)' }}>
@@ -459,7 +461,7 @@ export default function DailyReport() {
       </div>
 
       {/* ── Content ── */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 32px' }}>
+      <div className={styles.content} style={{ padding: '20px 24px 32px' }}>
         {!summary && !expenseLoading && !pcLoading && !repayLoading ? (
           <div style={{ textAlign: 'center', padding: '80px 20px', color: 'var(--text-muted)' }}>
             <div style={{ fontSize: 56, marginBottom: 16, opacity: 0.3 }}>📊</div>
@@ -488,7 +490,7 @@ export default function DailyReport() {
               />
               <StatTile
                 label="Items Sold"
-                value={(summary?.totalItems || 0).toLocaleString()}
+                value={fmtQty(summary?.totalItems || 0).toLocaleString()}
                 color="var(--warning-dark)" bg="var(--warning-light)"
                 icon={<MdInventory />}
               />

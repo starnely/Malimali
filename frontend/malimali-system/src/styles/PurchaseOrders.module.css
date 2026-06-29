@@ -72,6 +72,8 @@
   box-shadow: 0 0 0 3px var(--primary-light);
 }
 
+.filterInput { min-width: 220px; }
+
 /* ── Content area ──────────────────────────────────────────────────── */
 .content {
   flex: 1;
@@ -129,7 +131,8 @@
 
 .table tbody tr:last-child td { border-bottom: none; }
 
-.table tbody tr:hover { background: var(--primary-light); }
+@media (hover: hover) { .table tbody tr:hover { background: var(--primary-light); } }
+.table tbody tr:active { background: var(--primary-light); }
 
 /* ── Status badges ─────────────────────────────────────────────────── */
 .badge {
@@ -158,8 +161,8 @@
 }
 
 .iconBtn {
-  width: 30px;
-  height: 30px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -168,19 +171,23 @@
   cursor: pointer;
   background: transparent;
   transition: background 0.15s, color 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
+.iconBtn:active { opacity: 0.85; }
+@media (pointer: coarse) { .iconBtn { width: 44px; height: 44px; } }
 
 .iconBtn.primary { color: var(--primary); }
-.iconBtn.primary:hover { background: var(--primary-light); }
+@media (hover: hover) { .iconBtn.primary:hover { background: var(--primary-light); } }
 
 .iconBtn.success { color: var(--success); }
-.iconBtn.success:hover { background: var(--success-light); }
+@media (hover: hover) { .iconBtn.success:hover { background: var(--success-light); } }
 
 .iconBtn.danger { color: var(--danger); }
-.iconBtn.danger:hover { background: var(--danger-light); }
+@media (hover: hover) { .iconBtn.danger:hover { background: var(--danger-light); } }
 
 .iconBtn.warning { color: var(--warning-dark); }
-.iconBtn.warning:hover { background: var(--warning-light); }
+@media (hover: hover) { .iconBtn.warning:hover { background: var(--warning-light); } }
 
 /* ── Summary cards ─────────────────────────────────────────────────── */
 .summaryRow {
@@ -266,8 +273,8 @@
 }
 
 .modalClose {
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -277,9 +284,12 @@
   color: rgba(255, 255, 255, 0.6);
   cursor: pointer;
   transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.modalClose:hover { background: rgba(255, 255, 255, 0.1); color: white; }
+@media (hover: hover) { .modalClose:hover { background: rgba(255, 255, 255, 0.1); color: white; } }
+.modalClose:active { opacity: 0.8; }
+@media (pointer: coarse) { .modalClose { width: 44px; height: 44px; } }
 
 .modalBody {
   padding: 20px;
@@ -457,10 +467,13 @@
   cursor: pointer;
   transition: background 0.15s;
   height: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.btnPrimary:hover { background: var(--primary-dark); }
+@media (hover: hover) { .btnPrimary:hover { background: var(--primary-dark); } }
+.btnPrimary:active { opacity: 0.85; }
 .btnPrimary:disabled { background: var(--border-medium); cursor: not-allowed; }
+@media (pointer: coarse) { .btnPrimary { height: 44px; } }
 
 .btnSecondary {
   display: inline-flex;
@@ -477,9 +490,12 @@
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
   height: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.btnSecondary:hover { border-color: var(--primary); color: var(--primary); }
+@media (hover: hover) { .btnSecondary:hover { border-color: var(--primary); color: var(--primary); } }
+.btnSecondary:active { opacity: 0.85; }
+@media (pointer: coarse) { .btnSecondary { height: 44px; } }
 
 .btnSuccess {
   display: inline-flex;
@@ -496,10 +512,13 @@
   cursor: pointer;
   transition: background 0.15s;
   height: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.btnSuccess:hover { background: var(--success-dark); }
+@media (hover: hover) { .btnSuccess:hover { background: var(--success-dark); } }
+.btnSuccess:active { opacity: 0.85; }
 .btnSuccess:disabled { background: var(--border-medium); cursor: not-allowed; }
+@media (pointer: coarse) { .btnSuccess { height: 44px; } }
 
 .btnDanger {
   display: inline-flex;
@@ -516,9 +535,12 @@
   cursor: pointer;
   transition: background 0.15s;
   height: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.btnDanger:hover { background: var(--danger-dark); }
+@media (hover: hover) { .btnDanger:hover { background: var(--danger-dark); } }
+.btnDanger:active { opacity: 0.85; }
+@media (pointer: coarse) { .btnDanger { height: 44px; } }
 
 /* ── Detail view ───────────────────────────────────────────────────── */
 .detailSection {
@@ -600,8 +622,8 @@
 }
 
 .pageBtn {
-  min-width: 30px;
-  height: 30px;
+  min-width: 36px;
+  height: 36px;
   padding: 0 6px;
   display: flex;
   align-items: center;
@@ -615,14 +637,17 @@
   font-family: inherit;
   cursor: pointer;
   transition: background 0.12s, border-color 0.12s, color 0.12s;
+  touch-action: manipulation;
+  user-select: none;
 }
-
-.pageBtn:hover:not(:disabled) {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-light);
+@media (hover: hover) {
+  .pageBtn:hover:not(:disabled) {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
 }
-
+.pageBtn:active:not(:disabled) { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
 .pageBtn:disabled {
   opacity: 0.38;
   cursor: not-allowed;
@@ -633,12 +658,14 @@
   border-color: var(--primary);
   color: white;
 }
-
-.pageBtnActive:hover {
-  background: var(--primary-dark);
-  border-color: var(--primary-dark);
-  color: white;
+@media (hover: hover) {
+  .pageBtnActive:hover {
+    background: var(--primary-dark);
+    border-color: var(--primary-dark);
+    color: white;
+  }
 }
+@media (pointer: coarse) { .pageBtn { min-width: 44px; height: 44px; } }
 
 @media (max-width: 768px) {
   .header { padding: 16px; }
@@ -647,4 +674,197 @@
   .formGrid { grid-template-columns: 1fr; }
   .formGrid .span2 { grid-column: span 1; }
   .receiveItem { grid-template-columns: 1fr 80px; }
+  .filterInput { min-width: 0; width: 100%; }
+  .table { display: none; }
+  /* Break the fixed-height internal-scroll chain on real phones.
+     .page/content/tableWrap use flex:1 + overflow:hidden on desktop so
+     only .tableWrap scrolls. On mobile that chain collapses to zero height
+     inside the App.jsx overflowY:auto shell. Switch to natural page scroll
+     so .mobileCards flow in the normal document and are always visible. */
+  .page     { overflow: visible; flex: none; min-height: 100%; }
+  .content  { overflow: visible; flex: none; }
+  .tableWrap { overflow: visible; flex: none; height: auto; min-height: 0; }
 }
+
+/* ── Responsive grid classes for modal layouts ─────────────────────── */
+.receiveInputGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+}
+@media (max-width: 480px) {
+  .receiveInputGrid { grid-template-columns: 1fr; }
+}
+
+.paymentSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+/* ── Mobile PO cards (hidden on desktop, shown at ≤768px) ──────────── */
+.mobileCards { display: none; }
+@media (max-width: 768px) {
+  .mobileCards {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 12px 0 4px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+}
+
+.poCard {
+  width: 100%;
+  box-sizing: border-box;
+  background: var(--bg-card);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+}
+
+.poCardHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 14px 10px;
+  border-bottom: 1px solid var(--border-soft);
+  background: var(--bg-muted);
+}
+
+.poCardPoNumber {
+  font-family: monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.poCardDate {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.poCardSupplier {
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.poCardSupplierName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.poCardSupplierPhone {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.poCardFields {
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.poCardField {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.poCardFieldLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  min-width: 56px;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+
+.poCardFieldValue {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+}
+
+.poCardActions {
+  padding: 8px 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+/* ── Mobile items list (hidden on desktop, shown at ≤480px) ──────────── */
+/* Hide rule FIRST, @media show rule AFTER — later rule wins at ≤480px. */
+.mobileItemsList { display: none; }
+@media (max-width: 480px) {
+  .mobileItemsList {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  .itemsTable { display: none; }
+}
+
+.mobileItem {
+  background: var(--bg-muted);
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobileItemTop {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.mobileItemInputs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.mobileItemInputs input {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mobileItemTotal {
+  font-size: 12px;
+  color: var(--text-muted);
+  text-align: right;
+  padding-top: 2px;
+}
+
+.itemDeleteBtn {
+  flex-shrink: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: var(--danger);
+  padding: 6px;
+  touch-action: manipulation;
+  user-select: none;
+  min-height: 36px;
+  min-width: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+.itemDeleteBtn:active { opacity: 0.7; }
+@media (pointer: coarse) { .itemDeleteBtn { min-height: 44px; min-width: 44px; } }

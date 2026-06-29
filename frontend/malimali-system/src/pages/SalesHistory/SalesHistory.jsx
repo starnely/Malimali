@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+﻿import { useState, useEffect, useMemo } from 'react'
 import { MdCheckCircle } from 'react-icons/md'
 import ReturnModal from '@/components/modals/ReturnModal'
 import VoidModal from '@/components/modals/VoidModal'
@@ -10,6 +10,7 @@ import SalesFilters from './SalesFilters'
 import SalesStats from './SalesStats'
 import OwnerView from './OwnerView'
 import EmployeeView from './EmployeeView'
+import { API_BASE_URL } from '@/config/api'
 
 function getLast30DaysCutoff() {
   const date = new Date()
@@ -21,6 +22,7 @@ function getLast30DaysCutoff() {
 export default function SalesHistory() {
   const [search, setSearch] = useState('')
   const [category, setCategory] = useState('All')
+  const [storeFilter, setStoreFilter] = useState('All')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
   const [returnModal, setReturnModal] = useState(null)
@@ -32,8 +34,8 @@ export default function SalesHistory() {
 
   const socket = useSocket()
   const {
-    isOwner, currentUser, sales,
-    fetchSales, fetchReturns, fetchArchives,
+    isOwner, currentUser, sales, stores,
+    fetchSales, fetchReturns, fetchArchives, fetchStores,
     pendingReturns, products, voidSale
   } = useApp()
 
@@ -42,12 +44,13 @@ export default function SalesHistory() {
     return ['All', ...cats.sort()]
   }, [products])
 
-  const visibleCategories = categories.slice(0, 4)
-  const dropdownCategories = categories.slice(4)
+
+  const storeList = useMemo(() => ['All', ...stores.map(s => s.name).sort()], [stores])
 
   useEffect(() => {
     fetchSales()
     fetchReturns()
+    if (isOwner) fetchStores()
     if (!socket) return
 
     socket.on('returnUpdated', () => { fetchReturns(); fetchSales() })
@@ -61,7 +64,7 @@ export default function SalesHistory() {
       socket.off('adminShiftNotification')
       socket.off('sync_system_data')
     }
-  }, [socket, isOwner, fetchSales, fetchReturns, fetchArchives])
+  }, [socket, isOwner, fetchSales, fetchReturns, fetchArchives, fetchStores])
 
   const mySales = isOwner
     ? sales
@@ -75,9 +78,10 @@ export default function SalesHistory() {
       i.productId?.name?.toLowerCase().includes(search.toLowerCase())
     )
     const matchCat = category === 'All' || s.items?.some(i => i.productId?.category === category)
+    const matchStore = storeFilter === 'All' || s.store === storeFilter
     const matchFrom = !dateFrom || new Date(s.date) >= new Date(dateFrom)
     const matchTo = !dateTo || new Date(s.date) <= new Date(dateTo + 'T23:59:59')
-    return matchSearch && matchCat && matchFrom && matchTo
+    return matchSearch && matchCat && matchStore && matchFrom && matchTo
   })
 
   const groupedByCashier = filtered.reduce((groups, sale) => {
@@ -103,7 +107,7 @@ export default function SalesHistory() {
     if (voidType === 'items') {
       // Per-item void — new endpoint
       try {
-        const res = await fetch(`http://localhost:5000/api/sales/${saleId}/void-items`, {
+        const res = await fetch(`${API_BASE_URL}/api/sales/${saleId}/void-items`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
@@ -142,7 +146,7 @@ export default function SalesHistory() {
 
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Fixed header ───────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-3">
@@ -183,13 +187,14 @@ export default function SalesHistory() {
           dateFrom={dateFrom} setDateFrom={setDateFrom}
           dateTo={dateTo} setDateTo={setDateTo}
           category={category} setCategory={setCategory}
-          visibleCategories={visibleCategories}
-          dropdownCategories={dropdownCategories}
+          categories={categories}
+          storeFilter={storeFilter} setStoreFilter={setStoreFilter}
+          storeList={isOwner ? storeList : null}
         />
       </div>
 
       {/* ── Scrollable content ──────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 pb-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         {isOwner ? (
           <OwnerView
             groupedByCashier={groupedByCashier}

@@ -1,8 +1,62 @@
-/* ── Split layout ─────────────────────────────────────────────────── */
-.page {
-  min-height: 100vh;
+/* ── Split layout container ────────────────────────────────────────── */
+.splitLayout {
   display: flex;
-  font-family: 'DM Sans', system-ui, sans-serif;
+}
+
+@media (max-width: 700px) {
+  .splitLayout {
+    flex-direction: column;
+  }
+}
+
+/* ── Brand panel ────────────────────────────────────────────────────── */
+/* Desktop: full-height left panel (52% wide, column layout)            */
+/* Mobile ≤700px: compact horizontal band at top of page                */
+.brandPanel {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  flex: 0 0 52%;
+  padding: 60px 64px;
+}
+
+@media (max-width: 700px) {
+  .brandPanel {
+    flex: none;
+    width: 100%;
+    height: 80px;
+    flex-direction: row;
+    align-items: flex-start;
+    padding: 12px 20px;
+    overflow: hidden;
+  }
+}
+
+/* ── Desktop-only brand panel content ──────────────────────────────── */
+/* Tagline, stats grid, footer, decorative circles — hidden on mobile   */
+@media (max-width: 700px) {
+  .brandDesktopOnly {
+    display: none;
+  }
+}
+
+/* ── Form panel (right) — padding scales down on narrow screens ───── */
+.formPanel {
+  padding: 40px 48px;
+  justify-content: center;
+}
+
+@media (max-width: 900px) {
+  .formPanel {
+    padding: 32px 32px;
+  }
+}
+
+@media (max-width: 700px) {
+  .formPanel {
+    padding: 24px 24px;
+    justify-content: flex-start;
+  }
 }
 
 /* ── Logo wrapper ─────────────────────────────────────────────────── */
@@ -48,6 +102,7 @@
 .input {
   width: 100%;
   padding: 12px 42px 12px 42px;
+  min-height: 44px;
   outline: none;
   font-family: 'DM Sans', system-ui, sans-serif;
   transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
@@ -62,7 +117,7 @@
 /* ── Eye toggle ───────────────────────────────────────────────────── */
 .eyeBtn {
   position: absolute;
-  right: 12px;
+  right: 6px;
   top: 50%;
   transform: translateY(-50%);
   cursor: pointer;
@@ -73,10 +128,29 @@
   padding: 0;
   display: flex;
   align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.eyeBtn:hover {
+.eyeBtn:active {
   color: var(--primary) !important;
+}
+
+@media (hover: hover) {
+  .eyeBtn:hover {
+    color: var(--primary) !important;
+  }
+}
+
+@media (pointer: coarse) {
+  .eyeBtn {
+    width: 44px;
+    height: 44px;
+    right: 4px;
+  }
 }
 
 /* ── Forgot button ────────────────────────────────────────────────── */
@@ -87,11 +161,28 @@
   font-weight: 600;
   font-family: 'DM Sans', system-ui, sans-serif;
   transition: opacity 0.15s;
-  padding: 0;
+  padding: 0 4px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.forgotBtn:hover {
+.forgotBtn:active {
   opacity: 0.7;
+}
+
+@media (hover: hover) {
+  .forgotBtn:hover {
+    opacity: 0.7;
+  }
+}
+
+@media (pointer: coarse) {
+  .forgotBtn {
+    min-height: 44px;
+  }
 }
 
 /* ── Login / submit button ────────────────────────────────────────── */
@@ -107,20 +198,51 @@
   transition: transform 0.15s, box-shadow 0.15s, opacity 0.15s;
   letter-spacing: 0.02em;
   display: block;
+  touch-action: manipulation;
+  user-select: none;
 }
 
-.loginBtn:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 8px 24px rgba(30, 95, 165, 0.5) !important;
+@media (hover: hover) {
+  .loginBtn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(30, 95, 165, 0.5) !important;
+  }
 }
 
 .loginBtn:active:not(:disabled) {
   transform: translateY(0);
+  opacity: 0.9;
 }
 
 .loginBtn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* ── Modal close button ───────────────────────────────────────────── */
+.closeBtn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  touch-action: manipulation;
+  flex-shrink: 0;
+}
+
+.closeBtn:active {
+  opacity: 0.6;
+}
+
+@media (pointer: coarse) {
+  .closeBtn {
+    width: 44px;
+    height: 44px;
+  }
 }
 
 /* ── Error box ────────────────────────────────────────────────────── */

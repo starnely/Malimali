@@ -30,22 +30,52 @@ import '@/App.css'
 
 function App() {
   const { isMobile } = useWindowSize()
-  const { isOwner, isManager, isCashier, currentUser, isSetupComplete } = useApp()
+  const { isOwner, isManager, isCashier, currentUser, isSetupComplete, connectionError, retrySetupCheck } = useApp()
 
   const isLoggedIn = !!currentUser
 
   if (isSetupComplete === null) {
     return (
-      <div className="flex items-center justify-center h-screen" style={{ background: 'var(--bg-page)' }}>
-        <div className="flex flex-col items-center gap-3">
-          <div
-            className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin"
-            style={{ borderColor: 'var(--primary-light)', borderTopColor: 'var(--primary)' }}
-          />
-          <div className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
-            Initializing System...
+      <div className="flex items-center justify-center h-dvh" style={{ background: 'var(--bg-page)' }}>
+        {connectionError ? (
+          <div className="flex flex-col items-center gap-4 text-center px-6" style={{ maxWidth: '280px' }}>
+            <div
+              className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0"
+              style={{ background: 'var(--warning-light)', color: 'var(--warning-dark)' }}
+            >
+              !
+            </div>
+            <div>
+              <div className="text-base font-bold mb-1" style={{ color: 'var(--text-primary)' }}>
+                Can't reach server
+              </div>
+              <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
+                Retrying automatically…
+              </div>
+            </div>
+            <div
+              className="w-6 h-6 rounded-full border-4 border-t-transparent animate-spin"
+              style={{ borderColor: 'var(--primary-light)', borderTopColor: 'var(--primary)' }}
+            />
+            <button
+              onClick={retrySetupCheck}
+              className="px-5 py-2 rounded-lg text-sm font-semibold"
+              style={{ background: 'var(--primary)', color: '#fff', touchAction: 'manipulation' }}
+            >
+              Retry now
+            </button>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-col items-center gap-3">
+            <div
+              className="w-12 h-12 rounded-full border-4 border-t-transparent animate-spin"
+              style={{ borderColor: 'var(--primary-light)', borderTopColor: 'var(--primary)' }}
+            />
+            <div className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>
+              Initializing System...
+            </div>
+          </div>
+        )}
       </div>
     )
   }
@@ -59,13 +89,13 @@ function App() {
       ) : (
         <>
           {isLoggedIn ? (
-            <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+            <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
               <Sidebar />
               <div style={{
                 marginLeft:    isMobile ? '0'    : '230px',
                 marginTop:     isMobile ? '56px' : '0',
                 width:         '100%',
-                height:        '100vh',
+                height:        isMobile ? 'calc(100dvh - 56px)' : '100dvh',
                 display:       'flex',
                 flexDirection: 'column',
                 overflow:      'visible',       // ← was 'hidden'

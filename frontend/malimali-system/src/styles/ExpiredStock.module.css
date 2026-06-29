@@ -1,0 +1,17 @@
+.moveBtn {
+  background: var(--danger);
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  min-height: 36px;
+  touch-action: manipulation;
+  user-select: none;
+}
+@media (hover: hover) {
+  .moveBtn:hover { background: var(--danger-dark); }
+}
+.moveBtn:active { background: var(--danger-dark); }
+@media (pointer: coarse) {
+  .moveBtn { min-height: 44px; }
+}

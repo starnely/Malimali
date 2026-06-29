@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react'
+﻿import { useState, useEffect } from 'react'
 import { MdClose, MdUndo } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { API_BASE_URL } from '@/config/api'
 
 export default function ReturnModal({ sale, onClose, onSuccess }) {
   const { currentUser } = useApp()
@@ -54,7 +55,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
     setSubmitting(true)
     setSubmitError('')
     try {
-      const res = await fetch('http://localhost:5000/api/returns', {
+      const res = await fetch(`${API_BASE_URL}/api/returns`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

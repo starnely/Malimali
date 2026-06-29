@@ -1,5 +1,8 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import { useApp } from '@/context/AppContext'
+import styles from '@/styles/Profile.module.css'
+import { API_BASE_URL } from '@/config/api'
+import { fmtQty } from '@/utils/utils'
 import {
   MdPerson, MdLock, MdVisibility, MdVisibilityOff,
   MdCheckCircle, MdError, MdStorefront, MdBadge,
@@ -125,7 +128,7 @@ export default function Profile() {
     }
     setSaving(true)
     try {
-      const res  = await fetch('http://localhost:5000/api/auth/change-password', {
+      const res  = await fetch(`${API_BASE_URL}/api/auth/change-password`, {
         method:  'PUT',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
         body:    JSON.stringify({ currentPassword, newPassword }),
@@ -239,7 +242,7 @@ export default function Profile() {
   )
 
   return (
-    <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--bg-page)' }}>
+    <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
 
       {/* ── Header ──────────────────────────────────────────────── */}
       <div
@@ -253,11 +256,11 @@ export default function Profile() {
       </div>
 
       {/* ── Content ─────────────────────────────────────────────── */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
+      <div className="md:flex-1 md:overflow-y-auto px-6 py-6">
 
         <Toast toast={toast} />
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', alignItems: 'start' }}>
+        <div className={styles.grid2} style={{ alignItems: 'start' }}>
 
           {/* ── LEFT — Identity card (same for all roles) ─────── */}
           {identityCard}
@@ -382,7 +385,7 @@ export default function Profile() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '10px', marginBottom: '1.25rem' }}>
                   {[
                     { icon: <MdPointOfSale />,  label: 'Sales',         value: todayTransactions, color: 'var(--primary)' },
-                    { icon: <MdInventory />,    label: 'Items Sold',    value: todayItems,         color: 'var(--info)'    },
+                    { icon: <MdInventory />,    label: 'Items Sold',    value: fmtQty(todayItems), color: 'var(--info)'    },
                     { icon: <MdTrendingUp />,   label: 'Revenue',       value: `KSh ${todayRevenue.toLocaleString()}`, color: 'var(--success)' },
                   ].map((stat, i) => (
                     <div key={i} style={{

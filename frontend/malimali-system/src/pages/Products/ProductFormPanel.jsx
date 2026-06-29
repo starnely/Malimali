@@ -1,7 +1,9 @@
-import { useMemo, useEffect } from 'react'
+﻿import { useMemo, useEffect } from 'react'
 import { MdClose, MdQrCodeScanner, MdKeyboard, MdPrint, MdScale } from 'react-icons/md'
 import FormInput from './FormInput'
 import FormInputDropdown from './FormInputDropdown'
+import { API_BASE_URL } from '@/config/api'
+import styles from '@/styles/Products.module.css'
 
 export default function ProductFormPanel({
   showModal, editProduct, mode, setMode,
@@ -120,7 +122,7 @@ export default function ProductFormPanel({
 
   return (
     <div
-      className={`fixed top-0 right-0 h-full w-[480px] z-40 flex flex-col transition-transform duration-300 ease-out
+      className={`fixed top-0 right-0 h-full w-full md:w-[480px] z-40 flex flex-col transition-transform duration-300 ease-out
         ${showModal ? 'translate-x-0' : 'translate-x-full'}`}
       style={{
         background: 'var(--bg-card)',
@@ -138,10 +140,7 @@ export default function ProductFormPanel({
         </h3>
         <button
           onClick={closeModal}
-          className="w-8 h-8 flex items-center justify-center rounded-lg transition flex-shrink-0"
-          style={{ color: 'rgba(255,255,255,0.6)' }}
-          onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          className={`w-8 h-8 flex items-center justify-center rounded-lg transition flex-shrink-0 ${styles.formCloseBtn}`}
         >
           <MdClose size={18} />
         </button>
@@ -459,26 +458,13 @@ export default function ProductFormPanel({
             <button
               onClick={saveProduct}
               disabled={!!pluConflict}
-              className="flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition"
-              style={{
-                background: pluConflict ? 'var(--border-medium)' : 'var(--primary)',
-                cursor: pluConflict ? 'not-allowed' : 'pointer',
-              }}
-              onMouseEnter={e => { if (!pluConflict) e.currentTarget.style.background = 'var(--primary-dark)' }}
-              onMouseLeave={e => { if (!pluConflict) e.currentTarget.style.background = pluConflict ? 'var(--border-medium)' : 'var(--primary)' }}
+              className={`flex-1 py-2.5 rounded-lg text-sm font-bold text-white transition ${pluConflict ? styles.formSaveBtnDisabled : styles.formSaveBtn}`}
             >
               {editProduct ? 'Update Product' : 'Save Product'}
             </button>
             <button
               onClick={closeModal}
-              className="py-2.5 px-4 rounded-lg text-sm font-semibold transition"
-              style={{
-                background: 'var(--bg-muted)',
-                color: 'var(--text-secondary)',
-                border: '1px solid var(--border-soft)',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--border-soft)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-muted)'}
+              className={`py-2.5 px-4 rounded-lg text-sm font-semibold transition ${styles.formCancelBtn}`}
             >
               Cancel
             </button>
@@ -498,7 +484,7 @@ export default function ProductFormPanel({
               Product Barcode
             </p>
             <img
-              src={`http://localhost:5000/api/products/barcode/${savedBarcode}`}
+              src={`${API_BASE_URL}/api/products/barcode/${savedBarcode}`}
               alt="Barcode"
               className="mx-auto mb-3 rounded-lg"
               style={{
@@ -509,10 +495,7 @@ export default function ProductFormPanel({
             />
             <button
               onClick={printBarcode}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white transition"
-              style={{ background: 'var(--primary)' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+              className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-bold text-white transition ${styles.formPrintBtn}`}
             >
               <MdPrint /> Print Barcode Label
             </button>

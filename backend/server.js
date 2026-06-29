@@ -38,9 +38,19 @@ if (!process.env.FRONTEND_URL) {
   console.error("❌ CRITICAL: FRONTEND_URL is not defined in .env");
   process.exit(1);
 }
-const ALLOWED_ORIGIN = process.env.FRONTEND_URL;
+const ALLOWED_ORIGINS = process.env.FRONTEND_URL
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
 
-app.use(cors({ origin: ALLOWED_ORIGIN, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    // allow requests with no Origin header (curl, Postman, server-to-server)
+    if (!origin || ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origin ${origin} not allowed`));
+  },
+  credentials: true,
+}));
 app.use(require("helmet")({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
@@ -55,7 +65,7 @@ const PORT = process.env.PORT || 5000;
 const server = app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
 
 const io = new Server(server, {
-  cors: { origin: ALLOWED_ORIGIN, methods: ["GET", "POST", "PUT", "PATCH", "DELETE"] }
+  cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST", "PUT", "PATCH", "DELETE"] }
 });
 
 app.set("io", io);

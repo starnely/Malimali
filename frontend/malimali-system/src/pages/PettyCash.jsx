@@ -4,6 +4,7 @@ import {
   MdArrowDownward, MdLock, MdRefresh, MdStorefront,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import styles from '@/styles/PettyCash.module.css'
 
 const S = {
   overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 },
@@ -107,7 +108,7 @@ export default function PettyCash() {
   // ── Owner all-stores overview ─────────────────────────────────────
   if (isOwner && !selectedStore) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-page)' }}>
+      <div className={styles.page}>
         {toast && (
           <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 'var(--radius-md)', background: toast.type === 'error' ? 'var(--danger)' : 'var(--success)', color: 'white', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-dropdown)' }}>
             {toast.msg}
@@ -126,7 +127,7 @@ export default function PettyCash() {
           </button>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <div className={styles.content} style={{ padding: '20px 24px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
           {allLoading ? (
             <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
               <MdRefresh style={{ fontSize: 32, opacity: 0.3 }} /><p>Loading all stores...</p>
@@ -227,7 +228,7 @@ export default function PettyCash() {
 
   // ── Single store view ─────────────────────────────────────────────
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg-page)' }}>
+    <div className={styles.page}>
 
       {toast && (
         <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 'var(--radius-md)', background: toast.type === 'error' ? 'var(--danger)' : 'var(--success)', color: 'white', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-dropdown)' }}>
@@ -301,7 +302,7 @@ export default function PettyCash() {
       </div>
 
       {/* Content */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className={styles.content} style={{ padding: '0 24px 24px', display: 'flex', flexDirection: 'column', gap: 14 }}>
         {showTab === 'today' ? (
           loading ? (
             <div style={{ textAlign: 'center', padding: '60px 24px', color: 'var(--text-muted)' }}>
