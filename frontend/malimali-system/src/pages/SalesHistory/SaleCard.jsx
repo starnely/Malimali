@@ -118,11 +118,11 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
         </div>
       </div>
 
-      {/* Items table */}
-      <div className="overflow-x-auto">
+      {/* Items table — capped height, internal scroll */}
+      <div className="overflow-x-auto" style={{ maxHeight: '220px', overflowY: 'auto' }}>
         <table className="w-full border-collapse min-w-[520px] text-sm">
           <thead>
-            <tr style={{ background: 'var(--bg-muted)' }}>
+            <tr style={{ background: 'var(--bg-muted)', position: 'sticky', top: 0, zIndex: 1 }}>
               {['Product', 'Category', 'Qty', 'Price', 'Total', 'Status', ''].map(h => (
                 <th key={h} className="text-left px-3 py-2 text-[10px] font-black uppercase tracking-wider"
                   style={{ color: 'var(--text-muted)', borderBottom: '1px solid var(--border-soft)' }}>

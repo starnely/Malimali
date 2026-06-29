@@ -111,12 +111,41 @@ export default function EmployeeCard({
 
       {isExpanded && (
         <div className="rounded-b-xl overflow-hidden" style={{ borderTop: '1px solid var(--border-soft)', background: 'var(--bg-muted)' }}>
-          <div className="flex items-center gap-2 px-5 py-3 flex-wrap">
-            <MdFilterList style={{ color: 'var(--text-muted)' }} />
-            <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>Filter {cashier}'s sales:</span>
-            <input type="date" value={empFilter.from || ''} onChange={e => setEmployeeDateFilter(prev => ({ ...prev, [cashier]: { ...prev[cashier], from: e.target.value } }))} className="px-2 py-1 rounded-lg text-xs outline-none" style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)' }} />
-            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
-            <input type="date" value={empFilter.to || ''} onChange={e => setEmployeeDateFilter(prev => ({ ...prev, [cashier]: { ...prev[cashier], to: e.target.value } }))} className="px-2 py-1 rounded-lg text-xs outline-none" style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)' }} />
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:flex-wrap px-5 py-3">
+            {/* Row 1: label */}
+            <div className="flex items-center gap-2">
+              <MdFilterList className="flex-shrink-0" style={{ color: 'var(--text-muted)' }} />
+              <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
+                Filter {cashier}'s sales:
+              </span>
+            </div>
+            {/* Row 2: date inputs */}
+            <div className="flex items-center gap-2">
+              <input
+                type="date"
+                value={empFilter.from || ''}
+                onChange={e => setEmployeeDateFilter(prev => ({ ...prev, [cashier]: { ...prev[cashier], from: e.target.value } }))}
+                className="px-2 py-1 rounded-lg text-xs outline-none flex-1 min-w-0"
+                style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+              />
+              <span className="flex-shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>to</span>
+              <input
+                type="date"
+                value={empFilter.to || ''}
+                onChange={e => setEmployeeDateFilter(prev => ({ ...prev, [cashier]: { ...prev[cashier], to: e.target.value } }))}
+                className="px-2 py-1 rounded-lg text-xs outline-none flex-1 min-w-0"
+                style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-primary)' }}
+              />
+              {(empFilter.from || empFilter.to) && (
+                <button
+                  onClick={() => setEmployeeDateFilter(prev => ({ ...prev, [cashier]: {} }))}
+                  className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-bold"
+                  style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)', touchAction: 'manipulation', userSelect: 'none' }}
+                >
+                  ×
+                </button>
+              )}
+            </div>
           </div>
           <div className="px-4 pb-4">
             {dates.length === 0 ? (

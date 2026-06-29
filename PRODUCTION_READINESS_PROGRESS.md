@@ -70,6 +70,7 @@ All Priority 1–5 screens have had the touch/responsive pass applied (see Scree
 
 ### Additional Bug Fixes (post-commit)
 
+- **SalesHistory expanded card — date filter styling + receipt card height cap** — (1) Date filter row in `EmployeeCard.jsx` restructured from a raw flex-wrap of two unlabelled inputs to two matched pill containers (`From [date input]` / `To [date input]`) with a `MdDateRange` icon and a conditional `×` clear button; both inputs use `bg-transparent flex-1 min-w-0` so they scale evenly on any phone width; wraps on very narrow viewports (`flex-wrap sm:flex-nowrap`). (2) SaleCard items table wrapper given `maxHeight: '220px', overflowY: 'auto'` — caps the receipt card at ~5 visible item rows, internal scroll for longer receipts; `<tr>` in `<thead>` gains `position: sticky, top: 0, zIndex: 1` so column headers stay visible while body rows scroll. Sticky chain verified: thead's nearest scroll container ancestor is the `overflow-x/y: auto` table wrapper (not the outer card's `overflow: hidden`), so the same `overflow: hidden` conflict that affected the employee header does not apply here — the inner scroll container acts as the reference and the outer `overflow: hidden` only visually clips. Build: zero errors.
 - **Sticky employee header content bleed-through (mobile)** — `.stickyEmployeeHeader` had `top: 56px` based on the incorrect assumption that the Topbar is `position: fixed` and the scroll container starts right below it. On mobile, two elements occupy the top of the viewport: the Sidebar's fixed mobile nav bar (`position: fixed; top: 0; height: 56px; z-index: 999`) and the Topbar (`h-[62px]; sticky; z-index: 50` inside the content div which has `marginTop: 56px`). The App-level `overflowY: auto` scroll container therefore starts at 56+62=118px from the viewport. With `top: 56px`, the sticky employee header was sticking at 118+56=174px — 56px below the Topbar bottom — leaving a visible 56px gap through which content scrolled freely. Fix: changed `top: 56px` → `top: 0` (universal; no breakpoint override needed since both mobile and desktop scroll containers start right below the Topbar in their respective layouts). The redundant `@media (min-width: 768px) { top: 0 }` override was removed. Build: zero errors.
 
 ### Three Real Bugs Found and Fixed (this session)
@@ -87,8 +88,8 @@ The code changes are applied and build-clean. These screens have NOT been confir
 | Screen | Route | What to verify |
 |---|---|---|
 | Purchase Orders | `/purchase-orders` | Mobile-scroll fix (zero-height collapse), stacked card layout, Create PO modal combobox + items cards, 44px touch targets |
-| Sales History | `/sales-history` | Mobile-scroll fix, SalesFilters condensed layout (CAT_MAX=3, date flex-1), store chip row, sticky employee header |
-| Products | `/products` | Mobile card view renders, ProductFilters chip rows stay on one line, overflow dropdowns, Edit/Restock/Delete 44px |
+| Sales History | `/sales-history` | Mobile-scroll fix, SalesFilters condensed layout (CAT_MAX=3, date flex-1), store chip row; **sticky employee header** (`top: 56px → top: 0` bleed-through fix); **date filter redesign** (From/To pills + MdDateRange icon + conditional × clear button, `flex-wrap sm:flex-nowrap`); **receipt card height cap** (`maxHeight: 220px, overflowY: auto` on table wrapper; sticky `<thead>` at `top: 0, z-index: 1` — scroll container is inner wrapper, not outer `overflow: hidden` card) |
+| Products | `/products` | Mobile card view renders, ProductFilters chip rows stay on one line, overflow dropdowns, Edit/Restock/Delete 44px; **sticky filter section** (filter wrapper split from title div, `sticky top-0 z-20 md:static` + `background: var(--bg-page)` — title scrolls away, filter sticks; desktop unchanged via `md:static`); **card width alignment** (mobile product list padding `0 16px 16px` → `0 24px 24px` to match filter card's `px-6` parent) |
 | Employees | `/employees` | Scroll, modal buttons 44px |
 | Categories | `/categories` | Scroll, table overflow, Add/Edit/Delete buttons 44px |
 | Suppliers | `/suppliers` | Scroll, table action buttons 44px |
@@ -101,6 +102,19 @@ The code changes are applied and build-clean. These screens have NOT been confir
 | Reports | `/reports` | Scroll, hover guards not sticky |
 | DailyReport | `/daily-report` | Scroll |
 | PettyCash | `/petty-cash` | Scroll |
+
+### Flagged Follow-up: "Filters scroll away" pattern on other screens
+
+Same issue as Products (`sticky top-0` filter fix) exists on these screens — not yet fixed, confirmed as a pattern to address in a later pass:
+
+| Screen | Route | Filter section location | Status |
+|---|---|---|---|
+| Sales History | `/sales-history` | `flex-shrink-0 px-6 pt-6 pb-3` header div — SalesStats + SalesFilters both scroll away | **Flagged, not fixed** |
+| Purchase Orders | `/purchase-orders` | Header area with filter inputs scrolls away on mobile | **Flagged, not fixed** |
+| Customers | `/customers` | Filter row scrolls away on mobile | **Flagged, not fixed** |
+| Reports | `/reports` | Filter/summary section scrolls away on mobile | **Flagged, not fixed** |
+
+Pattern fix when addressing: split header into title div (scrolls) + filter wrapper (`sticky top-0 z-20 md:static` + `background: var(--bg-page)`). Same approach applied to Products.
 
 ### Outstanding: Part 2 — App.jsx `100dvh` Shared-Shell Verification
 

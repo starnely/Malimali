@@ -293,8 +293,8 @@ export default function Products() {
         className={`flex flex-col md:flex-1 md:min-w-0 md:min-h-0 md:overflow-hidden transition-all duration-300
           ${showModal && !isOverlay ? 'mr-[480px]' : ''}`}
       >
-        {/* Header */}
-        <div className="flex-shrink-0 px-6 pt-6 pb-3">
+        {/* Header — title + button (scrolls away on mobile) */}
+        <div className="flex-shrink-0 px-6 pt-6">
           <div className="flex justify-between items-center mb-4">
             <div>
               <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
@@ -319,7 +319,13 @@ export default function Products() {
               <MdAdd className="text-lg" /> Add Product
             </button>
           </div>
+        </div>
 
+        {/* Filter section — sticky on mobile, static on desktop */}
+        <div
+          className="flex-shrink-0 px-6 pb-3 sticky top-0 z-20 md:static"
+          style={{ background: 'var(--bg-page)' }}
+        >
           <ProductFilters
             search={search} setSearch={setSearch}
             categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
