@@ -166,13 +166,9 @@
 /* ── Sticky employee card header ────────────────────────── */
 .stickyEmployeeHeader {
   position: sticky;
-  top: 56px;       /* mobile: clears the 56px fixed topbar */
+  top: 0;
   z-index: 10;
   background: var(--bg-card);
-}
-
-@media (min-width: 768px) {
-  .stickyEmployeeHeader { top: 0; } /* desktop: top of md:overflow-y-auto container */
 }
 
 /* ── Hover states (mouse / trackpad devices only) ────────── */

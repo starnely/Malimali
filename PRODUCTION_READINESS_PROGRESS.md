@@ -68,6 +68,10 @@
 
 All Priority 1–5 screens have had the touch/responsive pass applied (see Screens Completed table above). Every route has: constrained-scroll fix, hover guards, `:active` states, 36/44px touch targets, `touch-action: manipulation`, `user-select: none`.
 
+### Additional Bug Fixes (post-commit)
+
+- **Sticky employee header content bleed-through (mobile)** — `.stickyEmployeeHeader` had `top: 56px` based on the incorrect assumption that the Topbar is `position: fixed` and the scroll container starts right below it. On mobile, two elements occupy the top of the viewport: the Sidebar's fixed mobile nav bar (`position: fixed; top: 0; height: 56px; z-index: 999`) and the Topbar (`h-[62px]; sticky; z-index: 50` inside the content div which has `marginTop: 56px`). The App-level `overflowY: auto` scroll container therefore starts at 56+62=118px from the viewport. With `top: 56px`, the sticky employee header was sticking at 118+56=174px — 56px below the Topbar bottom — leaving a visible 56px gap through which content scrolled freely. Fix: changed `top: 56px` → `top: 0` (universal; no breakpoint override needed since both mobile and desktop scroll containers start right below the Topbar in their respective layouts). The redundant `@media (min-width: 768px) { top: 0 }` override was removed. Build: zero errors.
+
 ### Three Real Bugs Found and Fixed (this session)
 
 1. **Store rename → data corruption across 13 collections** — any rename silently orphaned every product, sale, expense, archive, customer, PO, etc. under that store name. Fixed with full cascade in `backend/routes/stores.js` PUT handler + one-time repair script that fixed 134 historical documents across 4 orphaned store names.
