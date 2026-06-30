@@ -1355,6 +1355,22 @@
   box-shadow: var(--shadow-card);
 }
 
+@media (max-width: 768px) {
+  .tableCard {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100svh - 260px);
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .barcodeTable thead tr {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-muted);
+  }
+}
+
 .barcodeTable {
   width: 100%;
   border-collapse: collapse;

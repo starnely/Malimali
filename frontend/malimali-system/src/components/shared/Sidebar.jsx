@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import {
   MdDashboard, MdInventory,
   MdPointOfSale, MdHistory, MdBarChart,
-  MdMenu, MdClose, MdPerson, MdDocumentScanner, MdCategory, MdLocalShipping, MdStorefront,
+  MdClose, MdPerson, MdDocumentScanner, MdCategory, MdLocalShipping, MdStorefront,
   MdWarning, MdPeopleAlt, MdCreditCard,
   MdShoppingCart, MdAttachMoney, MdAccountBalanceWallet,
   MdExpandMore, MdExpandLess, MdLogout, MdReceiptLong, MdScale, MdArchive
@@ -148,11 +148,11 @@ function NavGroup({ group, onMobileClose }) {
 
 export default function Sidebar() {
   const { isMobile } = useWindowSize()
-  const { currentUser, isOwner, settings, logout } = useApp()
+  const { currentUser, isOwner, isManager, settings, logout, sidebarOpen, setSidebarOpen } = useApp()
   const navigate = useNavigate()
-  const [isOpen, setIsOpen] = useState(false)
 
   const companyName = settings?.companyName || settings?.businessName || 'Business Retail'
+  const homeRoute = (isOwner || isManager) ? '/' : '/barcodes'
 
   const getLinks = () => {
     if (isOwner || currentUser?.role === 'owner') return ownerLinks
@@ -170,21 +170,31 @@ export default function Sidebar() {
 
       {/* Brand */}
       <div className="px-5 py-5 flex items-center gap-3 flex-shrink-0" style={{ borderBottom: '1px solid var(--sidebar-border)' }}>
-        {settings?.logo ? (
-          <img src={`${backendUrl}${settings.logo}`} alt="Logo" className="w-9 h-9 object-contain rounded-lg bg-white/10 p-1" />
-        ) : (
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-base flex-shrink-0" style={{ background: 'var(--primary)' }}>
-            {companyName.charAt(0).toUpperCase()}
+        <button
+          onClick={() => { navigate(homeRoute); setSidebarOpen(false) }}
+          style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, touchAction: 'manipulation', userSelect: 'none' }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          onMouseDown={e => e.currentTarget.style.opacity = '0.7'}
+          onMouseUp={e => e.currentTarget.style.opacity = '1'}
+          title="Go to home"
+        >
+          {settings?.logo ? (
+            <img src={`${backendUrl}${settings.logo}`} alt="Logo" className="w-9 h-9 object-contain rounded-lg bg-white/10 p-1 flex-shrink-0" />
+          ) : (
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center text-white font-black text-base flex-shrink-0" style={{ background: 'var(--primary)' }}>
+              {companyName.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="flex-1 min-w-0">
+            <div className="text-white text-[13px] font-bold truncate leading-tight">{companyName}</div>
+            <div className="text-[10px] font-semibold uppercase tracking-widest truncate mt-0.5" style={{ color: 'var(--primary-muted)' }}>
+              {currentUser?.store || 'Main Terminal'}
+            </div>
           </div>
-        )}
-        <div className="flex-1 min-w-0">
-          <div className="text-white text-[13px] font-bold truncate leading-tight">{companyName}</div>
-          <div className="text-[10px] font-semibold uppercase tracking-widest truncate mt-0.5" style={{ color: 'var(--primary-muted)' }}>
-            {currentUser?.store || 'Main Terminal'}
-          </div>
-        </div>
+        </button>
         {isMobile && (
-          <button onClick={() => setIsOpen(false)} className="text-white/60 hover:text-white transition ml-1 flex-shrink-0">
+          <button onClick={() => setSidebarOpen(false)} className="text-white/60 hover:text-white transition ml-1 flex-shrink-0">
             <MdClose className="text-xl" />
           </button>
         )}
@@ -202,14 +212,14 @@ export default function Sidebar() {
       <nav className="flex-1 overflow-y-auto px-3 pb-2 mt-1 space-y-0.5 custom-scrollbar">
         {getLinks().map((link, i) => {
           if (link.children) {
-            return <NavGroup key={link.key || i} group={link} onMobileClose={() => setIsOpen(false)} />
+            return <NavGroup key={link.key || i} group={link} onMobileClose={() => setSidebarOpen(false)} />
           }
           return (
             <NavLink
               key={link.to}
               to={link.to}
               end
-              onClick={() => isMobile && setIsOpen(false)}
+              onClick={() => isMobile && setSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group
                 ${isActive ? 'text-white shadow-md' : 'hover:bg-white/5'}`
@@ -258,17 +268,8 @@ export default function Sidebar() {
     <>
       {isMobile ? (
         <>
-          <div className="fixed top-0 left-0 right-0 h-14 flex items-center justify-between px-4 z-[999] shadow-md" style={{ background: 'var(--sidebar-bg)' }}>
-            <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-md flex items-center justify-center text-white font-black text-sm" style={{ background: 'var(--primary)' }}>
-                {companyName.charAt(0)}
-              </div>
-              <span className="text-white font-bold text-sm tracking-tight">{companyName}</span>
-            </div>
-            <button onClick={() => setIsOpen(true)}><MdMenu className="text-white text-2xl" /></button>
-          </div>
-          {isOpen && <div onClick={() => setIsOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000]" />}
-          <div className={`fixed top-0 left-0 h-screen z-[1001] transition-transform duration-300 ease-out ${isOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+          {sidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[1000]" />}
+          <div className={`fixed top-0 left-0 h-screen z-[1001] transition-transform duration-300 ease-out ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
             {sidebarContent}
           </div>
         </>

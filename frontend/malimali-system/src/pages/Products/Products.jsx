@@ -3,6 +3,7 @@ import { MdAdd } from 'react-icons/md'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { useWindowSize } from '@/hooks/useWindowSize'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/Products.module.css'
 
 import ProductFilters from './ProductFilters'
@@ -40,7 +41,7 @@ export default function Products() {
   const [search, setSearch] = useState('')
   const [categoryFilter, setCategoryFilter] = useState('All')
   const [storeFilter, setStoreFilter] = useState('All')
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, openModal, closeModalHistory] = useHistoryModal('products-form')
   const [editProduct, setEditProduct] = useState(null)
   const [restockProduct, setRestockProduct] = useState(null)
   const [restockQty, setRestockQty] = useState('')
@@ -56,12 +57,12 @@ export default function Products() {
 
   // ── Helpers ────────────────────────────────────────────
   const closeModal = useCallback(() => {
-    setShowModal(false)
     setEditProduct(null)
     setError('')
     setSuccess('')
     setSavedBarcode('')
-  }, [setEditProduct])
+    closeModalHistory()
+  }, [setEditProduct, closeModalHistory])
 
   // ── Build a fresh form pre-filled with the active store filter's
   //    batch (current month/year) and store name ───────────────────
@@ -100,8 +101,8 @@ export default function Products() {
     setSavedBarcode('')
     setError('')
     setSuccess('')
-    setShowModal(true)
-  }, [setEditProduct, setForm, setMode, setBarcode, setSavedBarcode, setError, setSuccess, setShowModal])
+    openModal()
+  }, [setEditProduct, setForm, setMode, setBarcode, setSavedBarcode, setError, setSuccess, openModal])
 
   const openAdd = () => {
     setEditProduct(null)
@@ -111,7 +112,7 @@ export default function Products() {
     setSavedBarcode('')
     setError('')
     setSuccess('')
-    setShowModal(true)
+    openModal()
   }
 
   const handleScan = useCallback((barcodeValue) => {

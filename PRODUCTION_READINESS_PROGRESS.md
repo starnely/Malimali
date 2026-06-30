@@ -64,61 +64,94 @@
 
 ## Current Status
 
-### Implementation Pass — Complete ✅
+### Touch / Responsive Pass — Code Complete ✅
 
-All Priority 1–5 screens have had the touch/responsive pass applied (see Screens Completed table above). Every route has: constrained-scroll fix, hover guards, `:active` states, 36/44px touch targets, `touch-action: manipulation`, `user-select: none`.
+All 21 authenticated routes have had the touch/responsive pass applied (see Screens Completed table above). Every route has: constrained-scroll fix, hover guards, `:active` states, 36/44px touch targets, `touch-action: manipulation`, `user-select: none`. Build is clean on all changes.
 
-### Additional Bug Fixes (post-commit)
+---
 
-- **SalesHistory expanded card — date filter styling + receipt card height cap** — (1) Date filter row in `EmployeeCard.jsx` restructured from a raw flex-wrap of two unlabelled inputs to two matched pill containers (`From [date input]` / `To [date input]`) with a `MdDateRange` icon and a conditional `×` clear button; both inputs use `bg-transparent flex-1 min-w-0` so they scale evenly on any phone width; wraps on very narrow viewports (`flex-wrap sm:flex-nowrap`). (2) SaleCard items table wrapper given `maxHeight: '220px', overflowY: 'auto'` — caps the receipt card at ~5 visible item rows, internal scroll for longer receipts; `<tr>` in `<thead>` gains `position: sticky, top: 0, zIndex: 1` so column headers stay visible while body rows scroll. Sticky chain verified: thead's nearest scroll container ancestor is the `overflow-x/y: auto` table wrapper (not the outer card's `overflow: hidden`), so the same `overflow: hidden` conflict that affected the employee header does not apply here — the inner scroll container acts as the reference and the outer `overflow: hidden` only visually clips. Build: zero errors.
-- **Sticky employee header content bleed-through (mobile)** — `.stickyEmployeeHeader` had `top: 56px` based on the incorrect assumption that the Topbar is `position: fixed` and the scroll container starts right below it. On mobile, two elements occupy the top of the viewport: the Sidebar's fixed mobile nav bar (`position: fixed; top: 0; height: 56px; z-index: 999`) and the Topbar (`h-[62px]; sticky; z-index: 50` inside the content div which has `marginTop: 56px`). The App-level `overflowY: auto` scroll container therefore starts at 56+62=118px from the viewport. With `top: 56px`, the sticky employee header was sticking at 118+56=174px — 56px below the Topbar bottom — leaving a visible 56px gap through which content scrolled freely. Fix: changed `top: 56px` → `top: 0` (universal; no breakpoint override needed since both mobile and desktop scroll containers start right below the Topbar in their respective layouts). The redundant `@media (min-width: 768px) { top: 0 }` override was removed. Build: zero errors.
+### Three Serious Bugs Found and Fixed (this session)
 
-### Three Real Bugs Found and Fixed (this session)
+**1. Store rename → data corruption across 13 collections (backend)**
+Any store rename silently orphaned every linked product, sale, expense, archive, customer, PO, etc. because `store` is stored as a plain string name across 13 collections with no cascade on rename. Fixed in `backend/routes/stores.js` PUT handler: captures `oldName` before update, runs `Promise.all` with 13 `updateMany`/`arrayFilters` calls after a successful rename. Partial cascade failure is caught and returns `cascadeWarning: true` without failing the response. `Stores.jsx` now calls `fetchProducts()` after rename and shows a dismissible warning banner on `cascadeWarning`. One-time repair script run to fix 134 historically orphaned documents across 4 dead store name mappings.
 
-1. **Store rename → data corruption across 13 collections** — any rename silently orphaned every product, sale, expense, archive, customer, PO, etc. under that store name. Fixed with full cascade in `backend/routes/stores.js` PUT handler + one-time repair script that fixed 134 historical documents across 4 orphaned store names.
+**2. Floating-point display garbage across 22 locations (frontend)**
+IEEE 754 float noise (e.g. `63.07899999999999`) appeared on any quantity display site where `Array.reduce()` accumulated weighed-product quantities. Root cause confirmed via screenshots on Sales History. Fix: `fmtQty(n)` utility added to `utils.js` (`+Number(n).toFixed(3)` — strips noise, preserves meaningful decimals, converts whole numbers to integers). Applied to all 22 display sites across 12 files: SalesStats, EmployeeCard, DateGroup, Dashboard ×3, EmployeeSalesModal ×3, Profile, StockOut, ArchiveCard ×2, DailySummaryModal ×2, DailyReport ×2, MonthlyReport ×4, Reports. Arithmetic/comparison code untouched.
 
-2. **Floating-point display garbage across 22 locations** — IEEE 754 float noise (63.07899999999999, 164.279…) appeared on item-count displays wherever `Array.reduce()` accumulated weighed-product quantities. Fixed by applying `fmtQty()` to all 22 display sites across 12 files (SalesStats, EmployeeCard, DateGroup, Dashboard ×3, EmployeeSalesModal ×3, Profile, StockOut, ArchiveCard ×2, DailySummaryModal ×2, DailyReport ×2, MonthlyReport ×4, Reports).
+**3. False Setup Wizard on transient network error (frontend + backend)**
+`AppContext.checkSetup` catch block called `setIsSetupComplete(false)` on ANY error including `ERR_CONNECTION_REFUSED`, routing users to the Setup Wizard during backend restarts. Fixed: `connectionError` boolean state + `retryTimerRef` + `runSetupCheck` useCallback. Network/HTTP errors now set `connectionError: true` and auto-retry after 5 s. Only a clean `{ isSetup: false }` from a reachable backend triggers the Setup Wizard. App.jsx shows a "Can't reach server — Retrying automatically…" screen with spinner and "Retry now" button on connection error. Confirmed working by user.
 
-3. **False Setup Wizard on transient network error** — AppContext `checkSetup` catch block called `setIsSetupComplete(false)` on ANY error including `ERR_CONNECTION_REFUSED`, routing every user to Setup Wizard during a backend restart. Fixed: `connectionError` state + `retryTimerRef` + `runSetupCheck` useCallback. Network errors now show "Can't reach server — Retrying automatically…" with 5-second auto-retry. Only an explicit `{ isSetup: false }` from a reachable backend triggers the Setup Wizard. Confirmed working by user.
+---
+
+### Navigation Overhaul (this session) — see Navigation section below for full detail
+
+Summary of all navigation changes shipped today, all build-confirmed:
+
+| Change | Files | Status |
+|---|---|---|
+| Sidebar brand logo/name → clickable home link (role-based) | `Sidebar.jsx`, `Topbar.module.css` | ✅ Done |
+| Topbar duplicate logo removed; plain title restored | `Topbar.jsx` | ✅ Done |
+| Conditional back-arrow replaced with scalable breadcrumb trail (`parentRoutes` map) | `Topbar.jsx`, `Topbar.module.css` | ✅ Done |
+| Merged mobile header: 56px Sidebar nav bar eliminated, hamburger moved to Topbar | `AppContext.jsx`, `Sidebar.jsx`, `Topbar.jsx`, `App.jsx` | ✅ Done |
+| `<Navigate>` without `replace` back-button trap fixed | `App.jsx` | ✅ Done |
+| Vestigial `parentRoutes['/monthly-report']` removed (route doesn't exist — Monthly Report is a tab in Reports) | `Topbar.jsx` | ✅ Done |
+
+---
 
 ### Outstanding: Real-Device Verification
 
-The code changes are applied and build-clean. These screens have NOT been confirmed on a real phone:
+All code is build-clean. None of the following have been confirmed on a real phone since changes were applied:
+
+**Priority — these had confirmed real-phone failures before the fix was applied:**
 
 | Screen | Route | What to verify |
 |---|---|---|
-| Purchase Orders | `/purchase-orders` | Mobile-scroll fix (zero-height collapse), stacked card layout, Create PO modal combobox + items cards, 44px touch targets |
-| Sales History | `/sales-history` | Mobile-scroll fix, SalesFilters condensed layout (CAT_MAX=3, date flex-1), store chip row; **sticky employee header** (`top: 56px → top: 0` bleed-through fix); **date filter redesign** (From/To pills + MdDateRange icon + conditional × clear button, `flex-wrap sm:flex-nowrap`); **receipt card height cap** (`maxHeight: 220px, overflowY: auto` on table wrapper; sticky `<thead>` at `top: 0, z-index: 1` — scroll container is inner wrapper, not outer `overflow: hidden` card) |
-| Products | `/products` | Mobile card view renders, ProductFilters chip rows stay on one line, overflow dropdowns, Edit/Restock/Delete 44px; **sticky filter section** (filter wrapper split from title div, `sticky top-0 z-20 md:static` + `background: var(--bg-page)` — title scrolls away, filter sticks; desktop unchanged via `md:static`); **card width alignment** (mobile product list padding `0 16px 16px` → `0 24px 24px` to match filter card's `px-6` parent) |
-| Employees | `/employees` | Scroll, modal buttons 44px |
-| Categories | `/categories` | Scroll, table overflow, Add/Edit/Delete buttons 44px |
-| Suppliers | `/suppliers` | Scroll, table action buttons 44px |
-| Stores | `/stores` | Scroll, rename cascade warning banner visible |
-| StockOut | `/stock-out` | Scroll, POS Terminal button 44px |
+| Purchase Orders | `/purchase-orders` | Zero-height collapse fix (mobile-scroll pattern); stacked card layout at ≤768px; Create PO modal combobox panel height + items stacked cards; 44px touch targets throughout |
+| Sales History | `/sales-history` | Zero-height collapse fix; SalesFilters condensed layout (search+date row, CAT_MAX=3 category overflow, store chip row); sticky employee header sticks correctly at `top: 0` beneath the **now-merged single Topbar** (old fix assumed 56px offset — that offset is gone; `top: 0` is still correct but verify visually); receipt card height cap (220px, scrollable tbody, sticky thead) |
+
+**Back-office screens — constrained-scroll fix applied proactively, first-time device verification:**
+
+| Screen | Route | What to verify |
+|---|---|---|
+| Products | `/products` | Mobile card view; sticky filter section (`top-0 z-20`, title scrolls away); card width 24px padding alignment; chip overflow dropdowns; 44px action buttons |
+| Employees | `/employees` | Scroll, 44px modal buttons |
+| Categories | `/categories` | Scroll, table overflow, 44px Add/Edit/Delete |
+| Suppliers | `/suppliers` | Scroll, 44px table action buttons |
+| Stores | `/stores` | Scroll, store rename cascade warning banner |
+| StockOut | `/stock-out` | Scroll, 44px POS Terminal button |
 | DailyArchives | `/daily-archives` | Scroll, ArchiveCard touch targets |
-| ExpiredStock | `/expired-stock` | Scroll, Move button 44px |
-| Settings | `/settings` | Grid stacks to 1-col on mobile, scroll |
-| Profile | `/profile` | Grid stacks to 1-col on mobile, items-sold stat card correct |
-| Reports | `/reports` | Scroll, hover guards not sticky |
+| ExpiredStock | `/expired-stock` | Scroll, 44px Move button |
+| Settings | `/settings` | 2-col grid collapses to 1-col on mobile; scroll |
+| Profile | `/profile` | 2-col grid collapses to 1-col on mobile; items-sold stat correct |
+| Reports | `/reports` | Scroll, hover guards don't stick on touch |
 | DailyReport | `/daily-report` | Scroll |
 | PettyCash | `/petty-cash` | Scroll |
 
-### Flagged Follow-up: "Filters scroll away" pattern on other screens
+**Also verify on device after navigation overhaul:**
+- Merged Topbar bar (single bar, `h-[62px]`): hamburger opens drawer, drawer overlays bar correctly, breadcrumb shows on `/profile` and `/settings`, plain title shows on all other pages
+- Sidebar drawer brand logo → navigates home and closes drawer
+- Back button steps through pages one at a time (no more back-button trap at `/` for non-owners)
 
-Same issue as Products (`sticky top-0` filter fix) exists on these screens — not yet fixed, confirmed as a pattern to address in a later pass:
+---
 
-| Screen | Route | Filter section location | Status |
-|---|---|---|---|
-| Sales History | `/sales-history` | `flex-shrink-0 px-6 pt-6 pb-3` header div — SalesStats + SalesFilters both scroll away | **Flagged, not fixed** |
-| Purchase Orders | `/purchase-orders` | Header area with filter inputs scrolls away on mobile | **Flagged, not fixed** |
-| Customers | `/customers` | Filter row scrolls away on mobile | **Flagged, not fixed** |
-| Reports | `/reports` | Filter/summary section scrolls away on mobile | **Flagged, not fixed** |
+### Outstanding: App.jsx `100dvh` Shared-Shell (code done, device verification pending)
 
-Pattern fix when addressing: split header into title div (scrolls) + filter wrapper (`sticky top-0 z-20 md:static` + `background: var(--bg-page)`). Same approach applied to Products.
+`height: '100dvh'` is now applied universally in App.jsx (outer wrapper and inner content div — the old `calc(100dvh - 56px)` mobile adjustment was removed as part of the merged header change). The code is correct. **What is still pending:** real-device confirmation that `100dvh` matches the visible viewport on iOS and Android (browser chrome can shrink `100vh` but `100dvh` is supposed to be reliable). Verify once Purchase Orders and Sales History pass their scroll fix tests on device — those are the two screens where the original zero-height collapse was reproduced.
 
-### Outstanding: Part 2 — App.jsx `100dvh` Shared-Shell Verification
+---
 
-The App.jsx shared shell already uses `height: '100dvh'` at the outer wrapper (line 92) and inner content div (line 98, `calc(100dvh - 56px)` on mobile). The code change is done. **What is outstanding:** real-device verification that `100dvh` correctly matches the visible viewport across all 21 authenticated routes on iOS and Android (browser chrome vs. CSS viewport unit behaviour). This verification is blocked on Purchase Orders and Sales History first confirming their scroll fixes work on device — those are the two screens where the original collapse was reproduced. Once they pass, spot-check the remaining routes.
+### Optional Follow-up: Sticky Filter Pattern
+
+The "filters scroll away on mobile" issue is fixed on Products (split header: title div scrolls, filter wrapper `sticky top-0 z-20 md:static`). The same pattern applies to four other screens but is **not yet fixed** — address in a later pass if it becomes a user complaint:
+
+| Screen | Route | What scrolls away |
+|---|---|---|
+| Sales History | `/sales-history` | SalesStats + SalesFilters header div scrolls away entirely |
+| Purchase Orders | `/purchase-orders` | Filter inputs in header scroll away |
+| Customers | `/customers` | Filter row scrolls away |
+| Reports | `/reports` | Filter/summary section scrolls away |
+
+Fix pattern: split into title div (scrolls) + filter wrapper (`sticky top-0 z-20 md:static` + `background: var(--bg-page)`). Identical to Products fix.
 
 ## Mobile Usage Decisions
 
@@ -158,13 +191,769 @@ The App.jsx shared shell already uses `height: '100dvh'` at the outer wrapper (l
 
 **Pending — Part 2 (App.jsx `100dvh`):** Replace `height: '100vh'` with `height: '100dvh'` in App.jsx (lines 62, 68) as belt-and-suspenders. Eliminates the `100vh` vs visible-viewport mismatch on iOS/Android. Held until Purchase Orders + Sales History confirmed working on real device. Touches shared shell — needs careful verification on all screens.
 
+## Navigation Improvements (post-audit)
+
+Navigation audit (2026-06-29) found: all routes are flat (no nested URL paths), all sidebar routes directly reachable, "deep" content (modals, panels, accordions) stays on same URL so browser back is not a modal issue.
+
+### V1 — Implemented then superseded (2026-06-29 → 2026-06-30)
+
+Initial implementation added: (1) clickable logo button in Topbar LEFT navigating home, (2) conditional `MdArrowBack` back-arrow button for `/monthly-report`, `/profile`, `/settings`. Both were committed to main but found to have two issues: the Topbar logo duplicated the sidebar's already-visible brand logo (redundant on both mobile and desktop), and the back-arrow approach required a manually maintained `backRoutes` map that doesn't scale to future pages and offers no visual context about where the arrow leads.
+
+### V2 — Implemented and build-confirmed ✅ (2026-06-30)
+
+**Change 1 — Sidebar brand section is the home link (Topbar logo removed):**
+- `Topbar.jsx`: removed logo `<button>` wrapper, `MdArrowBack` import, and `backTarget`/`backRoutes` constants. `homeRoute` kept (used for breadcrumb parent links). Topbar LEFT is now `[title/breadcrumb div] [pill shortcuts (desktop-only, unchanged)]` — no logo.
+- `Topbar.module.css`: removed `.logoBtn` class. Added `.breadcrumbLink` class (background none, border none, cursor pointer, primary color 13px/600, hover underline guard via `@media (hover: hover)`, active opacity 0.7, touch-action/user-select).
+- `Sidebar.jsx`: destructured `isManager` from `useApp()`, added `homeRoute` (owner/manager → `/`, cashier → `/barcodes`). In drawer brand section: logo image/initial + company name `<div>` wrapped in a `<button>` (`flex: 1; min-width: 0; touch-action: manipulation`) — `onClick={() => { navigate(homeRoute); setIsOpen(false) }}` (closes drawer on mobile, no-op on desktop). Mouse hover/down/up opacity via inline handlers. `MdClose` stays separate (not part of home-click target). In mobile top nav bar: brand `<div>` replaced with `<button>` → `navigate(homeRoute)` with touchStart/touchEnd opacity feedback.
+
+**Desktop before/after:**
+- Topbar: `[logo btn → home] [h1 title + subtitle] [shortcuts]` → `[h1/breadcrumb + subtitle] [shortcuts]` (title gets more horizontal space, no logo duplication)
+- Sidebar: brand area not interactive → logo + company name is a clickable button with hover/active opacity
+
+**Mobile before/after:**
+- Topbar: `[logo btn → home] [h1 title + subtitle]` → `[h1/breadcrumb + subtitle]` (no logo)
+- Top nav bar: `<div>` with initial + company name (not tappable) → `<button>` → navigates home, touch opacity feedback
+- Sidebar drawer: brand section not interactive → logo + company name `<button>` → home + closes drawer
+
+**Change 2 — Breadcrumb trail replaces back arrow:**
+- `Topbar.jsx`: `parentRoutes = { '/monthly-report': { label: 'Reports', to: '/reports' }, '/profile': { label: 'Home', to: homeRoute }, '/settings': { label: 'Home', to: homeRoute } }`. When `parentRoute = parentRoutes[location.pathname]` is defined: `[parent link (13px/600, primary, underline hover)] [› (text-muted)] [current page (text-base/bold, truncate)]`. When not (all top-level routes): plain `<h1>` unchanged. Identical on desktop and mobile — no breakpoint gating.
+- Scalable: one line in `parentRoutes` to register any new deep page.
+
+**Build:** zero errors, 3.48s, 206 modules. Pending real-device verification.
+
+### V3 — Mobile merged top bar ✅ (2026-06-30)
+
+**Goal:** Eliminate the two-bar stack on mobile (Sidebar's 56px fixed nav bar + Topbar) by collapsing them into a single Topbar with the hamburger moved into it.
+
+**Files changed (4):**
+
+- `AppContext.jsx`: added `const [sidebarOpen, setSidebarOpen] = useState(false)` + both exposed in context value. This lifts the sidebar drawer's open/close state out of Sidebar's local state so that Topbar can write it without prop threading.
+- `Sidebar.jsx`: replaced local `const [isOpen, setIsOpen] = useState(false)` with `sidebarOpen, setSidebarOpen` from `useApp()`. Removed the entire mobile fixed top nav bar block (`<div className="fixed top-0 left-0 right-0 h-14 ...">` containing the home-link button and hamburger). Removed `MdMenu` import (no longer used in Sidebar). Mobile branch in return now only renders: backdrop overlay (when open) + sliding drawer. All `setIsOpen(false)` calls in NavLink/NavGroup/MdClose replaced with `setSidebarOpen(false)` via replace_all.
+- `Topbar.jsx`: added `MdMenu` import; destructured `setSidebarOpen` from `useApp()`; added `<button onClick={() => setSidebarOpen(true)} className={\`md:hidden p-2 rounded-lg ${tb.iconBtn}\`}>` as the first child of the LEFT group — `md:hidden` keeps it invisible on desktop (≥768px).
+- `App.jsx`: removed `marginTop: isMobile ? '56px' : '0'` → `marginTop: 0` and `height: isMobile ? 'calc(100dvh - 56px)' : '100dvh'` → `height: '100dvh'`. The 56px offset was solely to push content below the now-deleted fixed nav bar.
+
+**Desktop before/after (confirmed unchanged):**
+- Sidebar fixed at left, `marginLeft: 230px`, Topbar unchanged. `marginTop: 0` and `height: 100dvh` were already the desktop values — converging the mobile branch to the same values causes zero layout change on desktop. Hamburger is `md:hidden` so never renders. ✓
+
+**Mobile before/after:**
+- Before: Two bars. Sidebar's `fixed z-[999] h-14` nav bar (56px) + Topbar `sticky z-50 h-[62px]` below it — combined ~118px of top chrome. Content started at `marginTop: 56px`.
+- After: One bar. Topbar `sticky top-0 z-50 h-[62px]` containing `[☰ hamburger] [page title/breadcrumb + subtitle] [right icons]`. Content starts at `marginTop: 0`, `height: 100dvh`. ~56px reclaimed. ✓
+
+**Drawer open/close and z-index (confirmed):**
+- Hamburger `onClick={() => setSidebarOpen(true)}` → backdrop renders at `z-[1000]`, drawer at `z-[1001]` — both above Topbar's `z-50`. Drawer correctly overlays the merged bar. `MdClose` inside drawer still calls `setSidebarOpen(false)`. NavLink/NavGroup `onMobileClose` still calls `setSidebarOpen(false)`. ✓
+
+**Tablet boundary check (768–900px):**
+- Hamburger uses `md:hidden` (Tailwind `md:` = ≥768px). At exactly 768px and above, hamburger disappears, Sidebar becomes the fixed left panel via the `isMobile` JS check (`useWindowSize`). The two breakpoints align: both `md:` CSS and `isMobile` in `useWindowSize` use 768px as the boundary. No gap at the tablet edge. ✓
+
+**Build:** zero errors, 5.23s, 206 modules. Pending real-device verification.
+
+**Flagged as follow-up** (not yet fixed): Sales History SalesFilters, Purchase Orders filters, Customers filters all have same "filters scroll away on mobile" issue as Products (fixed). Pattern: `sticky top-0 z-20 md:static + background: var(--bg-page)` on filter wrapper.
+
+### V3 follow-up — Back-button audit + Navigate fix ✅ (2026-06-30)
+
+**Audit finding:** Full grep of all `navigate()` calls across the codebase found only one `{ replace: true }` — `Products.jsx:269`, which replaces the same URL to clear `productToEdit` from location state after opening the edit modal. Intentional and correct. All other programmatic navigation (sidebar NavLinks, dashboard cards, breadcrumb links, home-link buttons, shortcut pills, profile/settings links) uses default push. Today's additions (sidebar brand, breadcrumb, hamburger) use push — none cause the reported back-button symptom.
+
+**Root cause 1 — fixed:** `App.jsx` had two `<Navigate>` components without `replace`:
+- `<Navigate to="/barcodes" />` for non-owners at `/`
+- `<Navigate to="/" />` for unmatched routes (`*`)
+
+React Router v6 `<Navigate>` without `replace` **pushes** a new history entry. For redirect routes this is always wrong — if the user ever navigates back to the redirected URL, they are immediately pushed forward again, creating a back-button trap. Fixed by adding `replace` to both: `<Navigate to="/barcodes" replace />` and `<Navigate to="/" replace />`.
+
+**Root cause 2 — intentional, documented:** The reported symptom "Dashboard → Reports → Monthly Report → back → jumps to Dashboard" was traced to the fact that `/monthly-report` is not a registered route. `MonthlyReport` is rendered as a conditional tab inside `Reports.jsx` (`{activeTab === 'monthly' && <MonthlyReport />}`). Clicking the Monthly Report tab changes component state only — the URL stays `/reports`, no history entry is added. Pressing back therefore goes to the previous URL before `/reports`, which is Dashboard. **Decision (2026-06-30): accept this behavior. Tabs within a page do not create browser history entries — this is standard tab behavior.** The vestigial `parentRoutes['/monthly-report']` breadcrumb entry in Topbar.jsx was removed (that route does not exist; the entry silently did nothing). If a future requirement calls for each report tab to be deep-linkable or back-navigable, the fix is to register `/monthly-report` as a real route in App.jsx and drive the Reports `activeTab` from the URL.
+
+**Logout/session-expiry navigation:** `window.location.href = '/login'` in AppContext (both manual logout and 401 auto-logout). Confirmed intentional — full page reload clears React Router history, preventing back-navigation into authenticated pages after logout. No change.
+
+**Build:** zero errors, 3.11s, 206 modules.
+
 ## Known Cleanup Items (post all-screens pass)
 
 - **`ProductCombobox` portal vs. `containerRef` mismatch** (`PurchaseOrders.jsx`) — The "close on outside click" `mousedown` listener checks `containerRef.current.contains(e.target)`. The panel is rendered via `createPortal` to `document.body` and is NOT a DOM descendant of `containerRef`, so any tap on a panel item is treated as an "outside" click and calls `close()` before the item's `onMouseDown` handler runs. Selection still works today because React 18 batches state updates and `onChange(id)` commits synchronously before the re-render, but it's fragile. Fix when refactoring ProductCombobox: either add `panelRef` to the outside-click check (`!containerRef.current.contains(e.target) && !panelRef.current.contains(e.target)`) or switch to a `pointerdown` approach that checks both refs.
 
 - **`Mycredits.module.css` duplicate rules** — `.list`, `.saleCard`, `.progressSection`, `.progressTrack`, `.progressFill`, and `.metaDates` are each defined twice in the file. The second (collapsible-card) block correctly overrides the first (grid layout) block via CSS cascade, so there is no bug. Clean up the dead first definitions once all screens are done.
 - **Topbar warning + chat button sticky hover on touch** — these buttons have dynamic inline `background` (conditional on `lowStockCount`/`unreadMsgCount`) which prevents a clean CSS hover replacement. Their `onMouseEnter/Leave` JS handlers remain; on touch, hover tint may stick briefly. Minor cosmetic issue; revisit if flagged by users.
+- **`CreateUserModal.jsx` dead code** — `src/components/modals/CreateUserModal.jsx` is defined but never imported anywhere in the codebase. Discovered during the back-button modal audit. Safe to delete when doing a cleanup pass.
+
+## Back-Button Modal History Integration ✅ (2026-06-30)
+
+### Architecture
+
+All 36 modals/panels/overlays in the app were audited. Every single one is pure component `useState` — opening any modal did not push a history entry or change the URL. Phone back button therefore skipped over open modals and jumped to the previous route.
+
+**Pattern chosen: `location.state`-based history entries (no visible URL change)**
+
+Opening a Tier 1 modal pushes a new history entry with `location.state = { ...existingState, [stateKey]: key }` — the pathname and URL are unchanged, so the address bar shows nothing different. Closing calls `navigate(-1)` which pops the entry; the modal key is gone from state, the component unmounts. Page reload clears `location.state` → modal stays closed on reload (acceptable for all Tier 1 modals). No URL query params are used anywhere.
+
+**Hook: `src/hooks/useHistoryModal.js`**
+
+```js
+export function useHistoryModal(key, stateKey = 'modal') {
+  // isOpen = location.state?.[stateKey] === key
+  // open() = navigate(pathname + search, { state: { ...existingState, [stateKey]: key } })
+  // close() = navigate(-1)
+  return [isOpen, open, close]
+}
+```
+
+Two state keys are used to allow page-level modals and the Topbar Chat modal to coexist in `location.state` without overwriting each other:
+- `stateKey = 'modal'` (default) — page-level Tier 1 modals (Products form, PO Create, PO Edit, Checkout)
+- `stateKey = 'chatModal'` — Chat modal, opened from Topbar on any page
+
+This means a user can have a ProductFormPanel open AND open Chat at the same time — Chat pushes `{ modal: 'products-form', chatModal: 'chat' }`. Back button closes Chat first (latest history entry), then the form (next entry). Each level is independent.
+
+### Tier 1 modals — history-aware (back button closes them)
+
+| Modal | stateKey | key | Files changed |
+|---|---|---|---|
+| Add Product / Edit Product (ProductFormPanel) | `modal` | `'products-form'` | `Products.jsx` |
+| Create PO | `modal` | `'po-create'` | `PurchaseOrders.jsx` |
+| Edit PO | `modal` | `'po-edit'` | `PurchaseOrders.jsx` |
+| Checkout Modal (POS Terminal) | `modal` | `'checkout'` | `Barcodes.jsx` |
+| Chat Modal | `chatModal` | `'chat'` | `Topbar.jsx` |
+
+**Edit PO detail:** `editingPO` (the entity) stays in local `useState`. A `useEffect` clears it when `showEditPO` transitions to `false` (covers both back-button close and programmatic close). The modal renders only when `showEditPO && editingPO` — both must be true.
+
+**Checkout detail:** `setShowCheckout` prop passed to `ScanPanel` is replaced with `openCheckout`. ScanPanel calls it as `setShowCheckout(true)` — the argument is ignored since `openCheckout()` takes no parameters. All four `setShowCheckout(false)` calls in `Barcodes.jsx` are replaced with `closeCheckout()`.
+
+### Tier 3 modals — pure state, unchanged (intentional)
+
+All 30+ remaining modals (Delete Confirms ×5, Restock, Repayment, Blacklist, PettyCash transactions, Void, Return, Receive PO, Email PO, Invoice, Payment, Employee Sales, Daily Summary, Debtor Panel, Pending Returns Panel, Expired Stock Move, Expense Add, Employee/Supplier/Store/Category CRUD, Login help) remain as pure `useState`. Rationale: these are fast-action dialogs (≤10 second interactions). Users do not "enter" them in the same way as a form. Back-button-closes-modal for a Delete Confirm would require a double-back to leave the page, which is more surprising than the current behavior. Leave them as-is.
+
+**Build:** zero errors, 3.57s, 207 modules (one new — `useHistoryModal.js`).
+
+## Session Work Log (2026-06-30)
+
+### 1. POS Terminal "gray bars" — DIAGNOSED AND FIXED ✅ (2026-06-30)
+
+**Original symptom:** On `/barcodes` POS Terminal, most product cards in the Stan Retail grid appeared gray/disabled — user described as "stuck loading skeletons (gray bars)", similar to the earlier empty-grid symptom.
+
+**DB diagnostic run (2026-06-30):** Queried Store collection and `products.distinct('store')` directly via Node.js + MongoDB driver. Result: **zero mismatches**. Store names `"Stan Retail"` and `"Stan Liqour"` match exactly in both collections. 16 total products, all stock > 0, none expired. Data corruption theory eliminated.
+
+**Real cause — weighed items:** 8 of 12 Stan Retail products are `isWeighed: true` (Cow-peas, Green Grams, Peas, Potatoes, Rice, Sugar, Tomatoes, washing powder). All have positive stock. The `posProductCardDisabled` class (opacity: 0.4 + grayscale) was applied to weighed items the same as out-of-stock items, making 8/12 cards in Stan Retail appear gray. The "⚖ Scan label" guidance text was barely readable at 0.4 opacity. Stan Liqour's 4 products are all normal/tappable.
+
+**Fix applied — split disabled styles (build-confirmed, zero errors, 3.81s):**
+
+*`POS.module.css`*: Added `.posProductCardWeighed { opacity: 0.72; cursor: not-allowed; }` alongside the unchanged `.posProductCardDisabled { opacity: 0.4; cursor: not-allowed; filter: grayscale(0.3); }`. No grayscale on weighed variant — preserves the blue `var(--primary)` "⚖ Scan label" color so cashiers can clearly read the scan instruction.
+
+*`ScanPanel.jsx`* (line ~332): Split the single ternary into two conditions:
+```jsx
+outOfStock                       ? p.posProductCardDisabled : '',
+product.isWeighed && !outOfStock ? p.posProductCardWeighed  : '',
+```
+Edge case: a weighed item that is also out of stock gets `posProductCardDisabled` (full 0.4 dim) — it is completely unavailable even via scanner.
+
+**Disabled button attribute unchanged:** `disabled={outOfStock || product.isWeighed}` — tap-blocking is enforced by the HTML `disabled` attribute independent of visual class. `cursor: not-allowed` is explicitly set on both CSS classes so the visual cue is consistent.
+
+---
+
+### 2. POS Terminal — compact product cards on mobile ✅ (2026-06-30)
+
+**Request:** Make product cards smaller/more compact on mobile only, more cards visible without scrolling. Keep vertical scroll. Desktop unchanged.
+
+**Implemented in `src/styles/POS.module.css` inside `@media (max-width: 767px)`. Zero JSX changes. Zero desktop changes. Build-confirmed (zero errors, 3.81s).**
+
+| Selector | Property | Before | After |
+|---|---|---|---|
+| `.posProductGrid` | `grid-template-columns` | `minmax(140px, 1fr)` | `minmax(110px, 1fr)` |
+| `.posProductGrid` | `gap` | `8px` | `6px` |
+| `.posProductGrid` | `padding` | `10px 14px` | `8px 10px` |
+| `.posProductCardBody` | `padding` | `10px` | `8px` |
+| `.posProductCat` | `margin-bottom` | `3px` | `2px` |
+| `.posProductName` | `font-size` | `12px` | `11px` |
+| `.posProductName` | `margin-bottom` | `7px` | `4px` |
+| `.posProductPrice` | `font-size` | `14px` | `12px` |
+| `.posProductPrice` | `margin-bottom` | `5px` | `3px` |
+| `.posCartBadge` | `top` / `right` | `7px` | `5px` |
+| `.posCartBadge` | `width` / `height` | `20px` | `18px` |
+| `.posCartBadge` | `font-size` | `10px` | `9px` |
+
+**Net effect:** On a 375px phone, grid goes from 2 → 3 columns (`floor((355+6)/(110+6)) = 3`). Cards are ~15% shorter from tighter margins. Combined: ~50% more products visible per screen height. `-webkit-line-clamp: 2` unchanged — product names stay 2-line to preserve readability under checkout time pressure. Vertical scroll preserved.
+
+---
+
+### 3. Tier 1 Modal Back-Button — Test Checklist (pending user sign-off)
+
+The following checklist was generated and given to the user. Implementation is complete and build-confirmed (zero errors, 3.57s, 207 modules). Awaiting user verification on device before moving on.
+
+**Add / Edit Product (`/products` → ProductFormPanel):**
+- [ ] Mobile: Tap "Add Product" → panel slides up → press phone back button → panel closes, stay on Products
+- [ ] Mobile: Tap "Edit" on any product → panel opens → press back → panel closes, Products remains visible
+- [ ] Mobile: Open edit panel → make no changes → press back → panel closes cleanly (no unsaved-changes prompt — correct, none exists)
+- [ ] Desktop: Add Product opens right-side panel, Escape or × closes it (back button not tested on desktop)
+- [ ] Both: Backdrop tap closes panel (Products.jsx `onClick={closeModal}` on the overlay div)
+- [ ] Both: After save (edit flow), panel auto-closes after 1s via `setTimeout(() => closeModal(), 1000)` — confirm this still fires
+
+**Create PO / Edit PO (`/purchase-orders` → CreatePOModal / EditPOModal):**
+- [ ] Mobile: Tap "+ New PO" → modal opens → press back → modal closes, Purchase Orders list visible
+- [ ] Mobile: Tap Edit on any PO → edit modal opens → press back → edit modal closes AND `editingPO` entity is cleared (confirm: re-tapping edit loads fresh PO data, not stale)
+- [ ] Mobile: Open edit PO → make no changes → press back → closes cleanly
+- [ ] Both: `onSaved` path — save PO → modal closes → list refreshes (programmatic `closeCreatePO()` / `closeEditPO()` path, not back button)
+- [ ] Both: `onClose` path — tap × on modal → closes (same as back button but via button)
+
+**Checkout Modal (`/barcodes` → CheckoutModal):**
+- [ ] Mobile: Add item to cart → tap "Charge" → checkout opens → press back → checkout closes, cart still intact, back on POS terminal
+- [ ] Mobile: Complete checkout → receipt shows → tap Done/New Sale → back button does NOT reopen checkout (history entry was popped by `closeCheckout()` in `handleCheckoutConfirm`)
+- [ ] Both: "Charge" button disabled when cart empty (unchanged — `onClick={() => cart.length > 0 && setShowCheckout(true)}`)
+- [ ] Both: Scanner input refocuses after checkout closes (the `useEffect` on `[tab, showCheckout, receipt, cart]`)
+
+**Chat Modal (Topbar — all pages):**
+- [ ] Mobile: Open chat from Topbar → press back → chat closes, stay on current page
+- [ ] Both: Open chat on Products page while Add Product panel is open → chat uses `stateKey='chatModal'`, form uses `stateKey='modal'` → state is `{ modal: 'products-form', chatModal: 'chat' }` → back closes chat first, second back closes form
+- [ ] Both: `onClose={() => closeChat()}` on ChatModal → × button closes modal normally
+
+---
+
+### 4. Live Search Audit — Complete ✅ (2026-06-30)
+
+**Audit scope:** Every search/filter input across all 21 authenticated routes.
+
+**Finding:** Every search box in the app already filters instantly on keystroke (client-side filter over the already-fetched list). The single exception is the Customers screen (`/customers`), which uses a 300 ms `setTimeout` debounce inside a `useCallback` + `useEffect` chain before firing a server-side search. **This is intentional and correct** — the Customers list is paginated/server-side because the dataset can be arbitrarily large. The 300 ms debounce is the standard pattern for server-side typeahead. No changes needed anywhere.
+
+**Verdict:** Nothing to fix. All 21 screens confirmed.
+
+---
+
+### 5. POS Terminal — Horizontal Scroll Product Strip ✅ (2026-06-30)
+
+**Request:** Change the product grid from a vertical-scroll grid to a horizontal-scroll flex strip on mobile only (~3 cards visible at a time). Desktop unchanged.
+
+**Implementation (CSS-only, zero JSX changes):**
+
+`src/styles/POS.module.css` — `@media (max-width: 767px)` block rewritten:
+
+```css
+/* Terminal layout: flex column so posLeft shrinks, posRight fills rest */
+.posTerminal { display: flex; flex-direction: column; }
+.posLeft     { flex: 0 0 auto; }        /* shrink-wraps to content; overflow: hidden kept */
+.posRight    { flex: 1; max-height: none; }
+
+/* Product grid: horizontal scroll strip */
+.posProductGrid {
+  flex: none; display: flex; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden;
+  touch-action: pan-x; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  padding: 8px 10px; gap: 6px;
+}
+.posProductGrid::-webkit-scrollbar { display: none; }
+
+/* Exactly 3 cards fill any phone width (375–430px+) */
+.posProductCard { flex-shrink: 0; width: calc((100vw - 22px) / 3); }
+
+/* Empty/loading: fill full strip width */
+.posGridEmpty   { flex: 1; min-width: 280px; }
+```
+
+`calc((100vw - 22px) / 3)` formula: `100vw − left padding (10px) − 2 gaps (12px) = available width / 3`. Card 3 ends exactly at the viewport edge; card 4 starts ~6px off-screen, signaling there's more to swipe.
+
+**Regressions found and fixed (same session):**
+
+Two bugs appeared after the first implementation attempt:
+
+| Bug | Root cause | Fix |
+|---|---|---|
+| 4th card partially visible (width wrong) | Fixed `width: 112px` too narrow for wide phones (430px): 3×112 + 2×6 + 10 = 358px, leaving 72px visible for card 4 | Replaced with `calc((100vw − 22px) / 3)` — exactly 3 cards on any phone |
+| Horizontal swipe did nothing | `.posLeft { overflow: visible }` in original attempt broke the scroll context — a parent with `overflow: visible` prevents child `overflow-x: auto` from creating a bounded scroll container | Removed the `.posLeft` override entirely. Flex approach (`flex: 0 0 auto`) doesn't need it; base `overflow: hidden` on posLeft is preserved and correct |
+| Checkout area broken (green bar, no total) | Same `overflow: visible` + `grid-template-rows: auto 1fr` approach caused posRight to get zero height, crushing the flex column inside it | Replaced `grid-template-rows` approach with `display: flex; flex-direction: column` on `.posTerminal`. posLeft gets `flex: 0 0 auto`, posRight gets `flex: 1; max-height: none` |
+
+**Desktop / tablet:** Entirely unaffected. The `@media (max-width: 767px)` block only fires below 768px. All desktop layout rules unchanged.
+
+**Build:** zero errors (confirmed after each fix iteration).
+
+---
+
+### 6. POS Terminal — Weighed-Item UX (three issues) ✅ (2026-06-30)
+
+Three separate issues with the manual barcode entry flow on `/barcodes` → ScanPanel.
+
+**Issue 1 — Instant product name display (was: generic placeholder text)**
+
+*Before:* After typing a weight barcode (e.g. `2000060692007`), the dropdown showed `"Weighed item label — Press Enter to decode and add"` — a generic placeholder. The product name was not decoded until Enter was pressed.
+
+*Fix:* Client-side instant decode, no API round-trip needed. EAN-13 weight barcodes encode all necessary data in the digits: `2[PLU×5][weight×10×5][0][check]`. Added `decodeWeightBarcode()` to `src/utils/barcodeUtils.js`:
+
+```js
+export function decodeWeightBarcode(code) {
+  const pluNumber = parseInt(trimmed.substring(1, 6), 10)   // digits 1-5
+  const weightKg  = parseInt(trimmed.substring(6, 11), 10) / 10 / 1000  // digits 6-10
+  return { pluNumber, weightKg }
+}
+```
+
+Added `decodedWeighInfo` `useMemo` in `ScanPanel.jsx` that cross-references `pluNumber` against the already-loaded `products[]` array (each product has `pluNumber` from the Product model). The product name, weight (3 dp), and estimated total are displayed the instant a 13-digit weight barcode is typed — before Enter is pressed. Server still validates the check digit on commit. No API call needed for display.
+
+*Dropdown shows:* `"Rice — 0.547 kg"` + `"KSh 109 · Tap or press Enter to add"` vs the old generic placeholder.
+
+**Issue 2 — Dropdown row clickable/tappable (was: Enter-only)**
+
+*Before:* The decoded weighed-item row was a `<div>` — not focusable, not interactive on touch.
+
+*Fix:* Changed to `<button className={p.posManualMatchRow} onClick={commitManual} disabled={decodingManual}>`. Both `onClick` (pointer/keyboard) and tap (touch) now commit the item, identical to pressing Enter. Disabled during in-flight decode to prevent double-submission.
+
+**Issue 3 — Weighed cards visually distinct (was: opacity difference only)**
+
+*Before:* Weighed product cards were `opacity: 0.72` — distinguishable only by subtle dimming. No color cue.
+
+*Fix:* Added muted-blue border + wash to `.posProductCardWeighed` in `POS.module.css`:
+
+```css
+.posProductCardWeighed {
+  opacity: 0.72;
+  cursor: not-allowed;
+  border-color: rgba(30, 95, 165, 0.55);   /* muted primary blue */
+  background: rgba(30, 95, 165, 0.05);     /* very light blue wash */
+}
+```
+
+Color rationale: primary brand blue (matches the ⚖ icon already shown on the card) at low opacity — clearly distinct from the normal gray border/white background, clearly distinct from out-of-stock (grayscale 0.3), does not look like an error state. `.posProductCardInCart` still uses `!important` on border/background so the in-cart badge overrides the weighed styling correctly when a weighed item is in the cart.
+
+**Build:** zero errors, 207 modules.
+
+---
+
+### 7. Barcodes Table — Mobile Scroll, Sticky Header, fmtQty ✅ (2026-06-30)
+
+**Problem:** The "All Product Barcodes" table on `/barcodes` has 8 columns. On mobile (≤768px), `.tableCard { overflow: hidden }` clipped the table at the card's right edge — the Barcode, Product ID, Type, Stock, and Sell Price columns were invisible with no way to scroll. Column headers also scrolled away, leaving no context for which column was which. Stock column displayed raw floats (IEEE 754 noise).
+
+**Fix — `Barcodes.module.css` `@media (max-width: 768px)` block + one JSX import:**
+
+```css
+@media (max-width: 768px) {
+  .tableCard {
+    overflow-x: auto;
+    overflow-y: auto;
+    max-height: calc(100svh - 260px);   /* ~10–12 rows visible; remainder scrollable */
+    -webkit-overflow-scrolling: touch;
+    touch-action: pan-x pan-y;
+  }
+  .barcodeTable thead tr {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: var(--bg-muted);        /* opaque — covers rows scrolling beneath */
+  }
+}
+```
+
+**Sticky header pattern:** Identical to `SaleCard.jsx:122–126` (Sales History receipt table) — the scroll container has `overflow-y: auto` + `max-height`, and `<thead> <tr>` gets `position: sticky; top: 0; z-index: 1; background: var(--bg-muted)`. `100svh` (small viewport height, excludes mobile browser chrome) minus ~260px of page chrome (Topbar + tabs + toolbar + hint) gives ~490px on a standard phone — 10–12 rows visible before scroll.
+
+**fmtQty on Stock column (`ProductBarcodesTable.jsx`):**
+- Added `import { fmtQty } from '@/utils/utils'`
+- Stock display: `{currentStock} {p.unit}` → `{fmtQty(currentStock)} {p.unit}`
+- `currentStock` raw value left untouched for `stockClass` threshold comparisons (≤3 critical, ≤6 low)
+- Print output (`handlePrintTable` reads `printRef.current.innerHTML`) automatically picks up the formatted values
+
+**Desktop:** Base `.tableCard { overflow: hidden }` untouched. Media block fires only at ≤768px. Zero desktop change. `printRef` wraps the inner `<div>` not `.tableCard`, so print layout is unaffected.
+
+**Build:** zero errors, 2.40s.
+
+---
+
+## Open Items — Pending Action (as of 2026-06-30)
+
+### NOT STARTED: Setup Wizard Screen
+
+`/setup` (SetupWizard) has a `SetupWizard.module.css` with scroll + button fixes applied (listed in Screens Completed table), but the **actual Setup Wizard user-facing flow** (onboarding steps: store creation, first user, initial stock) has never been built. This is a separate feature build, not a CSS fix. Requires its own planning session.
+
+### NOT STARTED: App.jsx `100dvh` shared-shell (Part 2)
+
+`App.jsx` lines 62, 68: `height: '100dvh'` was set as part of the merged-header change (V3 navigation overhaul removed the 56px offset). Code is in place. **What is outstanding:** real-device confirmation that `100dvh` matches the visible viewport correctly on iOS Safari and Android Chrome (browser UI chrome can shrink `100vh` but `100dvh` should be reliable). Hold verification until Purchase Orders and Sales History pass their real-device scroll tests.
+
+### Pending: Real-Device Verification
+
+All code is build-clean. The following have NOT been confirmed on a real phone since the fixes were applied:
+
+**Priority — these had confirmed real-phone failures before the fix:**
+
+| Screen | Route | What to verify |
+|---|---|---|
+| Purchase Orders | `/purchase-orders` | Zero-height collapse fix; stacked card layout ≤768px; Create PO modal combobox height + stacked items cards; 44px touch targets throughout |
+| Sales History | `/sales-history` | Zero-height collapse fix; SalesFilters condensed layout (search+date row, category overflow chips, store chip row); sticky employee header at `top: 0` under merged single Topbar |
+
+**POS Terminal — all changes from this session (first-device verification):**
+
+| Feature | What to verify |
+|---|---|
+| Horizontal product strip | 3 cards visible, swipe left/right scrolls, card 4 starts off-screen as expected |
+| `calc((100vw − 22px) / 3)` width | Exactly 3 full cards at 375px, 390px, 430px (no 4th card peeking in) |
+| Checkout area | Total amount visible, "Charge Customer" button present and tappable, no broken green bar |
+| Weighed cards | Blue border + blue wash visible; distinct from normal (gray) and OOS (grayscale) cards |
+| Instant barcode decode | Type `2000060692007` → popup shows product name + weight immediately (before Enter) |
+| Tap to add weighed item | Tap decoded row → item added (no Enter required) |
+
+**Back-office screens — constrained-scroll fix applied proactively, first-time device verification:**
+
+| Screen | Route | What to verify |
+|---|---|
+| Products | `/products` | Mobile card view; chip overflow dropdowns; 44px action buttons |
+| Employees | `/employees` | Scroll, 44px modal buttons |
+| Categories | `/categories` | Scroll, table overflow, 44px Add/Edit/Delete |
+| Suppliers | `/suppliers` | Scroll, 44px table action buttons |
+| Stores | `/stores` | Scroll, store rename cascade warning banner |
+| StockOut | `/stock-out` | Scroll, 44px POS Terminal button |
+| DailyArchives | `/daily-archives` | Scroll, ArchiveCard touch targets |
+| ExpiredStock | `/expired-stock` | Scroll, 44px Move button |
+| Settings | `/settings` | 2-col grid collapses to 1-col on mobile |
+| Profile | `/profile` | 2-col grid collapses to 1-col on mobile |
+| Reports | `/reports` | Scroll, hover guards don't stick on touch |
+| DailyReport | `/daily-report` | Scroll |
+| PettyCash | `/petty-cash` | Scroll |
+
+**Navigation overhaul (device verification):**
+- Merged Topbar (single bar, 62px): hamburger opens drawer, breadcrumb shows on `/profile` + `/settings`
+- Sidebar brand → navigates home and closes drawer
+- Back button steps one page at a time (no redirect trap at `/` for non-owners)
+
+### Pending: Tier 1 Modal Back-Button Checklist (see Section 3 above)
+
+Four modals + Chat await real-device confirmation. Checklist is in Section 3.
+
+### Known Cleanup (deferred)
+
+- `CreateUserModal.jsx` — never imported anywhere; safe to delete
+- `Mycredits.module.css` — 6 class definitions duplicated; second block wins via cascade (no bug), dead first definitions can be removed
+- `ProductCombobox` portal fragility — `containerRef.contains(e.target)` misses portal clicks; works today due to React 18 batching but is fragile
+- Topbar warning + chat buttons — dynamic inline `background` blocks CSS hover replacement; JS `onMouseEnter/Leave` handlers remain; brief sticky hover tint on touch (cosmetic only)
+
+### 10. Manual Entry Bar — Exact-Match Barcode Bug Fix ✅ (2026-06-30)
+
+**Severity: Data integrity. Real sales were at risk.**
+
+**Root cause:** `manualMatch` memo in `ScanPanel.jsx` used `.includes()` substring matching on all three axes — barcode, Product ID, and product name. Typing any short partial string (e.g. `"38"`) fired a green-checkmark confident match against the first product whose barcode happened to contain that substring anywhere. Pressing Enter or tapping immediately called `addToCart()` with no further validation. Confirmed via screenshot: typing `"38"` matched and added "Cake" (barcode containing `"38"` as a substring). No error, no warning, no confirmation.
+
+**All three matching axes were broken in different ways:**
+
+| Axis | Before | Risk |
+|---|---|---|
+| Barcode | `.includes()` substring | Partial digits match wrong product — confirmed bug |
+| Product ID | `.includes()` substring | **Higher risk than barcode:** MongoDB ObjectIDs are 24-char hex strings; any 1–3 char hex input matches some ID in a typical product list |
+| Name | `.includes()` substring | Typing a single letter adds the first product whose name contains it — name search has no place in a code-entry bar |
+
+**Fix — `manualMatch` memo rewritten to exact-match only (`ScanPanel.jsx`):**
+
+```js
+// BEFORE — substring match on all three axes
+return products.find(prod =>
+  !prod.isWeighed && (
+    String(prod.barcode || '').toLowerCase().includes(code.toLowerCase()) ||
+    String(prod._id || '').toLowerCase().includes(code.toLowerCase()) ||
+    prod.name?.toLowerCase().includes(code.toLowerCase())
+  )
+) || null
+
+// AFTER — exact match on barcode and ID; name matching removed entirely
+const lower = code.toLowerCase()
+return products.find(prod =>
+  !prod.isWeighed && (
+    (prod.barcode && String(prod.barcode).toLowerCase() === lower) ||
+    prod._id === lower
+  )
+) || null
+```
+
+**What the fix does:**
+- Barcode: `===` exact match (case-insensitive for non-EAN alphanumeric edge cases)
+- Product ID: `===` exact match — cashier must type all 24 hex chars; no substring accident possible
+- Name: removed entirely — belongs in the search bar (`search` state → `filteredProducts` memo), which already does substring/includes correctly and never touches the cart
+
+**What is unchanged:**
+- Physical scanner: uses `scanInputRef` / `handleScanKeyDown` in `Barcodes.jsx` — a completely separate input, never touches `manualMatch`. Unaffected.
+- Search bar: separate `search` state, `filteredProducts` memo still uses name-includes for grid filtering. Unaffected.
+- Weighed items: excluded by `!prod.isWeighed` guard (Issue 2 fix). Unchanged.
+- `commitManual()` call site: still calls `addToCart(manualMatch.barcode || manualMatch._id)` on match. The fix is entirely in what `manualMatch` returns.
+
+**Cashier UX after fix:**
+- Typing `"38"` → no match → "No product found" ✓
+- Typing `"cake"` → no match → "No product found" (use search bar to browse) ✓
+- Typing full 13-digit EAN-13 barcode → exact match → product added ✓
+- Physical scanner (outputs full barcode in one burst) → unaffected ✓
+- Typing full 24-char ObjectID (fallback when label is damaged) → exact match ✓
+
+**Build:** zero errors, 2.83s, 207 modules.
+
+---
+
+### Flagged Future Consideration — Weighed-Barcode Single-Use Prevention
+
+**Not implementing now.** Physical workflow makes accidental reuse essentially impossible (label is on the item the customer walks out with). Deliberate reuse requires real effort and is partially self-limiting by stock depletion. Decision: watch via audit log, don't block.
+
+**If reuse is ever detected via the `weighbarcodelogs` audit trail**, the full prevention system would be:
+- `usedWeighBarcodes` collection storing accepted codes with a short TTL (e.g. 24h, matching physical label freshness)
+- Check against this collection in the `/api/weigh-station/decode` handler before accepting a barcode
+- Alternative: time-based nonce in barcode generation (would require DIGI SM-500 compatibility check)
+
+The audit trail (Section 8) must be running and showing repeated entries before this is worth building.
+
+---
+
+### 8. Weighed-Barcode Audit Trail ✅ (2026-06-30)
+
+**Context:** Weighed-item barcodes have no single-use mechanism — the same 13-digit code can be decoded and committed any number of times. Full single-use prevention (TTL table, signed nonces) deferred as "watch, don't block" given physical workflow makes accidental reuse essentially impossible and deliberate reuse is partially self-limiting by stock depletion.
+
+**Lightweight mitigation: fire-and-forget audit log on every successful decode.**
+
+**New model — `backend/models/WeighBarcodeLog.js`:**
+- Fields: `barcode` (indexed), `pluNumber` (indexed), `weightGrams`, `weightKg`, `totalPrice`, `productId`, `productName`, `store`, `cashierId`, `cashierName`, `decodedAt` (indexed, Date)
+- Collection: `weighbarcodelogs`
+- No TTL — kept indefinitely for audit purposes
+
+**Write point — `backend/routes/weighStation.js` `/decode` handler:**
+- Fires immediately after `res.json(...)` (response already sent — cashier never waits for log write)
+- Fire-and-forget: `.create({...}).catch(err => console.error('[WeighBarcodeLog]', err.message))`
+- A log write failure is a server warning only; it never fails or slows the decode response
+
+**Querying the audit trail (MongoDB shell):**
+```js
+// Spot barcode reuse — all decodes of one specific code
+db.weighbarcodelogs.find({ barcode: '2000060692007' }).sort({ decodedAt: -1 })
+
+// All decodes of a PLU across all cashiers
+db.weighbarcodelogs.find({ pluNumber: 6 }).sort({ decodedAt: -1 })
+
+// Barcodes decoded more than once — reuse candidates
+db.weighbarcodelogs.aggregate([
+  { $group: { _id: '$barcode', count: { $sum: 1 }, cashiers: { $addToSet: '$cashierName' } } },
+  { $match: { count: { $gt: 1 } } },
+  { $sort: { count: -1 } }
+])
+```
+
+**Files changed:** `backend/models/WeighBarcodeLog.js` (new, 16 lines), `backend/routes/weighStation.js` (+1 require, +12 lines after `res.json()`). Zero frontend changes. Zero new routes. Backend syntax: clean. Frontend build: zero errors, 2.60s.
+
+---
+
+### 9. Weighed-Barcode Manual Entry UX — Issues 1a + 2 ✅ (2026-06-30)
+
+**Issue 1a — Silent commit failure replaced with visible error feedback (`ScanPanel.jsx`):**
+
+Root cause: when a mistyped weight barcode passed the client-side preview (no check-digit validation client-side, by design) but was rejected by the server's check-digit check, `commitManual()` silently called `setDecodingManual(false); return` — no message, no banner, nothing. Cashier couldn't tell whether the item was added.
+
+Fix — `ScanPanel.jsx`:
+- Added `const [manualError, setManualError] = useState('')`
+- Added `useEffect(() => { setManualError('') }, [manualCode])` — error clears the instant the cashier edits the field, so it never lingers after correction
+- `!data.success` branch: `setManualError(data.message || 'Invalid barcode — check the digits and try again'); setDecodingManual(false); return` — server message surfaced verbatim (e.g. "Barcode check digit is invalid"); `manualCode` stays in the input so the cashier sees what they mistyped
+- `catch` block: `setManualError('Could not reach server — check your connection and try again.'); setDecodingManual(false); return` — same pattern for network failures; code stays in input
+- Both failure paths `return` before the post-try `setManualCode('')`, so the input is only cleared on success
+- Added `{manualError && <div className={p.posErrorBanner}>…</div>}` immediately below the existing `scanError` banner in JSX — reuses the same styled banner class
+
+**Issue 2 — Weighed products excluded from manual-entry name match (`ScanPanel.jsx`):**
+
+Root cause: `manualMatch` memo matched by `prod.name` with no `isWeighed` guard. Typing "rice" in the manual entry bar surfaced the weighed "Rice" product as a tappable button, which called `addToCart(rice._id)` — the wrong code path (no weight data, no price-per-kg calculation).
+
+Fix: added `!prod.isWeighed &&` guard to `products.find()` in `manualMatch`. Weighed products now fall through to "No product found" in the dropdown, directing cashiers to the search bar (for browsing) or the scan flow (for adding). Added a comment above the memo explaining why the guard is there. Normal products unaffected.
+
+**Build:** zero errors, 2.59s, 207 modules.
+
+---
 
 ## API URL Centralization (completed earlier)
 
 All 26 frontend source files that hardcoded `http://localhost:5000` now import from `src/config/api.js`. Switch environments with a single `.env` edit (`VITE_API_URL`).
+
+---
+
+## Future Feature — Dual-Mode Scanning + M-Pesa Digital Receipts
+
+**Status: NOT started. Not yet scoped. Requires a dedicated planning session before any implementation.**
+
+This is a significant feature touching camera/hardware APIs, a barcode-scanning library, M-Pesa webhook handling, and potentially a new SMS gateway. It must not be started without a full fresh planning pass — the primary risk is destabilizing the existing physical-scanner flow that stores currently depend on in production.
+
+### Requirements
+
+**1. Dual-mode checkout (same underlying logic, two input paths)**
+
+Stores must be able to use EITHER:
+- **Physical scanner + receipt printer** — large-scale / supermarket setup (current production mode, must not be changed or risked)
+- **Phone camera as scanner, no printer** — small-scale retailer setup (new mode)
+
+Both modes feed into the **exact same cart / sale / checkout logic**. Camera-scanned items must behave identically to scanner-read items: same `addToCart()` call, same stock deduction, same sale record in the database, same receipt object. The camera mode is purely an alternative *input path* — nothing downstream changes.
+
+**2. Camera-based barcode scanning**
+
+Use the phone's camera via the browser to read product barcodes and add items to cart. `html5-qrcode` is **already listed in this project's dependencies** (confirmed in the original codebase audit) — no new package install required, just integration. Camera stream should activate on the Scan tab when camera mode is selected, decode the barcode, and call the same `addToCart(barcode)` function the physical scanner uses.
+
+**3. M-Pesa-based digital receipts**
+
+When a customer pays via M-Pesa:
+1. Capture the phone number they paid from (already collected in the checkout form)
+2. Once payment is validated and confirmed via the M-Pesa Daraja callback (already configured — `MPESA_CALLBACK_URL` in `backend/.env`, callback handler exists in backend routes)
+3. Automatically send the customer a digital receipt to that number
+
+**OPEN QUESTION before implementation — delivery channel:**
+- **SMS** — requires a new third-party SMS gateway integration (e.g. Africa's Talking, which has a Kenya-focused API). New dependency, new API key, new cost per message.
+- **Other channels** — to be evaluated at planning time (WhatsApp Business API, email if phone number resolves to a registered account, etc.)
+
+This decision must be made at the start of the planning session. Do not begin implementation until the channel is chosen and the integration approach is agreed.
+
+**4. No-printer mode**
+
+In camera mode, no physical receipt is printed. Every transaction is still fully recorded in the database (same `recordMultipleSales()` call, same Sale document schema, same receipt object) and retrievable in Sales History, Daily Archives, and Reports — identical to scanner-mode transactions. The only difference is that no paper receipt is generated.
+
+### Planning prerequisites (before next session on this feature)
+
+- [ ] Decide digital receipt delivery channel (SMS via Africa's Talking vs other)
+- [ ] Confirm `html5-qrcode` version in `package.json` and check for any known mobile browser compatibility issues (iOS Safari camera permissions, Android Chrome)
+- [ ] Audit the existing M-Pesa callback handler in backend routes — confirm it receives confirmation payload reliably and understand retry/timeout behavior
+- [ ] Design the mode-switching UI: how does the cashier/owner toggle between scanner mode and camera mode? Per-session toggle in the tab bar? Per-store setting in Settings?
+- [ ] Confirm whether the camera stream and the hidden `scanInputRef` (physical scanner input) can coexist without interfering — the hidden input currently has `autoFocus` which may conflict with the camera UI on some browsers
+
+---
+
+## End-of-Session Backlog — Full Remaining Work (2026-06-30)
+
+Everything below is confirmed outstanding as of the end of this session. Nothing here has been skipped by accident — each item is a deliberate defer with the reason recorded.
+
+### A. Real-device verification (code done, device not yet confirmed)
+
+All of the following have been code-changed and build-confirmed. None have been tested on a physical phone since the changes were applied.
+
+**Priority — had confirmed real-phone failures before fix was applied:**
+
+| Screen | Route | What to verify |
+|---|---|---|
+| Purchase Orders | `/purchase-orders` | Zero-height collapse fix; stacked card layout ≤768px; Create PO modal combobox height + item cards on mobile; 44px touch targets |
+| Sales History | `/sales-history` | Zero-height collapse fix; SalesFilters layout (search+date row, 3-chip overflow, store chips); sticky employee header at `top: 0` under the merged single Topbar |
+
+**Back-office screens — first-time device verification:**
+
+| Screen | Route | What to verify |
+|---|---|---|
+| Products | `/products` | Mobile card view; sticky filter `top-0 z-20`; chip overflow dropdowns; 44px action buttons |
+| Employees | `/employees` | Scroll, 44px modal buttons |
+| Categories | `/categories` | Scroll, table overflow, 44px Add/Edit/Delete |
+| Suppliers | `/suppliers` | Scroll, 44px table action buttons |
+| Stores | `/stores` | Scroll, store rename cascade warning banner |
+| StockOut | `/stock-out` | Scroll, 44px POS Terminal button |
+| DailyArchives | `/daily-archives` | Scroll, ArchiveCard touch targets |
+| ExpiredStock | `/expired-stock` | Scroll, 44px Move button |
+| Settings | `/settings` | 2-col grid collapses to 1-col; scroll |
+| Profile | `/profile` | 2-col grid collapses to 1-col; items-sold stat |
+| Reports | `/reports` | Scroll, hover guards don't stick on touch |
+| DailyReport | `/daily-report` | Scroll |
+| PettyCash | `/petty-cash` | Scroll |
+
+**Navigation — verify after V3 merged bar:**
+- Single Topbar with hamburger opens drawer, drawer overlays bar correctly
+- Breadcrumb shows on `/profile` and `/settings`
+- Sidebar brand button navigates home and closes drawer
+- Back button steps through pages one at a time (no trap at `/` for non-owners)
+
+**POS Terminal — verify after today's fixes (updated — see POS layout change below):**
+- Weighed item cards appear at `opacity: 0.72` with readable "⚖ Scan label" text
+- Out-of-stock cards appear at `opacity: 0.4` (fully dimmed, unchanged)
+- Mobile product grid scrolls **horizontally** (~3 cards visible, swipe sideways)
+- Cart panel fills the majority of the screen below the product strip
+- Desktop layout unchanged
+
+**Tier 1 modal back-button — verify on device:**
+- Add/Edit Product: back button closes panel, stays on Products
+- Create/Edit PO: back button closes modal, Edit PO clears `editingPO` entity
+- Checkout Modal: back button closes checkout, cart preserved
+- Chat Modal: back button closes chat from any page; coexists with page-level modal
+
+### G. POS Terminal — horizontal-scroll product grid + cart reflow ✅ (2026-06-30)
+
+**Context:** The product grid is a secondary/fallback affordance. Primary flow is physical barcode scanning → item added to cart directly. Cashiers browse the grid only when a scan fails, then use the search bar. This makes a compact horizontal strip more appropriate than a tall scrollable grid that dominates the screen.
+
+**Approved plan — two parts, all changes in `POS.module.css` inside `@media (max-width: 767px)`, zero JSX changes:**
+
+**Part A — posProductGrid: grid → horizontal flex strip**
+- `grid-template-columns: repeat(auto-fill, minmax(110px, 1fr))` removed; replaced with `display: flex; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; touch-action: pan-x; scrollbar-width: none; -webkit-overflow-scrolling: touch; flex: none`
+- `.posProductCard` gets `flex-shrink: 0; width: 112px` — ~3 cards visible at a time on a 375px phone
+- `.posGridEmpty` gets `flex: 1; min-width: 280px` — empty/loading state takes full strip width
+- Same category-pills horizontal-scroll pattern (`posCatBar`) — consistent interaction idiom
+- Compact card-body sizing rules from the previous change (padding, font sizes, cart badge) remain unchanged and work in flex context
+
+**Part B — terminal layout: cart fills freed height**
+- `grid-template-rows: 1fr auto` (960px rule) overridden to `auto 1fr` at ≤767px
+- posLeft shrink-wraps to content (~320px: search + manual entry + cat pills + horizontal strip)
+- posRight gets `max-height: none` (removes 42vh cap) and fills the `1fr` remainder (~380px on a 375×812 phone)
+- Cart becomes the dominant element on mobile — appropriate for checkout workflow
+- `.posLeft { overflow: visible }` — no longer clips internal scroll (grid no longer scrolls internally)
+
+**Desktop/tablet impact:** Zero. All rules inside `@media (max-width: 767px)`. Tablets (768–960px) retain vertical-grid layout from the existing 960px breakpoint.
+
+---
+
+### H. Live Search Audit — COMPLETE ✅ (2026-06-30)
+
+**Finding: Every search input in the codebase already filters live on every keystroke. Nothing to fix.**
+
+Full inventory — all 13 search inputs found across the app:
+
+| Screen | File | State var | Filter mechanism | Verdict |
+|---|---|---|---|---|
+| POS — product search | `ScanPanel.jsx:177` | `search` | `useMemo([products, activeCategory, search])` | ✅ Instant |
+| POS — Barcodes tab | `ProductBarcodesTable.jsx:67` | `search` | In-render `.filter()` | ✅ Instant |
+| POS — Generate Barcodes | `GenerateBarcodes.jsx:64` | `searchQuery` | In-render `.filter()` | ✅ Instant |
+| Products | `ProductFilters.jsx:88` | `search` | In-render `.filter()` in Products.jsx | ✅ Instant |
+| Sales History | `SalesFilters.jsx:88` | `search` | In-render `.filter()` in SalesHistory.jsx | ✅ Instant |
+| Purchase Orders | `PurchaseOrders.jsx:237` | `searchText` | `useMemo([orders, searchText])` | ✅ Instant |
+| Employees | `Employees.jsx:112` | `searchTerm` | In-render `.filter()` | ✅ Instant |
+| Weigh Station | `WeighStation.jsx:400` | `search` | In-render `.filter()` | ✅ Instant |
+| Daily Archives | `DailyArchives.jsx:97` | `search` | In-render date comparison | ✅ Instant (date picker) |
+| Chat Modal | `ChatModal.jsx:454` | `search` | In-render `.filter()` on contacts | ✅ Instant |
+| Customers | `Customers.jsx:557` | `search` | `useCallback` deps → `useEffect` → 300ms `setTimeout` → `fetchCustomers({ search })` API call | ⚠️ 300ms debounced — **intentional, correct, leave as-is** |
+| Suppliers | — | — | No search input (active/archived toggle only) | N/A |
+| Expenses | — | — | No search input | N/A |
+
+**Customers is intentionally different** and correct: the customer list is fetched server-side with a `?search=` query parameter rather than filtered client-side. 300ms debounce prevents API flooding on every keystroke and handles out-of-order responses (via `let active = true` cancel flag). 300ms is below the perceptible-lag threshold. No change needed.
+
+**`onKeyDown` Enter handlers confirmed non-search** (all correct): Login form submit, barcode scanner input, manual code input in ScanPanel, barcode capture in ProductFormPanel, weight/amount entry in WeighStation, combobox keyboard nav in PurchaseOrders, accessibility keyboard shortcuts on div-as-button elements. None gate a text search.
+
+**No debounce library imported anywhere in `src/`.** The only `debounce` mention in the frontend is a comment in a test file about the checkout credit-check's 500ms delay (unrelated to search).
+
+---
+
+### I. POS Terminal — Weighed-item manual entry UX ✅ (2026-06-30)
+
+Three improvements to the manual barcode/label entry flow on `/barcodes`:
+
+**Issue 1 — Instant product name decode (was: generic placeholder)**
+- **Root cause:** The decode API (`POST /api/weigh-station/decode`) was the only decode path. It runs only on commit (Enter), so the dropdown had no product data to show beforehand — just a static placeholder.
+- **Fix:** Added `decodeWeightBarcode()` to `barcodeUtils.js`. It's a pure math function (no API): parses PLU from digits [1-5] and weight from digits [6-10] of the EAN-13 code. Added `decodedWeighInfo` `useMemo` in `ScanPanel.jsx` that cross-references `pluNumber` against the already-loaded `products` array. Result: as soon as 13 digits are typed/scanned, the dropdown shows `"Sugar — 0.692 kg"` and `"KSh 89 · Tap or press Enter to add"` — no network request, no waiting.
+- **Fallback:** If the PLU isn't found in the local products array (e.g. owner viewing a different store), falls back to `"Weighed item label — Press Enter to decode and add"`. The server still validates the check digit and stock on commit either way.
+- **Files:** `src/utils/barcodeUtils.js` (new export), `src/pages/Barcodes/ScanPanel.jsx` (new import + useMemo + dropdown JSX)
+
+**Issue 2 — Dropdown row is now clickable/tappable (was: non-interactive div)**
+- Changed the weighed dropdown row from `<div style={{ cursor: 'default' }}>` to `<button onClick={commitManual} disabled={decodingManual}>` — matching the existing normal-product match row pattern.
+- Works on both desktop (click) and mobile (tap). Enter continues to work as before.
+- While decoding, the button is `disabled` and meta text changes to `"Reading weight & price…"`.
+
+**Issue 3 — Weighed cards visually distinct in product grid**
+- Added `border-color: rgba(30, 95, 165, 0.55)` and `background: rgba(30, 95, 165, 0.05)` to `.posProductCardWeighed` in `POS.module.css`.
+- Three visually distinct card states: normal (gray border, white bg), weighed (muted blue border, faint blue wash, opacity 0.72), out-of-stock (opacity 0.4 + grayscale).
+- In-cart overrides weighed via `!important` on both border and background — correct for weighed items added to cart via label scan.
+
+---
+
+### B. App.jsx `100dvh` shared-shell (code done, device verification pending)
+
+`height: '100dvh'` applied in App.jsx outer wrapper and inner content div. Old `calc(100dvh - 56px)` mobile offset removed (the 56px bar it compensated for was deleted in V3). Code is correct. **Pending:** real-device confirmation that `100dvh` matches the visible viewport on iOS and Android. Verify once Purchase Orders and Sales History pass their scroll tests on device.
+
+### C. Setup Wizard screen build (outstanding, not started)
+
+The `/setup` route and `SetupWizard.module.css` touch-pass were applied earlier. The actual Setup Wizard **screen content** (wizard steps, form fields for initial store/owner setup) was flagged as a separate build task. Status: not yet started. Requires its own planning pass to define the step sequence and validation logic.
+
+### D. Sticky filter pattern rollout (optional follow-up)
+
+The "filters scroll away on mobile" issue was fixed on Products (split header: title scrolls, filters `sticky top-0 z-20 md:static`). The same pattern is not yet applied to four other screens. Address if it becomes a user complaint:
+
+| Screen | Route | What scrolls away |
+|---|---|---|
+| Sales History | `/sales-history` | SalesStats + SalesFilters header |
+| Purchase Orders | `/purchase-orders` | Filter inputs in header |
+| Customers | `/customers` | Filter row |
+| Reports | `/reports` | Filter/summary section |
+
+Fix pattern: split into title div (scrolls) + filter wrapper (`sticky top-0 z-20 md:static` + `background: var(--bg-page)`).
+
+### E. Future Feature — Dual-Mode Scanning + M-Pesa Digital Receipts
+
+See dedicated section above. Not started. Requires full planning session before any implementation.
+
+### F. Known cleanup items (low priority, safe to defer)
+
+- `CreateUserModal.jsx` — dead code, never imported anywhere. Safe to delete in a cleanup pass.
+- `Mycredits.module.css` — 6 CSS class definitions are duplicated (second block correctly overrides first via cascade). Clean up the dead first definitions.
+- `ProductCombobox` portal vs `containerRef` outside-click mismatch — fragile but currently works. Fix when refactoring the combobox.
+- Topbar warning + chat button sticky hover on touch — dynamic inline `background` prevents clean CSS hover replacement. Minor cosmetic issue.

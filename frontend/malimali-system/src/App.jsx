@@ -92,10 +92,10 @@ function App() {
             <div style={{ display: 'flex', height: '100dvh', overflow: 'hidden' }}>
               <Sidebar />
               <div style={{
-                marginLeft:    isMobile ? '0'    : '230px',
-                marginTop:     isMobile ? '56px' : '0',
+                marginLeft:    isMobile ? '0' : '230px',
+                marginTop:     0,
                 width:         '100%',
-                height:        isMobile ? 'calc(100dvh - 56px)' : '100dvh',
+                height:        '100dvh',
                 display:       'flex',
                 flexDirection: 'column',
                 overflow:      'visible',       // ← was 'hidden'
@@ -105,7 +105,7 @@ function App() {
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                   <Routes>
                     {/* ── DEFAULT ROUTING ── */}
-                    {!isOwner && <Route path="/" element={<Navigate to="/barcodes" />} />}
+                    {!isOwner && <Route path="/" element={<Navigate to="/barcodes" replace />} />}
                     {isOwner  && <Route path="/" element={<Dashboard />} />}
 
                     {/* ── OWNER ONLY ── */}
@@ -137,7 +137,7 @@ function App() {
                     <Route path="/weigh-station" element={<WeighStation />} />
 
                     {/* ── FALLBACK ── */}
-                    <Route path="*" element={<Navigate to="/" />} />
+                    <Route path="*" element={<Navigate to="/" replace />} />
                   </Routes>
                 </div>
               </div>

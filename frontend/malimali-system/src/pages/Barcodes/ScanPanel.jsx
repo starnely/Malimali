@@ -6,7 +6,7 @@ import {
   MdKeyboard, MdScale,
 } from 'react-icons/md'
 import p from '@/styles/POS.module.css'
-import { isWeightBarcode } from '@/utils/barcodeUtils'
+import { isWeightBarcode, decodeWeightBarcode } from '@/utils/barcodeUtils'
 import { fmtQty } from '@/utils/utils'
 import { API_BASE_URL } from '@/config/api'
 
@@ -29,6 +29,7 @@ export default function ScanPanel({
   const [flashId, setFlashId] = useState(null)
   const [manualCode, setManualCode] = useState('')
   const [decodingManual, setDecodingManual] = useState(false)
+  const [manualError, setManualError] = useState('')
   const manualRef = useRef(null)
 
   // Flash product card briefly when scanned/added
@@ -38,6 +39,9 @@ export default function ScanPanel({
     const t2 = setTimeout(() => setFlashId(null), 800)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [lastScanned])
+
+  // Clear manual error as soon as the cashier edits the code
+  useEffect(() => { setManualError('') }, [manualCode])
 
   // Category pills
   const categories = useMemo(() => {
@@ -57,15 +61,36 @@ export default function ScanPanel({
       .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
   }, [products, activeCategory, search])
 
-  // Manual entry live match — skips weight-barcodes (handled separately via decode API)
+  // Client-side decode for weight barcodes — instant display without an API call.
+  // Looks up product name by PLU from the local products array.
+  // The server still validates the check digit and confirms stock on commit.
+  const decodedWeighInfo = useMemo(() => {
+    const code = manualCode.trim()
+    if (!isWeightBarcode(code)) return null
+    const parsed = decodeWeightBarcode(code)
+    if (!parsed) return null
+    const product = products.find(pr => pr.pluNumber === parsed.pluNumber && pr.isWeighed)
+    if (!product) return { product: null, weightKg: parsed.weightKg, pluNumber: parsed.pluNumber, estimatedTotal: null }
+    const pricePerKg = product.pricePerKg || product.sellPrice || 0
+    const estimatedTotal = Math.round(parsed.weightKg * pricePerKg * 100) / 100
+    return { product, weightKg: parsed.weightKg, pluNumber: parsed.pluNumber, estimatedTotal }
+  }, [manualCode, products])
+
+  // Manual entry exact match — barcode or Product ID only, no name, no substring.
+  // This bar is for full-code entry (scan or typed digits). Substring/name
+  // search belongs in the search bar above, which filters the product grid
+  // without touching the cart. Using .includes() here caused partial inputs
+  // like "38" to silently add the wrong product (data-integrity bug).
   const manualMatch = useMemo(() => {
     const code = manualCode.trim()
     if (!code) return null
     if (isWeightBarcode(code)) return null
+    const lower = code.toLowerCase()
     return products.find(prod =>
-      String(prod.barcode || '').toLowerCase().includes(code.toLowerCase()) ||
-      String(prod._id || '').toLowerCase().includes(code.toLowerCase()) ||
-      prod.name?.toLowerCase().includes(code.toLowerCase())
+      !prod.isWeighed && (
+        (prod.barcode && String(prod.barcode).toLowerCase() === lower) ||
+        prod._id === lower
+      )
     ) || null
   }, [manualCode, products])
 
@@ -97,6 +122,7 @@ export default function ScanPanel({
         })
         const data = await res.json()
         if (!data.success) {
+          setManualError(data.message || 'Invalid barcode — check the digits and try again')
           setDecodingManual(false)
           return
         }
@@ -119,7 +145,9 @@ export default function ScanPanel({
           barcode: code,
         })
       } catch {
-        // Silent fail — error display handled by parent scanError state
+        setManualError('Could not reach server — check your connection and try again.')
+        setDecodingManual(false)
+        return
       }
       setDecodingManual(false)
       setManualCode('')
@@ -208,17 +236,29 @@ export default function ScanPanel({
             {manualCode.trim() && (
               <div className={p.posManualDropdown}>
                 {isWeightBarcode(manualCode.trim()) ? (
-                  <div className={p.posManualMatchRow} style={{ cursor: 'default' }}>
+                  <button
+                    className={p.posManualMatchRow}
+                    onClick={commitManual}
+                    disabled={decodingManual}
+                  >
                     <div className={p.posManualMatchLeft}>
                       <MdScale size={15} style={{ color: 'var(--primary)', flexShrink: 0 }} />
                       <div>
-                        <div className={p.posManualMatchName}>Weighed item label</div>
+                        <div className={p.posManualMatchName}>
+                          {decodedWeighInfo?.product
+                            ? `${decodedWeighInfo.product.name} — ${decodedWeighInfo.weightKg.toFixed(3)} kg`
+                            : 'Weighed item label'}
+                        </div>
                         <div className={p.posManualMatchMeta}>
-                          {decodingManual ? 'Reading weight & price…' : 'Press Enter to decode and add'}
+                          {decodingManual
+                            ? 'Reading weight & price…'
+                            : decodedWeighInfo?.product
+                              ? `KSh ${Number(decodedWeighInfo.estimatedTotal).toLocaleString()} · Tap or press Enter to add`
+                              : 'Press Enter to decode and add'}
                         </div>
                       </div>
                     </div>
-                  </div>
+                  </button>
                 ) : manualMatch ? (
                   <button
                     className={p.posManualMatchRow}
@@ -268,10 +308,17 @@ export default function ScanPanel({
           </span>
         </div>
 
-        {/* Error banner */}
+        {/* Error banner — scanner errors from parent */}
         {scanError && (
           <div className={p.posErrorBanner}>
             <MdWarning size={15} style={{ flexShrink: 0 }} /> {scanError}
+          </div>
+        )}
+
+        {/* Manual entry error — check-digit failure or network error */}
+        {manualError && (
+          <div className={p.posErrorBanner}>
+            <MdWarning size={15} style={{ flexShrink: 0 }} /> {manualError}
           </div>
         )}
 
@@ -329,7 +376,8 @@ export default function ScanPanel({
                   disabled={outOfStock || product.isWeighed}
                   className={[
                     p.posProductCard,
-                    outOfStock || product.isWeighed ? p.posProductCardDisabled : '',
+                    outOfStock ? p.posProductCardDisabled : '',
+                    product.isWeighed && !outOfStock ? p.posProductCardWeighed : '',
                     isFlashing ? p.posProductCardFlash : '',
                     inCart ? p.posProductCardInCart : '',
                   ].filter(Boolean).join(' ')}

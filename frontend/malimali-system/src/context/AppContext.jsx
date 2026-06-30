@@ -45,6 +45,7 @@ export function AppProvider({ children }) {
   const [conversations, setConversations] = useState([])
   const [unreadMsgCount, setUnreadMsgCount] = useState(0)
   const [shiftCloseNotifs, setShiftCloseNotifs] = useState(() => load('pos_shift_close_notifs', []))
+  const [sidebarOpen, setSidebarOpen] = useState(false)
 
   useEffect(() => {
     localStorage.setItem('pos_shift_close_notifs', JSON.stringify(shiftCloseNotifs));
@@ -1184,6 +1185,7 @@ export function AppProvider({ children }) {
       // Phase 6: Petty Cash
       fetchPettyCashToday, fetchPettyCashHistory,
       openPettyCash, addPettyCashTransaction, closePettyCash,
+      sidebarOpen, setSidebarOpen,
     }}>
       {children}
     </AppContext.Provider>

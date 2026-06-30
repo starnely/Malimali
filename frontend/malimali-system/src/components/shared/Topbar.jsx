@@ -2,11 +2,12 @@
 import {
   MdNotifications, MdPerson, MdWarning, MdClose, MdLocationOn,
   MdAccessTime, MdLogout, MdAccountCircle, MdLockClock, MdChat,
-  MdSettings, MdDocumentScanner, MdArchive,
+  MdSettings, MdDocumentScanner, MdArchive, MdMenu,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useSocket } from '@/context/SocketContext'
 import { useLocation, useNavigate } from 'react-router-dom'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import ChatModal from '@/components/modals/ChatModal'
 import DailySummaryModal from '@/components/modals/DailySummaryModal'
 import { API_BASE_URL as backendUrl } from '@/config/api'
@@ -142,6 +143,7 @@ export default function TopBar() {
     markAllNotificationsRead,
     shiftCloseNotifs, markShiftCloseNotifRead,
     hasClosedShiftToday,
+    setSidebarOpen,
   } = useApp()
 
   const socket = useSocket()
@@ -153,7 +155,7 @@ export default function TopBar() {
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
   const [showDailySummary, setShowDailySummary] = useState(false)
-  const [showChat, setShowChat] = useState(false)
+  const [showChat, openChat, closeChat] = useHistoryModal('chat', 'chatModal')
 
   const alreadyClosed = hasClosedShiftToday?.() || false
 
@@ -170,7 +172,7 @@ export default function TopBar() {
   }
 
   const handleOpenChat = () => {
-    setShowChat(true)
+    openChat()
     setTimeout(() => setUnreadMsgCount(0), 0)
   }
 
@@ -254,6 +256,12 @@ export default function TopBar() {
 
   const pageTitle = pageTitles[location.pathname] || 'Dashboard'
   const businessName = settings?.businessName || settings?.companyName || 'POS System'
+  const homeRoute = (isOwner || isManager) ? '/' : '/barcodes'
+  const parentRoutes = {
+    '/profile':  { label: 'Home', to: homeRoute },
+    '/settings': { label: 'Home', to: homeRoute },
+  }
+  const parentRoute = parentRoutes[location.pathname]
   const lowStockCount = lowStockProducts?.length || 0
   const canSeeSettings = isOwner || isManager
   const avatarColor = isOwner ? 'var(--primary)' : isManager ? 'var(--warning)' : 'var(--success)'
@@ -274,7 +282,7 @@ export default function TopBar() {
         </>
       )}
 
-      {showChat && <ChatModal onClose={() => setShowChat(false)} />}
+      {showChat && <ChatModal onClose={() => closeChat()} />}
       {showDailySummary && <DailySummaryModal onClose={() => setShowDailySummary(false)} />}
 
       {/* Toasts */}
@@ -307,16 +315,33 @@ export default function TopBar() {
       >
         {/* LEFT */}
         <div className="flex items-center gap-3 min-w-0">
-          {settings?.logo ? (
-            <img src={`${backendUrl}${settings.logo}`} alt="Logo" className="w-8 h-8 object-contain rounded-lg flex-shrink-0"
-              style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-soft)', padding: '3px' }} />
-          ) : (
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center text-white font-black text-sm flex-shrink-0" style={{ background: 'var(--primary)' }}>
-              {businessName.charAt(0).toUpperCase()}
-            </div>
-          )}
+          {/* Hamburger — mobile only, opens sidebar drawer */}
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className={`md:hidden p-2 rounded-lg ${tb.iconBtn}`}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', flexShrink: 0 }}
+          >
+            <MdMenu className="text-xl" />
+          </button>
+
           <div className="min-w-0">
-            <h1 className="text-base font-bold leading-none truncate" style={{ color: 'var(--text-primary)' }}>{pageTitle}</h1>
+            {/* Breadcrumb trail on non-top-level pages; plain title everywhere else */}
+            {parentRoute ? (
+              <div className="flex items-center gap-1.5 min-w-0">
+                <button
+                  onClick={() => navigate(parentRoute.to)}
+                  className={tb.breadcrumbLink}
+                >
+                  {parentRoute.label}
+                </button>
+                <span className="flex-shrink-0 text-xs" style={{ color: 'var(--text-muted)' }}>›</span>
+                <span className="text-base font-bold leading-none truncate" style={{ color: 'var(--text-primary)' }}>
+                  {pageTitle}
+                </span>
+              </div>
+            ) : (
+              <h1 className="text-base font-bold leading-none truncate" style={{ color: 'var(--text-primary)' }}>{pageTitle}</h1>
+            )}
             <div className="flex items-center gap-1 mt-1 overflow-hidden">
               <span className="text-[11px] font-semibold truncate" style={{ color: 'var(--primary)' }}>{businessName}</span>
               {settings?.location && (

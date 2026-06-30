@@ -508,6 +508,18 @@
   filter: grayscale(0.3);
 }
 
+/* Weighed items: dimmed and blue-tinted so they read as a distinct third
+   state — neither normal (gray border) nor out-of-stock (grayscale dim).
+   border-color: 55% primary blue — softer than in-cart's full-strength blue.
+   In-cart overrides both border and background via !important if the same
+   weighed product was added to the cart via a label scan. */
+.posProductCardWeighed {
+  opacity: 0.72;
+  cursor: not-allowed;
+  border-color: rgba(30, 95, 165, 0.55);
+  background: rgba(30, 95, 165, 0.05);
+}
+
 .posProductCardInCart {
   border-color: var(--primary) !important;
   background: var(--primary-light) !important;
@@ -995,6 +1007,66 @@
   /* Tighten horizontal padding so icon-only buttons don't waste space */
   .posTabBtn {
     padding: 6px 10px;
+  }
+
+  /* ── Terminal layout: flex column so posLeft shrinks, posRight fills rest ── */
+  /* Replaces grid-row sizing — flex avoids overflow:visible hacks on posLeft. */
+  .posTerminal {
+    display: flex;
+    flex-direction: column;
+  }
+  .posLeft {
+    flex: 0 0 auto;   /* shrink-wrap to content; never grow */
+  }
+  /* Remove the 42vh cap from the 960px rule; posRight now fills flex: 1 */
+  .posRight {
+    flex: 1;
+    max-height: none;
+  }
+
+  /* ── Product grid: horizontal scroll strip (same idiom as cat pills) ───── */
+  .posProductGrid {
+    flex: none;
+    display: flex;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    touch-action: pan-x;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+    padding: 8px 10px;
+    gap: 6px;
+  }
+  .posProductGrid::-webkit-scrollbar { display: none; }
+
+  /* Exactly 3 cards fill the viewport on any phone width (375–430px+):      */
+  /* 100vw − 10px left-pad − 2×6px gaps = usable width for 3 cards          */
+  .posProductCard {
+    flex-shrink: 0;
+    width: calc((100vw - 22px) / 3);
+  }
+
+  /* Empty / loading state: fill the full width of the strip */
+  .posGridEmpty {
+    flex: 1;
+    min-width: 280px;
+  }
+
+  /* Card body: reduce internal padding */
+  .posProductCardBody { padding: 8px; }
+
+  /* Tighten vertical spacing between card elements */
+  .posProductCat  { margin-bottom: 2px; }
+  .posProductName { font-size: 11px; margin-bottom: 4px; }
+  .posProductPrice { font-size: 12px; margin-bottom: 3px; }
+
+  /* Cart badge: scaled down proportionally */
+  .posCartBadge {
+    top: 5px;
+    right: 5px;
+    width: 18px;
+    height: 18px;
+    font-size: 9px;
   }
 }
 

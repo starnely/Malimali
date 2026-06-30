@@ -2,6 +2,7 @@
 import { MdPointOfSale, MdTableChart, MdBarChart, MdStorefront } from 'react-icons/md'
 import JsBarcode from 'jsbarcode'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import p from '@/styles/POS.module.css'
 import { isWeightBarcode } from '@/utils/barcodeUtils'
 
@@ -29,7 +30,7 @@ export default function Barcodes() {
   const [scanError, setScanError] = useState('')
   const [lastScanned, setLastScanned] = useState(null)
   const [receipt, setReceipt] = useState(null)
-  const [showCheckout, setShowCheckout] = useState(false)
+  const [showCheckout, openCheckout, closeCheckout] = useHistoryModal('checkout')
   const [searchQuery, setSearchQuery] = useState('')
   const scanInputRef = useRef(null)
 
@@ -273,7 +274,7 @@ export default function Barcodes() {
       setCart([])
       setLastScanned(null)
       setScanError('')
-      setShowCheckout(false)
+      closeCheckout()
       if (isOwner) loadStoreProducts(selectedStore)
       return
     }
@@ -322,11 +323,11 @@ export default function Barcodes() {
       setCart([])
       setLastScanned(null)
       setScanError('')
-      setShowCheckout(false)
+      closeCheckout()
       if (isOwner) loadStoreProducts(selectedStore)
     } else {
       setScanError(result.error || 'Failed to record sale')
-      setShowCheckout(false)
+      closeCheckout()
     }
   }
 
@@ -428,7 +429,7 @@ export default function Barcodes() {
           cart={cart}
           onConfirm={handleCheckoutConfirm}
           onCancel={() => {
-            setShowCheckout(false)
+            closeCheckout()
             setTimeout(() => scanInputRef.current?.focus(), 100)
           }}
         />
@@ -500,7 +501,7 @@ export default function Barcodes() {
             updateQty={updateQty}
             removeFromCart={removeFromCart}
             clearCart={clearCart}
-            setShowCheckout={setShowCheckout}
+            setShowCheckout={openCheckout}
             scanInputRef={scanInputRef}
             products={products}
             addToCart={addToCart}

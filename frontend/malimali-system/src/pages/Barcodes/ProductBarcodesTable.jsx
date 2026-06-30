@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { MdSearch, MdPrint, MdQrCodeScanner, MdScale } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { fmtQty } from '@/utils/utils'
 import s from '@/styles/Barcodes.module.css'
 
 export default function ProductBarcodesTable({ products = [], onGoToScan }) {
@@ -139,7 +140,7 @@ export default function ProductBarcodesTable({ products = [], onGoToScan }) {
                           </span>
                         )}
                       </td>
-                      <td><span className={`${s.stockBadge} ${stockClass}`}>{currentStock} {p.unit || 'pcs'}</span></td>
+                      <td><span className={`${s.stockBadge} ${stockClass}`}>{fmtQty(currentStock)} {p.unit || 'pcs'}</span></td>
                       <td className={s.tdPrice}>
                         KSh {Number(isWeighed ? (p.pricePerKg || p.sellPrice || 0) : (p.sellPrice || 0)).toLocaleString()}
                         {isWeighed && (

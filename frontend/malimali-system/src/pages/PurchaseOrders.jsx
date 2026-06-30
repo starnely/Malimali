@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import { createPortal } from 'react-dom'
 import {
   MdShoppingCart, MdAdd, MdClose, MdSend,
@@ -51,10 +52,14 @@ export default function PurchaseOrders() {
   const [filterStore, setFilterStore] = useState('')
   const [searchText, setSearchText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
-  const [showCreate, setShowCreate] = useState(false)
+  const [showCreate, openCreatePO, closeCreatePO] = useHistoryModal('po-create')
+  const [showEditPO, openEditPO, closeEditPO]     = useHistoryModal('po-edit')
   const [viewingPO, setViewingPO] = useState(null)
   const [receivingPO, setReceivingPO] = useState(null)
   const [editingPO, setEditingPO] = useState(null)
+
+  // Clear the entity when the edit modal closes (back button or programmatic)
+  useEffect(() => { if (!showEditPO) setEditingPO(null) }, [showEditPO])
   const [emailPO, setEmailPO] = useState(null)
   const [invoicePO, setInvoicePO] = useState(null)
   const [payingPO, setPayingPO] = useState(null)
@@ -163,7 +168,7 @@ export default function PurchaseOrders() {
         </div>
         <div className={styles.headerActions}>
           <button className={styles.btnSecondary} onClick={load}><MdRefresh /> Refresh</button>
-          <button className={styles.btnPrimary} onClick={() => setShowCreate(true)}><MdAdd /> New PO</button>
+          <button className={styles.btnPrimary} onClick={() => openCreatePO()}><MdAdd /> New PO</button>
         </div>
       </div>
 
@@ -321,7 +326,7 @@ export default function PurchaseOrders() {
                           {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setReceivingPO(po)} title="Receive stock"><MdInventory size={16} /></button>}
                           {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setInvoicePO(po)} title="Record invoice"><MdReceipt size={16} /></button>}
                           {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setPayingPO(po)} title="Pay supplier"><MdPayments size={16} /></button>}
-                          {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setEditingPO(po)} title="Edit"><MdEdit size={16} /></button>}
+                          {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => { setEditingPO(po); openEditPO() }} title="Edit"><MdEdit size={16} /></button>}
                           {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleCancel(po)} title="Cancel"><MdCancel size={16} /></button>}
                           {isOwner && (po.status === 'draft' || po.status === 'cancelled') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(po)} title="Delete"><MdDelete size={16} /></button>}
                         </div>
@@ -399,7 +404,7 @@ export default function PurchaseOrders() {
                       {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setReceivingPO(po)} title="Receive stock"><MdInventory size={16} /></button>}
                       {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setInvoicePO(po)} title="Record invoice"><MdReceipt size={16} /></button>}
                       {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setPayingPO(po)} title="Pay supplier"><MdPayments size={16} /></button>}
-                      {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setEditingPO(po)} title="Edit"><MdEdit size={16} /></button>}
+                      {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => { setEditingPO(po); openEditPO() }} title="Edit"><MdEdit size={16} /></button>}
                       {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleCancel(po)} title="Cancel"><MdCancel size={16} /></button>}
                       {isOwner && (po.status === 'draft' || po.status === 'cancelled') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(po)} title="Delete"><MdDelete size={16} /></button>}
                     </div>
@@ -448,8 +453,8 @@ export default function PurchaseOrders() {
         <CreatePOModal
           suppliers={suppliers} products={products}
           defaultStore={defaultStore} storeOptions={storeOptions}
-          onClose={() => setShowCreate(false)}
-          onSaved={() => { setShowCreate(false); load(); showToast('Purchase order created') }}
+          onClose={() => closeCreatePO()}
+          onSaved={() => { closeCreatePO(); load(); showToast('Purchase order created') }}
           createPurchaseOrder={createPurchaseOrder}
         />
       )}
@@ -478,13 +483,13 @@ export default function PurchaseOrders() {
           receivePurchaseOrder={receivePurchaseOrder}
         />
       )}
-      {editingPO && (
+      {showEditPO && editingPO && (
         <CreatePOModal
           suppliers={suppliers} products={products}
           defaultStore={defaultStore} storeOptions={storeOptions}
           editingPO={editingPO}
-          onClose={() => setEditingPO(null)}
-          onSaved={() => { setEditingPO(null); load(); showToast('Purchase order updated') }}
+          onClose={() => closeEditPO()}
+          onSaved={() => { closeEditPO(); load(); showToast('Purchase order updated') }}
           createPurchaseOrder={createPurchaseOrder}
           updatePurchaseOrder={updatePurchaseOrder}
         />

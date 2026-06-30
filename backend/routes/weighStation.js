@@ -1,7 +1,8 @@
 
-const express = require("express")
-const router  = express.Router()
-const Product = require("../models/Product")
+const express        = require("express")
+const router         = express.Router()
+const Product        = require("../models/Product")
+const WeighBarcodeLog = require("../models/WeighBarcodeLog")
 const { authMiddleware } = require("../middleware/authMiddleware")
 
 router.use(authMiddleware)
@@ -185,6 +186,22 @@ router.post("/decode", async (req, res) => {
       pricePerKg,
       pluNumber:  decoded.pluNumber,
     })
+
+    // Audit trail — fire-and-forget; never blocks or fails the decode response
+    WeighBarcodeLog.create({
+      barcode,
+      pluNumber:   decoded.pluNumber,
+      weightGrams: decoded.weightGrams,
+      weightKg:    decoded.weightKg,
+      totalPrice,
+      productId:   product._id,
+      productName: product.name,
+      store:       product.store,
+      cashierId:   req.user._id,
+      cashierName: req.user.name,
+      decodedAt:   new Date(),
+    }).catch(err => console.error('[WeighBarcodeLog] write error:', err.message))
+
   } catch (err) {
     console.error("Decode weight barcode error:", err.message)
     res.status(500).json({ success: false, message: "Failed to decode barcode." })
