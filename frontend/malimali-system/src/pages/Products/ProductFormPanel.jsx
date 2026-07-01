@@ -1,9 +1,10 @@
-﻿import { useMemo, useEffect } from 'react'
-import { MdClose, MdQrCodeScanner, MdKeyboard, MdPrint, MdScale } from 'react-icons/md'
+﻿import { useMemo, useEffect, useState } from 'react'
+import { MdClose, MdQrCodeScanner, MdKeyboard, MdPrint, MdScale, MdCameraAlt } from 'react-icons/md'
 import FormInput from './FormInput'
 import FormInputDropdown from './FormInputDropdown'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/Products.module.css'
+import CameraScanner from '../Barcodes/CameraScanner'
 
 export default function ProductFormPanel({
   showModal, editProduct, mode, setMode,
@@ -14,6 +15,8 @@ export default function ProductFormPanel({
   closeModal, printBarcode,
   products = [],
 }) {
+
+  const [cameraOpen, setCameraOpen] = useState(false)
 
   // ── Category list filtered by selected store ──────────────────────
   const filteredCategories = useMemo(() => {
@@ -171,6 +174,14 @@ export default function ProductFormPanel({
         </div>
       )}
 
+      {/* ── Camera scanner overlay ──────────────────────────────── */}
+      {cameraOpen && (
+        <CameraScanner
+          onScan={(code) => { setBarcode(code); handleScan(code) }}
+          onClose={() => setCameraOpen(false)}
+        />
+      )}
+
       {/* ── Scanner Input ───────────────────────────────────────── */}
       {mode === 'scan' && !editProduct && (
         <div
@@ -191,6 +202,28 @@ export default function ProductFormPanel({
             <span className="text-xs font-bold" style={{ color: 'var(--success-dark)' }}>
               Scanner Ready
             </span>
+            <button
+              onClick={() => setCameraOpen(true)}
+              style={{
+                marginLeft: 'auto',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 4,
+                padding: '4px 10px',
+                borderRadius: 20,
+                border: '1px solid var(--primary)',
+                background: 'var(--primary-light)',
+                color: 'var(--primary)',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+              aria-label="Scan with camera"
+            >
+              <MdCameraAlt size={13} />
+              Camera
+            </button>
           </div>
           <input
             autoFocus
