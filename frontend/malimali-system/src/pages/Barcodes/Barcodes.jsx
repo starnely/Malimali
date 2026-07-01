@@ -93,15 +93,15 @@ export default function Barcodes() {
     }
   }, [tab, showCheckout, receipt, cart])
 
-  const findProduct = (code) => {
+  const findProduct = useCallback((code) => {
     const trimmed = String(code).trim()
     return products.find(prod =>
       String(prod.barcode) === trimmed || String(prod._id) === trimmed
     )
-  }
+  }, [products])
 
   // ── Standard product add to cart ──────────────────────────────────
-  const addToCart = (code) => {
+  const addToCart = useCallback((code) => {
     const trimmed = String(code).trim()
     if (!trimmed) return
     const product = findProduct(trimmed)
@@ -142,7 +142,7 @@ export default function Barcodes() {
         total: product.sellPrice,
       }]
     })
-  }
+  }, [findProduct])
 
   // ── NEW: Add a weighed item decoded from a variable weight barcode ─
   // Called by ScanPanel after /api/weigh-station/decode succeeds
@@ -208,8 +208,7 @@ export default function Barcodes() {
       addToCart(trimmed)
       setScanInput('')
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser?.token, addWeighedItem])
+  }, [currentUser?.token, addWeighedItem, addToCart])
 
   const handleScanKeyDown = useCallback((e) => {
     if (e.key !== 'Enter') return
