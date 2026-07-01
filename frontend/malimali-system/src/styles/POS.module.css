@@ -1078,3 +1078,132 @@
   .posSearchClear    { width: 36px; height: 36px; right: 4px; }
   .posClearBtn       { padding: 10px 14px; }
 }
+
+/* ── Camera scanner overlay ──────────────────────────────────────── */
+.cameraScannerOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  background: rgba(0, 0, 0, 0.78);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.cameraScannerBox {
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+}
+
+.cameraScannerHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.cameraScannerTitle {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.cameraScannerClose {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--bg-muted);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+  touch-action: manipulation;
+}
+
+@media (hover: hover) {
+  .cameraScannerClose:hover {
+    background: var(--danger-light);
+    color: var(--danger);
+  }
+}
+
+.cameraScannerClose:active {
+  background: var(--danger-light);
+  color: var(--danger);
+}
+
+.cameraScannerRegion {
+  width: 100%;
+  background: #000;
+}
+
+/* html5-qrcode injects its own video and scan-box elements */
+.cameraScannerRegion video {
+  width: 100% !important;
+  display: block;
+}
+
+.cameraScannerHint {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 10px 14px 14px;
+  margin: 0;
+}
+
+.cameraError {
+  padding: 24px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--danger-dark);
+  background: var(--danger-light);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.cameraCamBtn {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: var(--primary-light);
+  border: 1px solid var(--primary);
+  color: var(--primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.13s;
+  font-family: inherit;
+  touch-action: manipulation;
+  white-space: nowrap;
+}
+
+@media (hover: hover) {
+  .cameraCamBtn:hover {
+    background: var(--primary);
+    color: #fff;
+  }
+}
+
+.cameraCamBtn:active {
+  background: var(--primary);
+  color: #fff;
+}
+
+@media (pointer: coarse) {
+  .cameraScannerClose { width: 44px; height: 44px; }
+  .cameraCamBtn { padding: 7px 14px; font-size: 12px; }
+}

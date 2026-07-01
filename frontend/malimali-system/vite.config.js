@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import fs from 'fs'
 import { fileURLToPath } from 'url'
 
 // Recreate __dirname in ESM
@@ -12,6 +13,10 @@ export default defineConfig({
   server: {
     host: '0.0.0.0',
     port: 5174,
+    https: {
+      key:  fs.readFileSync(path.resolve(__dirname, 'certs/key.pem')),
+      cert: fs.readFileSync(path.resolve(__dirname, 'certs/cert.pem')),
+    },
   },
   resolve: {
     alias: {

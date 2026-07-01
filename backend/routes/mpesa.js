@@ -6,6 +6,7 @@ const Product  = require("../models/Product");
 const User     = require("../models/User");
 const { authMiddleware } = require("../middleware/authMiddleware");
 const { initiateSTKPush, getResultMessage } = require("../utils/mpesaClient");
+const { sendSmsReceipt } = require("../utils/smsReceipt");
 
 function getEATDate() {
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -114,17 +115,19 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
     // AccountReference must be ≤ 12 chars; strip dashes from receiptId.
     let stkResult;
     try {
+      console.log("[MPesa STK Push] Initiating for phone:", phone, "| amount:", Number(finalTotal) || cartTotal, "| saleId:", String(sale._id));
       stkResult = await initiateSTKPush({
         phone,
         amount:           Number(finalTotal) || cartTotal,
         accountReference: (sale.receiptId || String(sale._id)).replace(/-/g, "").slice(0, 12),
         description:      "POS Payment",
       });
+      console.log("[MPesa STK Push] initiateSTKPush returned:", JSON.stringify(stkResult));
     } catch (stkErr) {
       // STK push failed — roll back the transaction so stock is restored
       await session.abortTransaction();
       session.endSession();
-      console.error("STK Push error:", stkErr.message);
+      console.error("[MPesa STK Push] Error caught in route:", stkErr.message);
       return res.status(502).json({
         success: false,
         message: stkErr.message || "Failed to reach M-Pesa. Please try again.",
@@ -148,7 +151,7 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
   } catch (err) {
     await session.abortTransaction();
     session.endSession();
-    console.error("STK Push route error:", err);
+    console.error("[MPesa STK Push] Unhandled route error:", err);
     return res.status(500).json({ success: false, message: "Failed to initiate payment.", error: err.message });
   }
 });
@@ -160,17 +163,30 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
 // We respond 200 immediately, then process async — Safaricom retries on
 // non-200 responses and we must not keep their connection open.
 router.post("/callback", async (req, res) => {
+  console.log("[MPesa Callback] Raw body received:", JSON.stringify(req.body));
   res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
   try {
     const callback = req.body?.Body?.stkCallback;
-    if (!callback) return;
+    if (!callback) {
+      console.warn("[MPesa Callback] No stkCallback in body — ignoring");
+      return;
+    }
 
     const { CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = callback;
+    console.log("[MPesa Callback] CheckoutRequestID:", CheckoutRequestID, "| ResultCode:", ResultCode, "| ResultDesc:", ResultDesc);
     if (!CheckoutRequestID) return;
 
     const sale = await Sale.findOne({ mpesaCheckoutRequestId: CheckoutRequestID });
-    if (!sale || sale.status !== "pending") return;
+    if (!sale) {
+      console.warn("[MPesa Callback] No sale found for CheckoutRequestID:", CheckoutRequestID);
+      return;
+    }
+    if (sale.status !== "pending") {
+      console.warn("[MPesa Callback] Sale already processed (status:", sale.status, ") — skipping. CheckoutRequestID:", CheckoutRequestID);
+      return;
+    }
+    console.log("[MPesa Callback] Matched sale:", String(sale._id), "| receiptId:", sale.receiptId);
 
     const io = req.app.get("io");
 
@@ -180,9 +196,22 @@ router.post("/callback", async (req, res) => {
       const mpesaReceiptNumber = String(metaItems.find(i => i.Name === "MpesaReceiptNumber")?.Value || "");
       const paidAmount         = metaItems.find(i => i.Name === "Amount")?.Value || 0;
 
+      console.log("[MPesa Callback] Payment SUCCESS — MpesaReceiptNumber:", mpesaReceiptNumber, "| Amount:", paidAmount);
+
       sale.status = "confirmed";
       sale.paymentInfo.mpesaReceiptNumber = mpesaReceiptNumber;
       await sale.save();
+      console.log("[MPesa Callback] Sale saved as confirmed:", String(sale._id));
+
+      // Fire-and-forget SMS receipt — never blocks callback response
+      sendSmsReceipt(sale.paymentInfo.mpesaPhone, {
+        store:              sale.store,
+        receiptId:          sale.receiptId,
+        itemCount:          sale.items.length,
+        finalTotal:         sale.paymentInfo.finalTotal ?? sale.total,
+        mpesaReceiptNumber,
+        date:               sale.date,
+      }).catch(err => console.error('[SMS] Uncaught error:', err.message))
 
       if (io) {
         // Notify the specific cashier who initiated this sale
@@ -199,6 +228,7 @@ router.post("/callback", async (req, res) => {
 
     } else {
       // ── Payment failed — restock all items ────────────────────────
+      console.log("[MPesa Callback] Payment FAILED — ResultCode:", ResultCode, "| ResultDesc:", ResultDesc, "| Restocking", sale.items.length, "item(s)");
       for (const item of sale.items) {
         await Product.findByIdAndUpdate(
           item.productId,
@@ -208,6 +238,7 @@ router.post("/callback", async (req, res) => {
 
       sale.status = "failed";
       await sale.save();
+      console.log("[MPesa Callback] Sale saved as failed:", String(sale._id));
 
       if (io) {
         io.to(String(sale.cashierId)).emit("mpesa_result", {
@@ -221,7 +252,7 @@ router.post("/callback", async (req, res) => {
     }
 
   } catch (err) {
-    console.error("M-Pesa callback processing error:", err);
+    console.error("[MPesa Callback] Processing error:", err);
   }
 });
 

@@ -26,12 +26,16 @@ async function getAccessToken() {
     { headers: { Authorization: `Basic ${creds}` } }
   );
 
+  console.log("[MPesa OAuth] HTTP status:", res.status);
+
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    console.error("[MPesa OAuth] Failed response body:", text);
     throw new Error(`M-Pesa OAuth failed (${res.status}): ${text}`);
   }
 
   const data = await res.json();
+  console.log("[MPesa OAuth] Token obtained, expires_in:", data.expires_in);
   if (!data.access_token) throw new Error("M-Pesa OAuth returned no access_token");
 
   tokenCache = {
@@ -92,6 +96,21 @@ async function initiateSTKPush({ phone, amount, accountReference, description })
     TransactionDesc:   String(description || "POS Payment").slice(0, 13), // limit: 13 chars
   };
 
+  // TEMPORARY DEBUG — remove before go-live
+  console.log("[MPesa STK Debug] Request body:", JSON.stringify({
+    BusinessShortCode: body.BusinessShortCode,
+    Timestamp:         body.Timestamp,
+    Password:          body.Password,
+    PartyA:            body.PartyA,
+    PartyB:            body.PartyB,
+    PhoneNumber:       body.PhoneNumber,
+    Amount:            body.Amount,
+    CallBackURL:       body.CallBackURL,
+    AccountReference:  body.AccountReference,
+    TransactionDesc:   body.TransactionDesc,
+    _PasswordPreimage: `${shortcode}${passkey}${timestamp}`,
+  }, null, 2));
+
   const res = await fetch(`${getBaseUrl()}/mpesa/stkpush/v1/processrequest`, {
     method:  "POST",
     headers: {
@@ -103,11 +122,19 @@ async function initiateSTKPush({ phone, amount, accountReference, description })
 
   const data = await res.json().catch(() => ({}));
 
+  console.log("[MPesa STK Response] HTTP status:", res.status, "| Body:", JSON.stringify(data));
+
   if (!res.ok || data.ResponseCode !== "0") {
+    console.error("[MPesa STK Response] Error — ResponseCode:", data.ResponseCode,
+      "| ResponseDescription:", data.ResponseDescription,
+      "| errorMessage:", data.errorMessage);
     throw new Error(
       data.errorMessage || data.ResponseDescription || `STK Push failed (HTTP ${res.status})`
     );
   }
+
+  console.log("[MPesa STK Response] Success — CheckoutRequestID:", data.CheckoutRequestID,
+    "| MerchantRequestID:", data.MerchantRequestID);
 
   return {
     merchantRequestId: data.MerchantRequestID,

@@ -1,4 +1,5 @@
 const express = require("express");
+const https   = require("https");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
@@ -60,9 +61,14 @@ mongoose.connect(MONGO_URI)
   .then(() => console.log("✅ MongoDB connected successfully"))
   .catch(err => { console.error("❌ MongoDB connection failed:", err.message); process.exit(1); });
 
-// ── 5. HTTP SERVER + SOCKET.IO ───────────────────────────────────────
+// ── 5. HTTPS SERVER + SOCKET.IO ──────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT}`); });
+const httpsOptions = {
+  key:  fs.readFileSync(path.resolve(__dirname, '../frontend/malimali-system/certs/key.pem')),
+  cert: fs.readFileSync(path.resolve(__dirname, '../frontend/malimali-system/certs/cert.pem')),
+};
+const server = https.createServer(httpsOptions, app);
+server.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT} (HTTPS)`); });
 
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST", "PUT", "PATCH", "DELETE"] }

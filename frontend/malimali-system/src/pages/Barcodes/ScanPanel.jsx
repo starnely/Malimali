@@ -3,18 +3,20 @@ import {
   MdPointOfSale, MdWarning, MdCheckCircle,
   MdRemove, MdAdd, MdDelete, MdSearch,
   MdShoppingCart, MdReceipt, MdClose,
-  MdKeyboard, MdScale,
+  MdKeyboard, MdScale, MdCameraAlt,
 } from 'react-icons/md'
 import p from '@/styles/POS.module.css'
 import { isWeightBarcode, decodeWeightBarcode } from '@/utils/barcodeUtils'
 import { fmtQty } from '@/utils/utils'
 import { API_BASE_URL } from '@/config/api'
+import CameraScanner from './CameraScanner'
 
 export default function ScanPanel({
   cart = [], cartTotal = 0, cartCount = 0,
   scanError, lastScanned,
   scanInput, setScanInput,
   handleScanKeyDown,
+  processScan,
   updateQty,
   removeFromCart, clearCart,
   setShowCheckout, scanInputRef,
@@ -30,6 +32,7 @@ export default function ScanPanel({
   const [manualCode, setManualCode] = useState('')
   const [decodingManual, setDecodingManual] = useState(false)
   const [manualError, setManualError] = useState('')
+  const [cameraOpen, setCameraOpen] = useState(false)
   const manualRef = useRef(null)
 
   // Flash product card briefly when scanned/added
@@ -189,6 +192,17 @@ export default function ScanPanel({
         aria-label="Barcode scanner input"
       />
 
+      {/* Camera scanner overlay */}
+      {cameraOpen && (
+        <CameraScanner
+          onScan={processScan}
+          onClose={() => {
+            setCameraOpen(false)
+            setTimeout(() => scanInputRef.current?.focus(), 100)
+          }}
+        />
+      )}
+
       {/* ══════════════════════════════════════════
           LEFT — Product browser
       ══════════════════════════════════════════ */}
@@ -215,6 +229,15 @@ export default function ScanPanel({
             <span className={p.posScannerDot} />
             <span className={p.posScannerLabel}>Scanner active</span>
           </div>
+          <button
+            className={p.cameraCamBtn}
+            onClick={() => setCameraOpen(true)}
+            aria-label="Open camera scanner"
+            title="Scan with phone camera"
+          >
+            <MdCameraAlt size={14} />
+            <span>Camera</span>
+          </button>
         </div>
 
         {/* Manual entry bar */}

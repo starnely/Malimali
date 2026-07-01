@@ -1,3 +1,6 @@
+# TLS certificates — private key must never be committed
+certs/
+
 # Environment — never commit real credentials
 .env
 .env.local

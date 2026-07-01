@@ -164,14 +164,11 @@ export default function Barcodes() {
     })
   }, [])
 
-  // ── NEW: Intercept weight barcodes before standard scan handler ───
-  const handleScanKeyDown = useCallback(async (e) => {
-    if (e.key !== 'Enter') return
-    const code = scanInput.trim()
-    if (!code) return
-
-    if (isWeightBarcode(code)) {
-      // Variable weight barcode — decode via backend
+  // ── Shared scan commit — called by physical scanner, manual entry, and camera ──
+  const processScan = useCallback(async (code) => {
+    const trimmed = String(code).trim()
+    if (!trimmed) return
+    if (isWeightBarcode(trimmed)) {
       setScanInput('')
       try {
         const token = currentUser?.token ||
@@ -179,44 +176,47 @@ export default function Barcodes() {
         const res = await fetch(`${API}/api/weigh-station/decode`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ barcode: code }),
+          body: JSON.stringify({ barcode: trimmed }),
         })
         const data = await res.json()
-
         if (!data.success) {
-          setScanError(data.message || `Cannot decode weight barcode: ${code}`)
+          setScanError(data.message || `Cannot decode weight barcode: ${trimmed}`)
           return
         }
-
         const { product, weightKg, weightGrams, totalPrice, pricePerKg } = data
-
         addWeighedItem({
-          _id: `weighed-${code}`,   // unique per label
-          id: `weighed-${code}`,
-          productId: product._id,          // real product ID for stock deduction
+          _id: `weighed-${trimmed}`,
+          id: `weighed-${trimmed}`,
+          productId: product._id,
           name: product.name,
           category: product.category,
-          sellPrice: pricePerKg,           // price per kg — qty × sellPrice = totalPrice
+          sellPrice: pricePerKg,
           buyPrice: product.buyPrice || 0,
           stock: product.stock,
-          qty: weightKg,                   // in kg — sale route does $inc: { stock: -weightKg }
-          total: totalPrice,               // weightKg × pricePerKg (display / cart sum)
+          qty: weightKg,
+          total: totalPrice,
           isWeighed: true,
           weightKg,
           weightGrams,
           pricePerKg,
-          barcode: code,
+          barcode: trimmed,
         })
       } catch {
         setScanError('Server error decoding weight barcode.')
       }
     } else {
-      // Normal product barcode
-      addToCart(code)
+      addToCart(trimmed)
       setScanInput('')
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanInput, currentUser?.token, addWeighedItem])
+  }, [currentUser?.token, addWeighedItem])
+
+  const handleScanKeyDown = useCallback((e) => {
+    if (e.key !== 'Enter') return
+    const code = scanInput.trim()
+    if (!code) return
+    processScan(code)
+  }, [scanInput, processScan])
 
   const updateQty = (id, newQty) => {
     const item = cart.find(c => c._id === id)
@@ -498,6 +498,7 @@ export default function Barcodes() {
             scanInput={scanInput}
             setScanInput={setScanInput}
             handleScanKeyDown={handleScanKeyDown}
+            processScan={processScan}
             updateQty={updateQty}
             removeFromCart={removeFromCart}
             clearCart={clearCart}

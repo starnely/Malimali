@@ -614,6 +614,139 @@ Four modals + Chat await real-device confirmation. Checklist is in Section 3.
 - `ProductCombobox` portal fragility — `containerRef.contains(e.target)` misses portal clicks; works today due to React 18 batching but is fragile
 - Topbar warning + chat buttons — dynamic inline `background` blocks CSS hover replacement; JS `onMouseEnter/Leave` handlers remain; brief sticky hover tint on touch (cosmetic only)
 
+### 13. HTTPS for Local Development (Camera Scanning prerequisite) 🔄 IN PROGRESS (2026-07-01)
+
+**Why:** `getUserMedia` (phone camera API) requires a secure context — HTTPS or `localhost`. The app is served over LAN HTTP (`http://192.168.1.169:5174`), so camera access is browser-blocked on any real phone. Additionally, an HTTPS frontend making HTTP API calls is blocked as "mixed content" by all modern browsers, so **both** the Vite dev server and the Express backend must be HTTPS.
+
+**Blocker:** mkcert is not installed on this machine. It must be installed before any file changes can be made.
+
+**Install step (Admin PowerShell — not yet done):**
+```powershell
+winget install FiloSottile.mkcert
+# close and reopen PowerShell, then:
+mkcert --version
+mkcert -install
+```
+
+**Certificate generation (after install — run from `frontend/malimali-system/`):**
+```powershell
+New-Item -ItemType Directory -Force certs
+cd certs
+mkcert -key-file key.pem -cert-file cert.pem localhost 192.168.1.169
+```
+
+**9 file changes queued (not yet applied — awaiting mkcert install):**
+
+| # | File | Change |
+|---|---|---|
+| 1 | `frontend/malimali-system/.gitignore` | Add `certs/` — private key must not be committed |
+| 2 | `frontend/malimali-system/vite.config.js` | Add `import fs`; add `https: { key, cert }` to server block |
+| 3 | `frontend/malimali-system/.env` | `VITE_API_URL` → `https://192.168.1.169:5000` (mixed content fix) |
+| 4 | `backend/server.js` | Replace `app.listen(...)` with `https.createServer({ key, cert }, app).listen(...)` |
+| 5 | `backend/.env` | Add `https://localhost:5174` and `https://192.168.1.169:5174` to `FRONTEND_URL` |
+
+No code changes needed to CORS logic — `server.js` already does exact-match against `ALLOWED_ORIGINS` split from `FRONTEND_URL`; adding the HTTPS origins to `.env` is sufficient.
+
+**Phone trust setup (required after certs generated):**
+- Run `mkcert -CAROOT` to find the root CA file
+- Android: Settings → Security → Encryption & credentials → Install a certificate → CA certificate (`rootCA.pem`)
+- iOS: AirDrop `rootCA.pem` → open → Settings → General → VPN & Device Management → install, then General → About → Certificate Trust Settings → enable
+
+**Next action:** User runs the three mkcert commands above → confirms version output → all 5 file changes applied immediately.
+
+---
+
+### 12. SMS Receipts — Africa's Talking Sandbox Auth Unresolved ⚠️ (2026-07-01)
+
+**Code status: complete and correct.** The SMS receipt feature (`backend/utils/smsReceipt.js`) is fully implemented using a direct `fetch` POST (no SDK) to `https://api.sandbox.africastalking.com/version1/messaging`. The request format, headers (`apiKey` with capital K per AT docs), form-encoded body, phone normalisation, fire-and-forget callback integration, and debug logging are all correct.
+
+**Unresolved: Africa's Talking sandbox returns 401 "supplied authentication is invalid"** despite correct credentials format. Investigation so far:
+
+- AT_USERNAME=`sandbox`, AT_API_KEY=9-character sandbox key (correct length for AT sandbox keys)
+- SDK version 0.8.0 investigated — `username: 'sandbox'` correctly triggers `Common.enableSandbox()` internally (URL switches to `https://api.sandbox.africastalking.com`)
+- SDK replaced with direct `fetch` to rule out any SDK initialization issue — same 401
+- Header uses `apiKey` (capital K, matching AT docs exactly)
+- Body sends `username=sandbox` + `to=+254...` + `message=...` as `application/x-www-form-urlencoded`
+- AT returns full error body (logged): `"supplied authentication is invalid"`
+- Debug logging confirms env vars are read correctly (masked key matches what was pasted from AT dashboard)
+
+**Most likely cause: AT account/sandbox configuration issue, not a code issue.** Possible causes:
+1. Sandbox API key not yet activated — AT sandbox accounts sometimes require email verification before the API key works
+2. Key copied from wrong section of AT dashboard — sandbox key is under a separate "Sandbox" tab, not the main API key tab
+3. AT sandbox service intermittent — the AT sandbox has known reliability issues
+
+**Resolution path:**
+1. Log into Africa's Talking dashboard → verify email is confirmed
+2. Navigate to Sandbox tab (not the main API section) → copy the key shown there
+3. Try a direct `curl` test from the server machine to confirm the key works independently of Node.js:
+```powershell
+curl -X POST https://api.sandbox.africastalking.com/version1/messaging `
+  -H "apiKey: YOUR_KEY_HERE" `
+  -H "Accept: application/json" `
+  -H "Content-Type: application/x-www-form-urlencoded" `
+  -d "username=sandbox&to=%2B254712345678&message=test"
+```
+4. If `curl` also returns 401: AT account issue — contact AT support or recreate sandbox app
+5. If `curl` returns 201: Node.js environment issue — check for whitespace/invisible chars in `.env` AT_API_KEY value
+
+**Impact: zero impact on M-Pesa payment flow.** SMS is fire-and-forget — a 401 is caught, logged, and discarded. Sales, receipts, stock deduction, and socket notifications all proceed normally.
+
+---
+
+### 11. SMS Receipts via Africa's Talking — M-Pesa Payments ✅ (2026-07-01)
+
+**Scope:** Every confirmed M-Pesa payment now triggers an automatic SMS receipt to the customer's phone. Pure backend feature — zero frontend changes.
+
+**Files changed (5):**
+
+| File | Change |
+|---|---|
+| `backend/package.json` | `africastalking` added (16 new packages) |
+| `backend/utils/smsReceipt.js` | New utility — lazy AT client init, phone normalisation, message format, fire-and-forget send |
+| `backend/routes/mpesa.js` | `require('../utils/smsReceipt')` added; fire-and-forget call after `sale.save()` in `ResultCode === 0` branch |
+| `backend/.env` | Three new AT variables appended with sandbox placeholders |
+| `backend/.env.example` | New file — all env vars documented with comments and guidance |
+
+**SMS message format (compact, always ≤160 chars):**
+
+```
+Main Store
+Receipt: RCP-789012-345
+3 items · KSh 1,850
+Mpesa: QGH9KL2M3P
+2026-07-01
+Thank you!
+```
+
+All values come from fields already present on the `sale` document at callback time — no additional DB query or populate needed: `sale.store`, `sale.receiptId`, `sale.items.length`, `sale.paymentInfo.finalTotal ?? sale.total`, `mpesaReceiptNumber` (from callback metadata), `sale.date`.
+
+**Placement in callback handler (`backend/routes/mpesa.js`):**
+
+Fire-and-forget immediately after `await sale.save()`, before the socket emits — same pattern as `WeighBarcodeLog` audit trail. The Safaricom callback `res.json(...)` is sent before the async processing block runs, so SMS delivery never touches the HTTP response latency.
+
+**Lazy initialisation — no startup failures with placeholder credentials:**
+
+The Africa's Talking SDK client is created inside `getSmsClient()` on first call to `sendSmsReceipt()`, not at module load time. At startup with `AT_API_KEY=placeholder`, the module loads cleanly. The SDK only fails when an actual `sms.send()` call is attempted — at that point the error is caught and logged. Confirmed: `node -e "require('./utils/smsReceipt')"` returns with zero errors.
+
+**Sandbox vs production toggle — env vars only, zero code changes:**
+
+| Variable | Sandbox | Production |
+|---|---|---|
+| `AT_USERNAME` | `sandbox` | your AT account username |
+| `AT_API_KEY` | sandbox key from AT dashboard | live key from AT dashboard |
+| `AT_SENDER_ID` | (blank) — AT uses `AFRICASTALKING` | your registered sender ID (e.g. `MALIPOS`) |
+
+**Phone number normalisation:** `mpesaPhone` can arrive as `07XXXXXXXX`, `2547XXXXXXXX`, or `+2547XXXXXXXX`. The `normalizePhone()` helper in `smsReceipt.js` converts all three to E.164 (`+254...`) before sending. Missing/blank phone number is handled gracefully — logs a warning and returns without sending.
+
+**To enable in sandbox:**
+1. Create free account at africastalking.com
+2. Dashboard → API Key → copy sandbox key
+3. Set `AT_API_KEY=<copied key>` in `.env` (leave `AT_USERNAME=sandbox`)
+4. Trigger a test M-Pesa payment through the sandbox STK push flow
+5. Check AT dashboard → Sandbox → SMS → Sent Messages for delivery confirmation
+
+---
+
 ### 10. Manual Entry Bar — Exact-Match Barcode Bug Fix ✅ (2026-06-30)
 
 **Severity: Data integrity. Real sales were at risk.**
