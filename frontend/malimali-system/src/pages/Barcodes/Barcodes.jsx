@@ -13,6 +13,7 @@ import ScanPanel from './ScanPanel'
 import GenerateBarcodes from './GenerateBarcodes'
 import { API_BASE_URL as API } from '@/config/api'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 export default function Barcodes() {
   const {
@@ -88,7 +89,7 @@ export default function Barcodes() {
 
   // Keep scanner focused
   useEffect(() => {
-    if (tab === 'scan' && !showCheckout && !receipt) {
+    if (tab === 'scan' && !showCheckout && !receipt && !isTouchDevice()) {
       scanInputRef.current?.focus()
     }
   }, [tab, showCheckout, receipt, cart])
@@ -419,7 +420,7 @@ export default function Barcodes() {
       {receipt && (
         <Receipt receipt={receipt} onClose={() => {
           setReceipt(null)
-          setTimeout(() => scanInputRef.current?.focus(), 100)
+          setTimeout(() => { if (!isTouchDevice()) scanInputRef.current?.focus() }, 100)
         }} />
       )}
       {showCheckout && (
@@ -429,7 +430,7 @@ export default function Barcodes() {
           onConfirm={handleCheckoutConfirm}
           onCancel={() => {
             closeCheckout()
-            setTimeout(() => scanInputRef.current?.focus(), 100)
+            setTimeout(() => { if (!isTouchDevice()) scanInputRef.current?.focus() }, 100)
           }}
         />
       )}

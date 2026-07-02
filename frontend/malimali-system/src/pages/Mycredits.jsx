@@ -23,6 +23,8 @@ function formatDate(dateStr) {
   })
 }
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 function PromiseBadge({ promiseDate, balance }) {
   if (balance === 0) return (
     <span className={`${s.promiseBadge} ${s.settled}`}>
@@ -454,7 +456,7 @@ export default function MyCredits() {
               placeholder={`Max KSh ${repaying.balance?.toLocaleString()}`}
               value={repayAmt}
               onChange={e => { setRepayAmt(e.target.value); setRepayError('') }}
-              autoFocus
+              autoFocus={!isTouchDevice()}
               className={`${s.formInput} ${repayError ? s.error : ''}`}
             />
             {repayError && <div className={s.errorMsg}>{repayError}</div>}

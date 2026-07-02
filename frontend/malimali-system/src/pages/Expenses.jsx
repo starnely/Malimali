@@ -438,6 +438,8 @@ function ExpenseRow({ exp, canDelete, showStore, confirmId, setConfirmId, handle
   )
 }
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 // ── Log Expense Modal ─────────────────────────────────────────────────
 function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
   const { stores } = useApp()
@@ -500,7 +502,7 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
               value={amount}
               onChange={e => setAmount(e.target.value)}
               placeholder='0.00'
-              autoFocus={!isOwner}
+              autoFocus={!isTouchDevice()}
             />
           </div>
 

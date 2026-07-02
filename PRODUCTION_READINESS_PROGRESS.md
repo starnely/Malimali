@@ -1090,3 +1090,95 @@ See dedicated section above. Not started. Requires full planning session before 
 - `Mycredits.module.css` — 6 CSS class definitions are duplicated (second block correctly overrides first via cascade). Clean up the dead first definitions.
 - `ProductCombobox` portal vs `containerRef` outside-click mismatch — fragile but currently works. Fix when refactoring the combobox.
 - Topbar warning + chat button sticky hover on touch — dynamic inline `background` prevents clean CSS hover replacement. Minor cosmetic issue.
+
+---
+
+## Camera Scanning Feature ✅ (2026-07-01)
+
+### Overview
+
+Full camera-based barcode scanning implemented across two surfaces. The physical scanner path (`handleScanKeyDown → processScan`) is unchanged. Camera is an additive alternative input path.
+
+**Files changed:** `Barcodes.jsx`, `ScanPanel.jsx` (new), `CameraScanner.jsx` (new), `POS.module.css`, `ProductFormPanel.jsx`
+
+### POS Terminal — camera toggle
+
+- `CameraScanner.jsx` — new full-screen overlay component using `html5-qrcode v2.3.8`
+- Ref-sync pattern (`onScanRef`, `onCloseRef` updated in depless `useEffect`) prevents stale-closure in the long-lived async scanner callback
+- `firedRef` prevents double-fire on fast reads
+- Config: `fps: 20`, `qrbox: { width: 240, height: 240 }` (square, any angle), `formatsToSupport: [EAN_13, EAN_8, UPC_A, UPC_E, CODE_128, CODE_39]`, `useBarCodeDetectorIfSupported: true`
+- `BarcodeDetector` (Android Chrome/Samsung Internet) handles multi-angle barcodes natively; ZXing JS fallback for other browsers
+- Camera button added to `ScanPanel.jsx` search header; closes and refocuses scanner input on scan (desktop only — see keyboard fix below)
+
+### Add/Edit Product — barcode scanner
+
+- `CameraScanner` reused in `ProductFormPanel.jsx` Scan Product mode
+- `onScan`: calls `setBarcode(code); handleScan(code)` — identical to physical scanner path
+
+### Stale-closure bug fix
+
+`processScan` captured `products = []` at mount because `addToCart` was missing from its `useCallback` deps. Fixed by memoizing the full chain: `findProduct → useCallback([products])` → `addToCart → useCallback([findProduct])` → `processScan → useCallback([currentUser?.token, addWeighedItem, addToCart])`.
+
+---
+
+## Keyboard Popup Fixes ✅ (2026-07-02)
+
+### Root cause
+
+Three distinct mechanisms caused the software keyboard to pop up unexpectedly on mobile (`pointer: coarse`) devices:
+
+1. **JS `.focus()` calls** with no mobile guard — called whenever state changed (cart update, modal close, tab switch)
+2. **`autoFocus` prop** on inputs inside modals that open on mobile-used screens
+3. **Browser focus restoration** — when a DOM overlay (CameraScanner) unmounts, Android Chrome scans forward in tab order to find the next focusable element. The hidden scanner input (`type="text"`, implicit `tabIndex=0`) was first in the DOM and received focus automatically, bypassing all our React guards
+
+### Fix pattern used throughout
+
+```js
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+```
+
+Added as module-level constant in each file that needs it. No import, no hook, evaluated at call-time so it always reflects the current device.
+
+### Changes applied
+
+| File | What changed | Mechanism fixed |
+|---|---|---|
+| `ScanPanel.jsx` | `autoFocus={!isTouchDevice()}` on hidden scanner input | Pattern 2 — autoFocus |
+| `ScanPanel.jsx` | `tabIndex={isTouchDevice() ? -1 : 0}` on hidden scanner input | Pattern 3 — browser focus restoration after CameraScanner unmount |
+| `ScanPanel.jsx` | Camera `onClose` setTimeout gated: `if (!isTouchDevice())` | Pattern 1 — JS focus |
+| `Barcodes.jsx` | `useEffect([tab, showCheckout, receipt, cart])` gated: `&& !isTouchDevice()` | Pattern 1 — JS focus on cart change |
+| `Barcodes.jsx` | Receipt `onClose` setTimeout gated | Pattern 1 — JS focus |
+| `Barcodes.jsx` | Checkout `onCancel` setTimeout gated | Pattern 1 — JS focus |
+| `WeighStation.jsx` | `useEffect([selectedProduct, inputMode])` wrapped in `if (!isTouchDevice())` | Pattern 1 — JS focus on product tap |
+| `WeighStation.jsx` | `clearAfterAction()` post-print focus wrapped in `if (!isTouchDevice())` | Pattern 1 — JS focus after print |
+| `Customers.jsx` | `autoFocus` → `autoFocus={!isTouchDevice()}` on payment amount input | Pattern 2 — autoFocus in mobile-used modal |
+| `Mycredits.jsx` | `autoFocus` → `autoFocus={!isTouchDevice()}` on repayment amount input | Pattern 2 — autoFocus in cashier-facing modal |
+| `Expenses.jsx` | `autoFocus={!isOwner}` → `autoFocus={!isTouchDevice()}` | Pattern 2 — wrong condition; cashiers on mobile were still getting focus |
+
+**Build:** zero errors after all changes.
+
+### Intentionally left unchanged (audit confirmed correct)
+
+| Location | Reason |
+|---|---|
+| `CheckoutModal.jsx:411, 456, 687, 764` | User deliberately opens checkout and must type; keyboard is expected |
+| `ScanPanel.jsx` `manualRef` at lines 159, 167 | User typed a code to reach these; keyboard already open |
+| `ChatModal.jsx:236` | Refocus after send keeps conversation flowing; expected chat UX |
+| `Categories.jsx:336`, `ProductFormPanel.jsx:229` | Desktop-admin paths; deliberate typing context |
+| `DailyReport.jsx:618` | Targets `<select>` — opens native picker, not text keyboard |
+
+### Medium-priority items — also fixed ✅ (2026-07-02)
+
+These were originally deferred (back-office / desktop screens) but fixed in the same session:
+
+| File | Line | What | Screen |
+|---|---|---|---|
+| `PurchaseOrders.jsx` | 1184 | `autoFocus` → `autoFocus={!isTouchDevice()}` | Record Invoice modal |
+| `PurchaseOrders.jsx` | 1370 | `autoFocus` → `autoFocus={!isTouchDevice()}` | Make Payment modal |
+| `PurchaseOrders.jsx` | 1787 | `autoFocus` → `autoFocus={!isTouchDevice()}` | Send Email PO modal |
+| `PettyCash.jsx` | 515 | `autoFocus` → `autoFocus={!isTouchDevice()}` | Open Petty Cash modal |
+| `PettyCash.jsx` | 585 | `autoFocus` → `autoFocus={!isTouchDevice()}` | Cash in/out modal |
+
+`isTouchDevice` helper added at module level in both files. Build: zero errors, 3.71s.
+
+**Keyboard popup audit — fully resolved.** Every `autoFocus` and `.focus()` call across the entire frontend is now either gated by `!isTouchDevice()` or confirmed intentional (see "Intentionally left unchanged" table above).

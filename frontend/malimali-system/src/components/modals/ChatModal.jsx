@@ -1,7 +1,7 @@
 ﻿import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import {
   MdChat, MdClose, MdSend, MdCampaign,
-  MdDoneAll, MdDone, MdSearch
+  MdDoneAll, MdDone, MdSearch, MdArrowBack,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useSocket } from '@/context/SocketContext'
@@ -315,6 +315,8 @@ export default function ChatModal({ onClose }) {
     return groups
   }
 
+  const goBack = () => { setActiveContact(null); setBroadcastMode(false) }
+
   const contacts = isOwner ? getOwnerContacts() : []
 
   // ── Render messages ────────────────────────────────────────────────
@@ -433,7 +435,7 @@ export default function ChatModal({ onClose }) {
           </button>
         </div>
 
-        <div className={styles.body}>
+        <div className={`${styles.body} ${(activeContact || broadcastMode) ? styles.bodyShowThread : ''}`}>
 
           {/* ── LEFT sidebar ────────────────────────────────────── */}
           <div className={styles.sidebar}>
@@ -582,10 +584,14 @@ export default function ChatModal({ onClose }) {
           </div>
 
           {/* ── RIGHT panel ─────────────────────────────────────── */}
+          <div className={styles.rightPane}>
           {broadcastMode ? (
 
             <div className={styles.broadcastPane}>
               <div className={styles.broadcastHeader}>
+                <button className={styles.backBtn} onClick={goBack} aria-label="Back to contacts">
+                  <MdArrowBack />
+                </button>
                 <div className={styles.broadcastHeaderIcon}><MdCampaign /></div>
                 <div>
                   <div className={styles.threadName}>
@@ -655,6 +661,9 @@ export default function ChatModal({ onClose }) {
             <div className={styles.thread}>
               <div className={styles.threadHeader}>
                 <div className={styles.threadHeaderLeft}>
+                  <button className={styles.backBtn} onClick={goBack} aria-label="Back to contacts">
+                    <MdArrowBack />
+                  </button>
                   <div className={`${styles.avatar} ${getAvatarClass(activeContact.role)}`}>
                     {getInitials(activeContact.name)}
                     <div className={styles.onlineDot} />
@@ -713,6 +722,7 @@ export default function ChatModal({ onClose }) {
               </p>
             </div>
           )}
+          </div>{/* end .rightPane */}
         </div>
       </div>
     </>

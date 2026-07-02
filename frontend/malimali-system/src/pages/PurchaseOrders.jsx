@@ -15,6 +15,8 @@ import styles from '@/styles/PurchaseOrders.module.css'
 import { API_BASE_URL } from '@/config/api'
 import { fmtQty } from '@/utils/utils'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const STATUS_LABELS = {
   draft: { label: 'Draft', icon: '📝' },
   sent: { label: 'Sent', icon: '📤' },
@@ -1181,7 +1183,7 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
           <div className={styles.formGroup}><label>Invoice Number (from supplier's document)</label><input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. INV-2026-089" /></div>
           <div className={styles.formGroup}>
             <label>Invoice Amount (KSh) *</label>
-            <input type='number' min={0} value={invoiceAmount} onChange={e => setInvoiceAmount(e.target.value)} placeholder="0.00" autoFocus />
+            <input type='number' min={0} value={invoiceAmount} onChange={e => setInvoiceAmount(e.target.value)} placeholder="0.00" autoFocus={!isTouchDevice()} />
             {po.totalOrderedCost > 0 && (
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4 }}>PO value was KSh {po.totalOrderedCost.toLocaleString()} — adjust if supplier charged differently</div>
             )}
@@ -1367,7 +1369,7 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
           </div>
           <div className={styles.formGroup}>
             <label>Amount (KSh) *</label>
-            <input type='number' min={0} max={balance} value={amount} onChange={e => setAmount(e.target.value)} placeholder={`Max: KSh ${balance.toLocaleString()}`} autoFocus />
+            <input type='number' min={0} max={balance} value={amount} onChange={e => setAmount(e.target.value)} placeholder={`Max: KSh ${balance.toLocaleString()}`} autoFocus={!isTouchDevice()} />
             <div style={{ display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' }}>
               {[balance, Math.round(balance / 2)].filter(v => v > 0).map((v, idx) => (
                 <button key={idx} onClick={() => setAmount(String(v))} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, border: '1px solid var(--border-medium)', borderRadius: 20, background: 'var(--bg-muted)', cursor: 'pointer', color: 'var(--text-secondary)', fontFamily: 'inherit' }}>
@@ -1784,7 +1786,7 @@ function EmailPOModal({ po, currentUser, onClose, onSent }) {
             {po.supplierPhone && <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>📞 {po.supplierPhone}</span>}
             {!supplierEmail && <div style={{ marginTop: 6, color: 'var(--warning-dark)', fontWeight: 600, fontSize: 12 }}>⚠️ No email saved for this supplier.</div>}
           </div>
-          <div className={styles.formGroup}><label>Recipient Email *</label><input value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="supplier@company.com" autoFocus /></div>
+          <div className={styles.formGroup}><label>Recipient Email *</label><input value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="supplier@company.com" autoFocus={!isTouchDevice()} /></div>
           <div className={styles.formGroup}><label>Subject</label><input value={subject} onChange={e => setSubject(e.target.value)} /></div>
           <div className={styles.formGroup}><label>Additional Message (optional)</label><textarea value={message} onChange={e => setMessage(e.target.value)} placeholder="Specific instructions, urgency notes..." /></div>
           <div style={{ background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)', padding: '12px 14px', fontSize: 12, color: 'var(--text-secondary)', border: '1px solid var(--border-soft)' }}>

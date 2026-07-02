@@ -16,6 +16,8 @@ function formatWeight(grams) {
   return `${grams} g`
 }
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 // ── Canvas built at 2x resolution (1200x680) for sharp print quality ──
 // All coordinates/fonts are the original 600x340 layout scaled by SCALE.
 function buildLabelCanvas({ productName, weightGrams, pricePerKg, totalPrice, barcode, store, currency = 'KSh', expiryDate, pluNumber }) {
@@ -190,10 +192,12 @@ export default function WeighStation() {
 
   useEffect(() => {
     if (!selectedProduct) return
-    setTimeout(() => {
-      if (inputMode === 'amount') amountInputRef.current?.focus()
-      else weightInputRef.current?.focus()
-    }, 100)
+    if (!isTouchDevice()) {
+      setTimeout(() => {
+        if (inputMode === 'amount') amountInputRef.current?.focus()
+        else weightInputRef.current?.focus()
+      }, 100)
+    }
   }, [selectedProduct, inputMode])
 
   const filtered = products.filter(p =>
@@ -254,10 +258,12 @@ export default function WeighStation() {
       setAmountInput('')
       setError('')
       setCopies(1)
-      setTimeout(() => {
-        if (inputMode === 'amount') amountInputRef.current?.focus()
-        else weightInputRef.current?.focus()
-      }, 50)
+      if (!isTouchDevice()) {
+        setTimeout(() => {
+          if (inputMode === 'amount') amountInputRef.current?.focus()
+          else weightInputRef.current?.focus()
+        }, 50)
+      }
     }, 2000)
   }
 

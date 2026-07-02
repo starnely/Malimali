@@ -36,6 +36,8 @@ const CASHOUT_CATEGORIES = [
   { value: 'other',       label: 'Other',       emoji: '📎' },
 ]
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function PettyCash() {
   const {
     fetchPettyCashToday, fetchPettyCashHistory,
@@ -512,7 +514,7 @@ function OpenModal({ store, onClose, onDone, openPettyCash }) {
         <div style={S.mBody}>
           <div style={{ marginBottom: 14 }}>
             <label style={S.label}>Opening Float (KSh)</label>
-            <input style={S.input} type='number' min={0} value={float} onChange={e => setFloat(e.target.value)} placeholder='0.00' autoFocus />
+            <input style={S.input} type='number' min={0} value={float} onChange={e => setFloat(e.target.value)} placeholder='0.00' autoFocus={!isTouchDevice()} />
           </div>
           <div>
             <label style={S.label}>Notes (optional)</label>
@@ -582,7 +584,7 @@ function TxModal({ store, txType, balance, onClose, onDone, addPettyCashTransact
           )}
           <div style={{ marginBottom: 14 }}>
             <label style={S.label}>Amount (KSh)</label>
-            <input style={S.input} type='number' min={0} value={amount} onChange={e => setAmount(e.target.value)} placeholder='0.00' autoFocus />
+            <input style={S.input} type='number' min={0} value={amount} onChange={e => setAmount(e.target.value)} placeholder='0.00' autoFocus={!isTouchDevice()} />
           </div>
           <div>
             <label style={S.label}>Description</label>

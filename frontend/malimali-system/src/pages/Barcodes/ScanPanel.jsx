@@ -11,6 +11,8 @@ import { fmtQty } from '@/utils/utils'
 import { API_BASE_URL } from '@/config/api'
 import CameraScanner from './CameraScanner'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function ScanPanel({
   cart = [], cartTotal = 0, cartCount = 0,
   scanError, lastScanned,
@@ -186,7 +188,8 @@ export default function ScanPanel({
         value={scanInput}
         onChange={e => setScanInput(e.target.value)}
         onKeyDown={handleScanKeyDown}
-        autoFocus
+        autoFocus={!isTouchDevice()}
+        tabIndex={isTouchDevice() ? -1 : 0}
         autoComplete="off"
         className={p.hiddenScanInput}
         aria-label="Barcode scanner input"
@@ -198,7 +201,7 @@ export default function ScanPanel({
           onScan={processScan}
           onClose={() => {
             setCameraOpen(false)
-            setTimeout(() => scanInputRef.current?.focus(), 100)
+            setTimeout(() => { if (!isTouchDevice()) scanInputRef.current?.focus() }, 100)
           }}
         />
       )}

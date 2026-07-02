@@ -34,6 +34,8 @@ function timeAgo(dateStr) {
   return `${Math.floor(days / 30)}mo ago`
 }
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 // ── Promise pill ──────────────────────────────────────────────────────
 function PromisePill({ dateStr, size = 'sm' }) {
   const days = daysUntil(dateStr)
@@ -94,7 +96,7 @@ function RepaymentModal({ customer, onClose, onSubmit, loading }) {
             <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Amount (KSh) *</label>
             <input type="number" min="1" max={customer.balance}
               placeholder={`Max KSh ${customer.balance?.toLocaleString()}`}
-              value={amount} onChange={e => { setAmount(e.target.value); setError('') }} autoFocus
+              value={amount} onChange={e => { setAmount(e.target.value); setError('') }} autoFocus={!isTouchDevice()}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `1.5px solid ${error ? 'var(--danger)' : 'var(--border-medium)'}`, background: 'var(--bg-muted)', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
               onFocus={e => e.target.style.borderColor = 'var(--primary)'}
               onBlur={e => e.target.style.borderColor = error ? 'var(--danger)' : 'var(--border-medium)'}
