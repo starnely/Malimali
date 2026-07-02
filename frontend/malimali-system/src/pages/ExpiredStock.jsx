@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useMemo, useCallback } from 'react'
 import { MdWarning, MdDelete, MdStorefront, MdRefresh, MdTrendingDown, MdClose } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/ExpiredStock.module.css'
 
@@ -13,7 +14,8 @@ export default function ExpiredStock() {
   const [totalLoss, setTotalLoss] = useState(0)
   const [loading, setLoading] = useState(true)
   const [storeFilter, setStoreFilter] = useState('All')
-  const [moveModal, setMoveModal] = useState(null)
+  const [showMove, openMove, closeMove] = useHistoryModal('expired-move')
+  const [moveProd, setMoveProd] = useState(null)
   const [moveQty, setMoveQty] = useState('')
   const [moveNotes, setMoveNotes] = useState('')
   const [moving, setMoving] = useState(false)
@@ -58,15 +60,17 @@ export default function ExpiredStock() {
     }).sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate))
   }, [products, storeFilter])
 
+  useEffect(() => { if (!showMove) { setMoveProd(null); setMoveQty(''); setMoveNotes('') } }, [showMove])
+
   const handleMoveToExpired = async () => {
-    if (!moveModal) return
-    const qty = Number(moveQty) || moveModal.stock
-    if (qty <= 0 || qty > moveModal.stock) {
+    if (!moveProd) return
+    const qty = Number(moveQty) || moveProd.stock
+    if (qty <= 0 || qty > moveProd.stock) {
       setMessage({ type: 'error', text: 'Invalid quantity' }); return
     }
     try {
       setMoving(true)
-      const res = await fetch(`${API_BASE_URL}/api/expired/move/${moveModal._id}`, {
+      const res = await fetch(`${API_BASE_URL}/api/expired/move/${moveProd._id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
         body: JSON.stringify({ quantity: qty, notes: moveNotes }),
@@ -74,7 +78,7 @@ export default function ExpiredStock() {
       const data = await res.json()
       if (data.success) {
         setMessage({ type: 'success', text: `Moved ${qty} units. Loss: KSh ${data.totalLoss.toLocaleString()}` })
-        setMoveModal(null); setMoveQty(''); setMoveNotes('')
+        closeMove(); setMoveQty(''); setMoveNotes('')
         fetchExpired(); fetchProducts()
       } else {
         setMessage({ type: 'error', text: data.message || 'Failed to move product' })
@@ -215,7 +219,7 @@ export default function ExpiredStock() {
                     </div>
                     {(isOwner || isManager) && (
                       <button
-                        onClick={() => { setMoveModal(p); setMoveQty(String(p.stock)) }}
+                        onClick={() => { setMoveProd(p); setMoveQty(String(p.stock)); openMove() }}
                         className={`px-2.5 py-1 text-xs font-bold text-white rounded-lg transition ${styles.moveBtn}`}
                       >
                         Move
@@ -358,7 +362,7 @@ export default function ExpiredStock() {
       </div>
 
       {/* ── Move to Expired Modal ───────────────────────── */}
-      {moveModal && (
+      {showMove && moveProd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
           style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
@@ -371,11 +375,11 @@ export default function ExpiredStock() {
               <div>
                 <h2 className="text-white font-bold text-sm">Move to Expired Stock</h2>
                 <p className="text-xs mt-0.5" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                  {moveModal.name} · {moveModal.store}
+                  {moveProd.name} · {moveProd.store}
                 </p>
               </div>
               <button
-                onClick={() => { setMoveModal(null); setMoveQty(''); setMoveNotes('') }}
+                onClick={closeMove}
                 className="w-7 h-7 flex items-center justify-center rounded-lg transition"
                 style={{ color: 'rgba(255,255,255,0.6)' }}
                 onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.15)' }}
@@ -388,9 +392,9 @@ export default function ExpiredStock() {
             <div className="p-5 space-y-4">
               <div className="p-3 rounded-lg space-y-1.5" style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)' }}>
                 {[
-                  { label: 'Current Stock', value: `${moveModal.stock} ${moveModal.unit || 'pcs'}` },
-                  { label: 'Buy Price', value: `KSh ${(moveModal.buyPrice || 0).toLocaleString()}` },
-                  { label: 'Expiry Date', value: formatDate(moveModal.expiryDate) },
+                  { label: 'Current Stock', value: `${moveProd.stock} ${moveProd.unit || 'pcs'}` },
+                  { label: 'Buy Price', value: `KSh ${(moveProd.buyPrice || 0).toLocaleString()}` },
+                  { label: 'Expiry Date', value: formatDate(moveProd.expiryDate) },
                 ].map(row => (
                   <div key={row.label} className="flex justify-between text-sm">
                     <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
@@ -401,14 +405,14 @@ export default function ExpiredStock() {
 
               <div>
                 <label className="text-xs font-bold uppercase tracking-wider block mb-1.5" style={{ color: 'var(--text-muted)' }}>
-                  Quantity to Move ({moveModal.unit || 'pcs'})
+                  Quantity to Move ({moveProd.unit || 'pcs'})
                 </label>
                 <input
                   type="number"
                   value={moveQty}
                   onChange={e => setMoveQty(e.target.value)}
                   min="1"
-                  max={moveModal.stock}
+                  max={moveProd.stock}
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none transition-all"
                   style={{ border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', color: 'var(--text-primary)' }}
                   onFocus={e => { e.target.style.borderColor = 'var(--danger)'; e.target.style.boxShadow = '0 0 0 3px var(--danger-light)' }}
@@ -416,7 +420,7 @@ export default function ExpiredStock() {
                 />
                 {moveQty && Number(moveQty) > 0 && (
                   <div className="text-xs font-bold mt-1" style={{ color: 'var(--danger)' }}>
-                    Estimated Loss: KSh {(Number(moveQty) * (moveModal.buyPrice || 0)).toLocaleString()}
+                    Estimated Loss: KSh {(Number(moveQty) * (moveProd.buyPrice || 0)).toLocaleString()}
                   </div>
                 )}
               </div>
@@ -439,7 +443,7 @@ export default function ExpiredStock() {
 
               <div className="flex gap-2.5 pt-2">
                 <button
-                  onClick={() => { setMoveModal(null); setMoveQty(''); setMoveNotes('') }}
+                  onClick={closeMove}
                   className="flex-1 py-2.5 rounded-lg text-sm font-semibold transition"
                   style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
                 >

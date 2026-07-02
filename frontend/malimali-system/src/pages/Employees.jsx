@@ -5,6 +5,7 @@ import {
   MdVisibility, MdVisibilityOff, MdRefresh, MdClose, MdPeople
 } from 'react-icons/md'
 import FormInputDropdown from './Products/FormInputDropdown'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/Employees.module.css'
 
 const initialForm = {
@@ -17,13 +18,14 @@ export default function Employees() {
 
   const [form,          setForm]          = useState(initialForm)
   const [editUser,      setEditUser]      = useState(null)
-  const [showModal,     setShowModal]     = useState(false)
+  const [showModal, openModal, closeModal] = useHistoryModal('employee-form')
   const [showPassword,  setShowPassword]  = useState(false)
   const [searchTerm,    setSearchTerm]    = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [formErrors,    setFormErrors]    = useState({})
 
   useEffect(() => { fetchStores() }, [fetchStores])
+  useEffect(() => { if (!showModal) { setEditUser(null); setForm(initialForm); setFormErrors({}) } }, [showModal])
 
   const validate = () => {
     const e = {}
@@ -38,7 +40,7 @@ export default function Employees() {
     if (!validate()) return
     if (editUser) { updateUser(editUser._id, form) } else { addUser(form) }
     setForm(initialForm); setEditUser(null)
-    setShowModal(false); setShowPassword(false); setFormErrors({})
+    closeModal(); setShowPassword(false); setFormErrors({})
   }
 
   const generatePassword = () => {
@@ -50,7 +52,7 @@ export default function Employees() {
   }
 
   const openAdd = () => {
-    setEditUser(null); setForm(initialForm); setFormErrors({}); setShowModal(true)
+    setEditUser(null); setForm(initialForm); setFormErrors({}); openModal()
   }
 
   const openEdit = (user) => {
@@ -63,7 +65,7 @@ export default function Employees() {
       role:     user.role     || 'cashier',
       store:    user.store    || '',
     })
-    setFormErrors({}); setShowModal(true)
+    setFormErrors({}); openModal()
   }
 
   const staff         = users.filter(u => u.role === 'manager' || u.role === 'cashier')
@@ -202,7 +204,7 @@ export default function Employees() {
           <div className="w-full max-w-lg rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)' }}>
             <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'var(--sidebar-bg)' }}>
               <span className="text-white text-sm font-bold">{editUser ? 'Edit Staff Account' : 'Create Staff Account'}</span>
-              <button onClick={() => setShowModal(false)} className="w-7 h-7 flex items-center justify-center rounded-lg"
+              <button onClick={closeModal} className="w-7 h-7 flex items-center justify-center rounded-lg"
                 style={{ color: 'rgba(255,255,255,0.6)', background: 'none', border: 'none', cursor: 'pointer' }}>
                 <MdClose size={18} />
               </button>
@@ -265,7 +267,7 @@ export default function Employees() {
               </div>
 
               <div className="flex gap-3 pt-4" style={{ borderTop: '1px solid var(--border-soft)' }}>
-                <button onClick={() => setShowModal(false)}
+                <button onClick={closeModal}
                   className="flex-1 py-2.5 rounded-lg text-sm font-semibold"
                   style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)', background: 'var(--bg-card)', cursor: 'pointer' }}>
                   Cancel

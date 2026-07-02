@@ -5,6 +5,7 @@ import VoidModal from '@/components/modals/VoidModal'
 import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
 import { useSocket } from '@/context/SocketContext'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 
 import SalesFilters from './SalesFilters'
 import SalesStats from './SalesStats'
@@ -25,10 +26,15 @@ export default function SalesHistory() {
   const [storeFilter, setStoreFilter] = useState('All')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [returnModal, setReturnModal] = useState(null)
-  const [voidModal, setVoidModal] = useState(null)
+  const [showReturn, openReturn, closeReturn] = useHistoryModal('return')
+  const [returnSale, setReturnSale] = useState(null)
+  const [showVoid, openVoid, closeVoid] = useHistoryModal('void-sale')
+  const [voidSaleData, setVoidSaleData] = useState(null)
   const [returnSuccess, setReturnSuccess] = useState('')
   const [voidSuccess, setVoidSuccess] = useState('')
+
+  useEffect(() => { if (!showReturn) setReturnSale(null) }, [showReturn])
+  useEffect(() => { if (!showVoid) setVoidSaleData(null) }, [showVoid])
   const [expandedEmployee, setExpandedEmployee] = useState(null)
   const [employeeDateFilter, setEmployeeDateFilter] = useState({})
 
@@ -117,11 +123,11 @@ export default function SalesHistory() {
         })
         const data = await res.json()
         if (data.success) {
-          setVoidModal(null)
+          closeVoid()
           setVoidSuccess(
             data.isPartialVoid
-              ? `${data.message} Receipt #${voidModal?.receiptId || ''}`
-              : `Sale #${voidModal?.receiptId || ''} fully voided.`
+              ? `${data.message} Receipt #${voidSaleData?.receiptId || ''}`
+              : `Sale #${voidSaleData?.receiptId || ''} fully voided.`
           )
           fetchSales()
           setTimeout(() => setVoidSuccess(''), 6000)
@@ -135,8 +141,8 @@ export default function SalesHistory() {
       // Whole-sale void — existing voidSale from AppContext
       const result = await voidSale(saleId, managerUsername, managerPassword, reason)
       if (result.success) {
-        setVoidModal(null)
-        setVoidSuccess(`Sale #${voidModal?.receiptId || ''} voided successfully.`)
+        closeVoid()
+        setVoidSuccess(`Sale #${voidSaleData?.receiptId || ''} voided successfully.`)
         fetchSales()
         setTimeout(() => setVoidSuccess(''), 6000)
       }
@@ -203,8 +209,8 @@ export default function SalesHistory() {
             employeeDateFilter={employeeDateFilter}
             setEmployeeDateFilter={setEmployeeDateFilter}
             isOwner={isOwner}
-            setReturnModal={setReturnModal}
-            setVoidModal={setVoidModal}
+            setReturnModal={(sale) => { setReturnSale(sale); openReturn() }}
+            setVoidModal={(sale) => { setVoidSaleData(sale); openVoid() }}
             category={category}
           />
         ) : (
@@ -212,18 +218,18 @@ export default function SalesHistory() {
             sortedDates={sortedDates}
             groupedByDate={groupedByDate}
             isOwner={isOwner}
-            setReturnModal={setReturnModal}
-            setVoidModal={setVoidModal}
+            setReturnModal={(sale) => { setReturnSale(sale); openReturn() }}
+            setVoidModal={(sale) => { setVoidSaleData(sale); openVoid() }}
             category={category}
           />
         )}
       </div>
 
       {/* ── Return modal ────────────────────────────────── */}
-      {returnModal && (
+      {showReturn && (
         <ReturnModal
-          sale={returnModal}
-          onClose={() => setReturnModal(null)}
+          sale={returnSale}
+          onClose={closeReturn}
           onSuccess={(msg) => {
             setReturnSuccess(msg)
             fetchSales()
@@ -234,10 +240,10 @@ export default function SalesHistory() {
       )}
 
       {/* ── Void modal ──────────────────────────────────── */}
-      {voidModal && (
+      {showVoid && (
         <VoidModal
-          sale={voidModal}
-          onClose={() => setVoidModal(null)}
+          sale={voidSaleData}
+          onClose={closeVoid}
           onVoid={handleVoidSubmit}
         />
       )}

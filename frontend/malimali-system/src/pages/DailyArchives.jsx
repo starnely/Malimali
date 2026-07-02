@@ -1,6 +1,7 @@
-import { useState, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { MdArchive, MdStorefront } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import ArchiveCard from '@/components/cards/ArchiveCard'
 import DebtorPanel from '@/components/panels/DebtorPanel'
 import { buildLiveSummary } from '@/utils/utils'
@@ -11,7 +12,10 @@ export default function DailyArchives() {
   const [selectedStore, setSelectedStore] = useState(isOwner ? 'All' : currentUser?.store)
   const [expanded,      setExpanded]      = useState(null)
   const [search,        setSearch]        = useState('')
-  const [debtorPanel,   setDebtorPanel]   = useState(null)
+  const [showDebtorPanel, openDebtorPanel, closeDebtorPanel] = useHistoryModal('debtor-panel')
+  const [debtorDate, setDebtorDate] = useState(null)
+
+  useEffect(() => { if (!showDebtorPanel) setDebtorDate(null) }, [showDebtorPanel])
 
   const todayStr = today?.slice(0, 10)
 
@@ -40,8 +44,8 @@ export default function DailyArchives() {
 
   return (
     <div className="flex flex-col min-h-full md:h-full md:overflow-hidden" style={{ background: 'var(--bg-page)' }}>
-      {debtorPanel && (
-        <DebtorPanel date={debtorPanel} onClose={() => setDebtorPanel(null)} />
+      {showDebtorPanel && (
+        <DebtorPanel date={debtorDate} onClose={closeDebtorPanel} />
       )}
 
       {/* ── Fixed header ───────────────────────────────── */}
@@ -142,7 +146,7 @@ export default function DailyArchives() {
               archive={archive}
               isExpanded={expanded === archive.date}
               onToggle={() => setExpanded(prev => prev === archive.date ? null : archive.date)}
-              onViewDebtors={() => setDebtorPanel(archive.date)}
+              onViewDebtors={() => { setDebtorDate(archive.date); openDebtorPanel() }}
             />
           ))
         )}

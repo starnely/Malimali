@@ -6,10 +6,9 @@ import {
   MdArrowUpward, MdArrowDownward,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { fmtQty } from '@/utils/utils'
 import EmployeeSalesModal from '@/components/modals/EmployeeSalesModal'
-import DailySummaryModal from '@/components/modals/DailySummaryModal'
 import styles from '@/styles/Dashboard.module.css'
 import Button from '@/components/shared/Button'
 import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
@@ -129,8 +128,8 @@ export default function Dashboard() {
   }, [socket, syncAllData, fetchArchives, fetchProducts, currentUser])
 
   const navigate = useNavigate()
+  const location = useLocation()
   const [selectedEmployee, setSelectedEmployee] = useState(null)
-  const [showDailySummary, setShowDailySummary] = useState(false)
 
   const today = new Date().toLocaleDateString('en-CA')
   const safeProducts = useMemo(() => products ?? [], [products])
@@ -222,7 +221,7 @@ export default function Dashboard() {
             {currentUser?.fullname || currentUser?.username} · {currentUser?.store || 'Headquarters'}
           </div>
         </div>
-        <Button onClick={() => setShowDailySummary(true)} variant="primary">
+        <Button onClick={() => navigate(location.pathname + location.search, { state: { ...location.state, modal: 'daily-summary' } })} variant="primary">
           <MdBarChart style={{ fontSize: 18 }} /> Daily Summary
         </Button>
       </div>
@@ -336,7 +335,6 @@ export default function Dashboard() {
       </div>
 
       {selectedEmployee && <EmployeeSalesModal employee={selectedEmployee} sales={allSales} products={safeProducts} date={today} onClose={() => setSelectedEmployee(null)} />}
-      {showDailySummary && <DailySummaryModal onClose={() => setShowDailySummary(false)} />}
     </div>
   )
 }

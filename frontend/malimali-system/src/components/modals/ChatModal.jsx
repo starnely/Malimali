@@ -1,4 +1,5 @@
 ﻿import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   MdChat, MdClose, MdSend, MdCampaign,
   MdDoneAll, MdDone, MdSearch, MdArrowBack,
@@ -18,6 +19,8 @@ export default function ChatModal({ onClose }) {
   } = useApp()
 
   const socket = useSocket()
+  const navigate = useNavigate()
+  const location = useLocation()
 
   const [activeContact,    setActiveContact]    = useState(null)
   const [broadcastMode,    setBroadcastMode]    = useState(false)
@@ -39,6 +42,30 @@ export default function ChatModal({ onClose }) {
 
   useEffect(() => { activeContactRef.current = activeContact }, [activeContact])
   useEffect(() => { broadcastModeRef.current = broadcastMode }, [broadcastMode])
+
+  // ── Push/replace a chatThread history entry for mobile drill-down ──
+  const selectThread = (threadKey) => {
+    if (location.state?.chatThread) {
+      navigate(location.pathname + location.search, {
+        state: { ...location.state, chatThread: threadKey },
+        replace: true,
+      })
+    } else {
+      navigate(location.pathname + location.search, {
+        state: { ...location.state, chatThread: threadKey },
+      })
+    }
+  }
+
+  // ── Sync UI when hardware back pops the chatThread history entry ───
+  const chatThreadKey = location.state?.chatThread
+  useEffect(() => {
+    if (!chatThreadKey) {
+      setActiveContact(null)
+      setBroadcastMode(false)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatThreadKey])
 
   const myId = String(currentUser?._id || currentUser?.id || '')
 
@@ -315,7 +342,7 @@ export default function ChatModal({ onClose }) {
     return groups
   }
 
-  const goBack = () => { setActiveContact(null); setBroadcastMode(false) }
+  const goBack = () => navigate(-1)
 
   const contacts = isOwner ? getOwnerContacts() : []
 
@@ -468,6 +495,7 @@ export default function ChatModal({ onClose }) {
                   onClick={() => {
                     setBroadcastMode(true)
                     setTimeout(() => setActiveContact(null), 0)
+                    selectThread('broadcast')
                   }}
                 >
                   <div className={`${styles.avatar} ${styles.avatarBroadcast}`}>
@@ -493,6 +521,7 @@ export default function ChatModal({ onClose }) {
                   onClick={() => {
                     setBroadcastMode(false)
                     setTimeout(() => setActiveContact(contact), 0)
+                    selectThread(contact.id)
                   }}
                 >
                   <div className={`${styles.avatar} ${getAvatarClass(contact.role)}`}>
@@ -528,6 +557,7 @@ export default function ChatModal({ onClose }) {
                     setBroadcastMode(false)
                     if (staffOwnerContact) {
                       setTimeout(() => setActiveContact(staffOwnerContact), 0)
+                      selectThread(staffOwnerContact.id)
                     }
                   }}
                 >
@@ -567,6 +597,7 @@ export default function ChatModal({ onClose }) {
                   onClick={() => {
                     setBroadcastMode(true)
                     setTimeout(() => setActiveContact(null), 0)
+                    selectThread('broadcast')
                   }}
                 >
                   <div className={`${styles.avatar} ${styles.avatarBroadcast}`}>

@@ -156,7 +156,7 @@ export default function TopBar() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
-  const [showDailySummary, setShowDailySummary] = useState(false)
+  const [showDailySummary, openDailySummary, closeDailySummary] = useHistoryModal('daily-summary')
   const [showChat, openChat, closeChat] = useHistoryModal('chat', 'chatModal')
 
   const alreadyClosed = hasClosedShiftToday?.() || false
@@ -285,7 +285,7 @@ export default function TopBar() {
       )}
 
       {showChat && <ChatModal onClose={() => closeChat()} />}
-      {showDailySummary && <DailySummaryModal onClose={() => setShowDailySummary(false)} />}
+      {showDailySummary && <DailySummaryModal onClose={closeDailySummary} />}
 
       {/* Toasts */}
       {toasts.length > 0 && (
@@ -395,7 +395,7 @@ export default function TopBar() {
           {/* Close Shift — cashier/employee only */}
           {currentUser?.role !== 'owner' && !isOwner && (
             <button
-              onClick={() => !alreadyClosed && setShowDailySummary(true)}
+              onClick={() => !alreadyClosed && openDailySummary()}
               disabled={alreadyClosed}
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
               style={alreadyClosed

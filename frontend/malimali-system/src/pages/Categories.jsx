@@ -4,6 +4,7 @@ import {
   MdStorefront, MdPublic, MdInventory2,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/Categories.module.css'
 
@@ -15,7 +16,7 @@ export default function Categories() {
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
   const [storeFilter, setStoreFilter] = useState('all') // 'all' | 'global' | store name
-  const [showModal, setShowModal] = useState(false)
+  const [showModal, openModal, closeModal] = useHistoryModal('category-form')
   const [editingCat, setEditingCat] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -49,6 +50,9 @@ export default function Categories() {
   }, [token, storeFilter])
 
   useEffect(() => { load() }, [load])
+  useEffect(() => {
+    if (!showModal) { setEditingCat(null); setName(''); setCatStore(''); setDescription(''); setError('') }
+  }, [showModal])
 
   const openAdd = () => {
     setEditingCat(null)
@@ -56,7 +60,7 @@ export default function Categories() {
     setCatStore(storeFilter === 'all' || storeFilter === 'global' ? '' : storeFilter)
     setDescription('')
     setError('')
-    setShowModal(true)
+    openModal()
   }
 
   const openEdit = (cat) => {
@@ -65,7 +69,7 @@ export default function Categories() {
     setCatStore(cat.store || '')
     setDescription(cat.description || '')
     setError('')
-    setShowModal(true)
+    openModal()
   }
 
   const handleSave = async () => {
@@ -83,7 +87,7 @@ export default function Categories() {
       })
       const data = await res.json()
       if (!res.ok || !data.success) { setError(data.message || 'Failed to save'); return }
-      setShowModal(false)
+      closeModal()
       showToast(editingCat ? 'Category updated' : 'Category created')
       load()
     } catch { setError('Network error') }
@@ -318,7 +322,7 @@ export default function Categories() {
               <span style={{ color: '#fff', fontSize: 14, fontWeight: 800 }}>
                 {editingCat ? 'Edit Category' : 'Add New Category'}
               </span>
-              <button onClick={() => setShowModal(false)}
+              <button onClick={closeModal}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', fontSize: 22, display: 'flex', alignItems: 'center', padding: 0 }}>
                 <MdClose />
               </button>
@@ -389,7 +393,7 @@ export default function Categories() {
               )}
 
               <div style={{ display: 'flex', gap: 10 }}>
-                <button onClick={() => setShowModal(false)}
+                <button onClick={closeModal}
                   style={{ flex: 1, padding: '10px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>
                   Cancel
                 </button>

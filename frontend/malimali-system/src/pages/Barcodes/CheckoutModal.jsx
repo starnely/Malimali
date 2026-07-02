@@ -23,6 +23,7 @@ function getTomorrowDate() {
 const CODE_RX = /^[A-Za-z0-9]+$/
 const isValidCardCode = (c) => c.length >= 6 && CODE_RX.test(c)
 const isValidBankRef  = (r) => r.length >= 8 && CODE_RX.test(r)
+const isTouchDevice   = () => window.matchMedia('(pointer: coarse)').matches
 
 
 export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) {
@@ -497,7 +498,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                 <input
                   type="number" min="0" placeholder="Enter amount"
                   value={cashGiven} onChange={e => setCashGiven(e.target.value)}
-                  autoFocus
+                  autoFocus={!isTouchDevice()}
                   className={`${s.formInputLarge} ${cashGivenNum >= finalTotal && cashGiven ? s.formInputSuccess : ''}`}
                 />
               </div>
@@ -542,7 +543,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                       placeholder="e.g. 0712345678"
                       value={mpesaPhone}
                       onChange={e => setMpesaPhone(e.target.value)}
-                      autoFocus
+                      autoFocus={!isTouchDevice()}
                       className={`${s.formInput} ${
                         mpesaPhone && !isValidKenyanPhone(mpesaPhone) ? s.formInputError :
                         mpesaPhone &&  isValidKenyanPhone(mpesaPhone) ? s.formInputSuccess : ''
@@ -813,7 +814,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                     placeholder="e.g. 123456"
                     value={cardApprovalCode}
                     onChange={e => setCardApprovalCode(e.target.value)}
-                    autoFocus
+                    autoFocus={!isTouchDevice()}
                     className={`${s.formInput} ${
                       !cardApprovalCode.trim() ? '' :
                       !isValidCardCode(cardApprovalCode.trim()) ? s.formInputError : s.formInputSuccess
@@ -890,7 +891,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                     placeholder="e.g. FTGN24060100001"
                     value={bankReference}
                     onChange={e => setBankReference(e.target.value)}
-                    autoFocus
+                    autoFocus={!isTouchDevice()}
                     className={`${s.formInput} ${
                       !bankReference.trim() ? '' :
                       !isValidBankRef(bankReference.trim()) ? s.formInputError : s.formInputSuccess

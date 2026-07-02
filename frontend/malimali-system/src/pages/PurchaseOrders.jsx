@@ -56,15 +56,28 @@ export default function PurchaseOrders() {
   const [currentPage, setCurrentPage] = useState(1)
   const [showCreate, openCreatePO, closeCreatePO] = useHistoryModal('po-create')
   const [showEditPO, openEditPO, closeEditPO]     = useHistoryModal('po-edit')
-  const [viewingPO, setViewingPO] = useState(null)
-  const [receivingPO, setReceivingPO] = useState(null)
+  const [showViewPO,    openViewPO,    closeViewPO]    = useHistoryModal('view-po')
+  const [viewPOData,    setViewPOData]    = useState(null)
+  const [showReceivePO, openReceivePO, closeReceivePO] = useHistoryModal('receive-po')
+  const [receivePOData, setReceivePOData] = useState(null)
   const [editingPO, setEditingPO] = useState(null)
 
   // Clear the entity when the edit modal closes (back button or programmatic)
-  useEffect(() => { if (!showEditPO) setEditingPO(null) }, [showEditPO])
-  const [emailPO, setEmailPO] = useState(null)
-  const [invoicePO, setInvoicePO] = useState(null)
-  const [payingPO, setPayingPO] = useState(null)
+  useEffect(() => { if (!showEditPO)    setEditingPO(null)   }, [showEditPO])
+  useEffect(() => { if (!showViewPO)    setViewPOData(null)  }, [showViewPO])
+  useEffect(() => { if (!showReceivePO) setReceivePOData(null) }, [showReceivePO])
+
+  const [showEmailPO,   openEmailPO,   closeEmailPO]   = useHistoryModal('email-po')
+  const [emailPOData,   setEmailPOData]   = useState(null)
+  const [showInvoicePO, openInvoicePO, closeInvoicePO] = useHistoryModal('invoice-po')
+  const [invoicePOData, setInvoicePOData] = useState(null)
+  const [showPayPO,     openPayPO,     closePayPO]     = useHistoryModal('pay-po')
+  const [payPOData,     setPayPOData]     = useState(null)
+
+  useEffect(() => { if (!showEmailPO)   setEmailPOData(null)   }, [showEmailPO])
+  useEffect(() => { if (!showInvoicePO) setInvoicePOData(null) }, [showInvoicePO])
+  useEffect(() => { if (!showPayPO)     setPayPOData(null)     }, [showPayPO])
+
   const [toast, setToast] = useState(null)
 
   const defaultStore = currentUser?.store || 'Main Store'
@@ -321,13 +334,13 @@ export default function PurchaseOrders() {
                       </td>
                       <td>
                         <div className={styles.actionRow}>
-                          <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => setViewingPO(po)} title="View"><MdVisibility size={16} /></button>
+                          <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => { setViewPOData(po); openViewPO() }} title="View"><MdVisibility size={16} /></button>
                           <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => handleDownloadPDF(po)} title="PDF"><MdPictureAsPdf size={16} /></button>
-                          {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => setEmailPO(po)} title="Email"><MdMarkEmailRead size={16} /></button>}
+                          {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => { setEmailPOData(po); openEmailPO() }} title="Email"><MdMarkEmailRead size={16} /></button>}
                           {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => handleSend(po)} title="Mark sent"><MdSend size={16} /></button>}
-                          {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setReceivingPO(po)} title="Receive stock"><MdInventory size={16} /></button>}
-                          {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setInvoicePO(po)} title="Record invoice"><MdReceipt size={16} /></button>}
-                          {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setPayingPO(po)} title="Pay supplier"><MdPayments size={16} /></button>}
+                          {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => { setReceivePOData(po); openReceivePO() }} title="Receive stock"><MdInventory size={16} /></button>}
+                          {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => { setInvoicePOData(po); openInvoicePO() }} title="Record invoice"><MdReceipt size={16} /></button>}
+                          {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => { setPayPOData(po); openPayPO() }} title="Pay supplier"><MdPayments size={16} /></button>}
                           {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => { setEditingPO(po); openEditPO() }} title="Edit"><MdEdit size={16} /></button>}
                           {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleCancel(po)} title="Cancel"><MdCancel size={16} /></button>}
                           {isOwner && (po.status === 'draft' || po.status === 'cancelled') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(po)} title="Delete"><MdDelete size={16} /></button>}
@@ -399,13 +412,13 @@ export default function PurchaseOrders() {
                       </div>
                     </div>
                     <div className={styles.poCardActions}>
-                      <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => setViewingPO(po)} title="View"><MdVisibility size={16} /></button>
+                      <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => { setViewPOData(po); openViewPO() }} title="View"><MdVisibility size={16} /></button>
                       <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => handleDownloadPDF(po)} title="PDF"><MdPictureAsPdf size={16} /></button>
-                      {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => setEmailPO(po)} title="Email"><MdMarkEmailRead size={16} /></button>}
+                      {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => { setEmailPOData(po); openEmailPO() }} title="Email"><MdMarkEmailRead size={16} /></button>}
                       {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.primary}`} onClick={() => handleSend(po)} title="Mark sent"><MdSend size={16} /></button>}
-                      {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setReceivingPO(po)} title="Receive stock"><MdInventory size={16} /></button>}
-                      {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => setInvoicePO(po)} title="Record invoice"><MdReceipt size={16} /></button>}
-                      {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => setPayingPO(po)} title="Pay supplier"><MdPayments size={16} /></button>}
+                      {(po.status === 'sent' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => { setReceivePOData(po); openReceivePO() }} title="Receive stock"><MdInventory size={16} /></button>}
+                      {(po.status === 'received' || po.status === 'partial') && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => { setInvoicePOData(po); openInvoicePO() }} title="Record invoice"><MdReceipt size={16} /></button>}
+                      {hasInvoice && po.paymentStatus !== 'paid' && <button className={`${styles.iconBtn} ${styles.success}`} onClick={() => { setPayPOData(po); openPayPO() }} title="Pay supplier"><MdPayments size={16} /></button>}
                       {po.status === 'draft' && <button className={`${styles.iconBtn} ${styles.warning}`} onClick={() => { setEditingPO(po); openEditPO() }} title="Edit"><MdEdit size={16} /></button>}
                       {(po.status === 'draft' || po.status === 'sent') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleCancel(po)} title="Cancel"><MdCancel size={16} /></button>}
                       {isOwner && (po.status === 'draft' || po.status === 'cancelled') && <button className={`${styles.iconBtn} ${styles.danger}`} onClick={() => handleDelete(po)} title="Delete"><MdDelete size={16} /></button>}
@@ -460,21 +473,21 @@ export default function PurchaseOrders() {
           createPurchaseOrder={createPurchaseOrder}
         />
       )}
-      {viewingPO && (
-        <ViewPOModal po={viewingPO} currentUser={currentUser}
-          onClose={() => setViewingPO(null)}
-          onDownloadPDF={() => handleDownloadPDF(viewingPO)}
-          onEmail={() => { setViewingPO(null); setEmailPO(viewingPO) }}
-          onPay={() => { setViewingPO(null); setPayingPO(viewingPO) }}
-          onInvoice={() => { setViewingPO(null); setInvoicePO(viewingPO) }}
+      {showViewPO && viewPOData && (
+        <ViewPOModal po={viewPOData} currentUser={currentUser}
+          onClose={closeViewPO}
+          onDownloadPDF={() => handleDownloadPDF(viewPOData)}
+          onEmail={() => { setEmailPOData(viewPOData); openEmailPO() }}
+          onPay={() => { setPayPOData(viewPOData); openPayPO() }}
+          onInvoice={() => { setInvoicePOData(viewPOData); openInvoicePO() }}
         />
       )}
-      {receivingPO && (
-        <ReceiveModal po={receivingPO}
+      {showReceivePO && receivePOData && (
+        <ReceiveModal po={receivePOData}
           products={products}
-          onClose={() => setReceivingPO(null)}
+          onClose={closeReceivePO}
           onReceived={(meta) => {
-            setReceivingPO(null); load(); showToast('Stock received and inventory updated')
+            closeReceivePO(); load(); showToast('Stock received and inventory updated')
             if (meta?.wasExpiredItems?.length > 0) {
               setTimeout(() => showToast(
                 `${meta.wasExpiredItems.join(', ')}: previously expired — set a new expiry date in Product Edit.`,
@@ -496,22 +509,22 @@ export default function PurchaseOrders() {
           updatePurchaseOrder={updatePurchaseOrder}
         />
       )}
-      {emailPO && (
-        <EmailPOModal po={emailPO} currentUser={currentUser}
-          onClose={() => setEmailPO(null)}
-          onSent={() => { setEmailPO(null); load(); showToast('Email sent to supplier') }}
+      {showEmailPO && emailPOData && (
+        <EmailPOModal po={emailPOData} currentUser={currentUser}
+          onClose={closeEmailPO}
+          onSent={() => { closeEmailPO(); load(); showToast('Email sent to supplier') }}
         />
       )}
-      {invoicePO && (
-        <InvoiceModal po={invoicePO} currentUser={currentUser}
-          onClose={() => setInvoicePO(null)}
-          onSaved={() => { setInvoicePO(null); load(); showToast('Invoice recorded') }}
+      {showInvoicePO && invoicePOData && (
+        <InvoiceModal po={invoicePOData} currentUser={currentUser}
+          onClose={closeInvoicePO}
+          onSaved={() => { closeInvoicePO(); load(); showToast('Invoice recorded') }}
         />
       )}
-      {payingPO && (
-        <PaymentModal po={payingPO} currentUser={currentUser}
-          onClose={() => setPayingPO(null)}
-          onPaid={() => { setPayingPO(null); load(); showToast('Payment recorded successfully') }}
+      {showPayPO && payPOData && (
+        <PaymentModal po={payPOData} currentUser={currentUser}
+          onClose={closePayPO}
+          onPaid={() => { closePayPO(); load(); showToast('Payment recorded successfully') }}
         />
       )}
     </div>

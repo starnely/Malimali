@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { MdVisibility, MdVisibilityOff, MdErrorOutline } from 'react-icons/md'
 import AuthLayout from '@/components/shared/AuthLayout'
@@ -6,7 +7,9 @@ import styles from '@/styles/SetupWizard.module.css'
 
 const SetupWizard = () => {
   const { setupOwner } = useApp()
-  const [step, setStep] = useState(1)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const step = location.state?.setupStep ?? 1
   const [loading, setLoading] = useState(false)
   const [uiError, setUiError] = useState('')
 
@@ -29,13 +32,13 @@ const SetupWizard = () => {
     e.preventDefault()
     setUiError('')
     if (step === 1) {
-      setStep(2)
+      navigate(location.pathname, { state: { ...location.state, setupStep: 2 } })
     } else if (step === 2) {
       const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/
       if (!emailRegex.test(formData.ownerEmail)) { setUiError('Please provide a valid email address (e.g., name@domain.com).'); return }
       if (formData.ownerPassword.length < 6) { setUiError('For your security, the password must be at least 6 characters long.'); return }
       if (formData.ownerPassword !== confirmPassword) { setUiError('Password confirmation mismatch. Please check your entries.'); return }
-      setStep(3)
+      navigate(location.pathname, { state: { ...location.state, setupStep: 3 } })
     } else if (step === 3) {
       handleFinalSubmit()
     }
@@ -222,7 +225,7 @@ const SetupWizard = () => {
                 </div>
 
                 <div className="flex gap-3 pt-1">
-                  <button type="button" onClick={() => setStep(1)} className={styles.btnSecondary} style={{ width: '33%' }}>Back</button>
+                  <button type="button" onClick={() => navigate(-1)} className={styles.btnSecondary} style={{ width: '33%' }}>Back</button>
                   <button type="submit" className={styles.btnPrimary} style={{ width: '67%' }}>
                     Next step
                   </button>
@@ -245,7 +248,7 @@ const SetupWizard = () => {
                   style={{ ...inputBase, textAlign: 'center', letterSpacing: '0.25em', fontFamily: 'monospace', textTransform: 'uppercase' }}
                   onFocus={onFocus} onBlur={onBlur} required />
                 <div className="flex gap-3 pt-1">
-                  <button type="button" disabled={loading} onClick={() => setStep(2)} className={styles.btnSecondary} style={{ width: '33%' }}>Back</button>
+                  <button type="button" disabled={loading} onClick={() => navigate(-1)} className={styles.btnSecondary} style={{ width: '33%' }}>Back</button>
                   <button type="submit" disabled={loading} className={styles.btnSuccess} style={{ width: '67%' }}>
                     {loading ? (
                       <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />

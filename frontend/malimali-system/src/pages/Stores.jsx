@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect } from 'react'
 import { MdAdd, MdEdit, MdDelete, MdClose, MdStorefront } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/Stores.module.css'
 
@@ -11,7 +12,7 @@ const emptyForm = { name: '', location: '', phone: '' }
 export default function Stores() {
   const { stores, fetchStores, fetchProducts, currentUser } = useApp()
 
-  const [showModal,      setShowModal]      = useState(false)
+  const [showModal, openModal, closeModal] = useHistoryModal('store-form')
   const [loading,        setLoading]        = useState(false)
   const [editingId,      setEditingId]      = useState(null)
   const [confirmId,      setConfirmId]      = useState(null)
@@ -21,6 +22,7 @@ export default function Stores() {
   useEffect(() => {
     if (currentUser?.token) fetchStores()
   }, [currentUser?.token, fetchStores])
+  useEffect(() => { if (!showModal) { setEditingId(null); setFormData(emptyForm) } }, [showModal])
 
   const handleSubmit = async () => {
     if (!formData.name.trim()) return
@@ -41,7 +43,7 @@ export default function Stores() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Failed to save store')
-      setShowModal(false)
+      closeModal()
       setFormData(emptyForm)
       setEditingId(null)
       await fetchStores()
@@ -70,13 +72,13 @@ export default function Stores() {
   const openEditModal = (store) => {
     setFormData({ name: store.name, location: store.location || '', phone: store.phone || '' })
     setEditingId(store._id)
-    setShowModal(true)
+    openModal()
   }
 
   const openAddModal = () => {
     setFormData(emptyForm)
     setEditingId(null)
-    setShowModal(true)
+    openModal()
   }
 
   return (
@@ -232,7 +234,7 @@ export default function Stores() {
                 {editingId ? 'Edit Branch' : 'Add New Branch'}
               </span>
               <button
-                onClick={() => setShowModal(false)}
+                onClick={closeModal}
                 className="w-7 h-7 flex items-center justify-center rounded-lg transition"
                 style={{ color: 'rgba(255,255,255,0.6)' }}
                 onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
@@ -267,7 +269,7 @@ export default function Stores() {
 
               <div className="flex justify-end gap-2.5 pt-2" style={{ borderTop: '1px solid var(--border-soft)' }}>
                 <button
-                  onClick={() => setShowModal(false)}
+                  onClick={closeModal}
                   className="px-4 py-2 rounded-lg text-sm font-semibold transition"
                   style={{ border: '1px solid var(--border-medium)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
                 >

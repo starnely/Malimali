@@ -6,6 +6,7 @@ import {
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useNavigate } from 'react-router-dom'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/Suppliers.module.css'
 import { API_BASE_URL } from '@/config/api'
 
@@ -17,7 +18,7 @@ export default function Suppliers() {
   const { suppliers, fetchSuppliers, currentUser, isOwner, stores } = useApp()
   const navigate = useNavigate()
 
-  const [showModal,    setShowModal]    = useState(false)
+  const [showModal, openModal, closeModal] = useHistoryModal('supplier-form')
   const [loading,      setLoading]      = useState(false)
   const [editingId,    setEditingId]    = useState(null)
   const [confirmId,    setConfirmId]    = useState(null)
@@ -27,6 +28,7 @@ export default function Suppliers() {
   const [toast,        setToast]        = useState(null)
 
   useEffect(() => { fetchSuppliers() }, [fetchSuppliers])
+  useEffect(() => { if (!showModal) { setEditingId(null); setFormData(emptyForm) } }, [showModal])
 
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type }); setTimeout(() => setToast(null), 3000)
@@ -61,7 +63,7 @@ export default function Suppliers() {
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.message || 'Failed to save supplier')
-      setShowModal(false); setFormData(emptyForm); setEditingId(null)
+      closeModal(); setFormData(emptyForm); setEditingId(null)
       await fetchSuppliers()
       showToast(editingId ? 'Supplier updated' : 'Supplier added')
     } catch (err) { showToast(err.message || 'Failed to save', 'error') }
@@ -103,11 +105,11 @@ export default function Suppliers() {
                : sup.store ? [sup.store] : [],
     })
     setEditingId(sup._id)
-    setShowModal(true)
+    openModal()
   }
 
   const openAddModal = () => {
-    setFormData(emptyForm); setEditingId(null); setShowModal(true)
+    setFormData(emptyForm); setEditingId(null); openModal()
   }
 
   // ── Input helper ──────────────────────────────────────────────────
@@ -315,7 +317,7 @@ export default function Suppliers() {
 
             <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'var(--sidebar-bg)', position: 'sticky', top: 0, zIndex: 1 }}>
               <span className="text-white text-sm font-bold">{editingId ? 'Update Supplier' : 'Add New Supplier'}</span>
-              <button onClick={() => setShowModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', fontSize: 22, display: 'flex', padding: 0 }}><MdClose /></button>
+              <button onClick={closeModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.6)', fontSize: 22, display: 'flex', padding: 0 }}><MdClose /></button>
             </div>
 
             <div className="p-5">
@@ -387,7 +389,7 @@ export default function Suppliers() {
               </div>
 
               <div className="flex justify-end gap-2.5 pt-4" style={{ borderTop: '1px solid var(--border-soft)' }}>
-                <button onClick={() => setShowModal(false)}
+                <button onClick={closeModal}
                   style={{ padding: '9px 18px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                   Cancel
                 </button>

@@ -6,6 +6,7 @@ import {
   MdExpandMore, MdExpandLess, MdStorefront,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/Expenses.module.css'
 
 const CATEGORIES = [
@@ -58,7 +59,7 @@ export default function Expenses() {
   const [filterCat,     setFilterCat]     = useState('')
   const [filterStore,   setFilterStore]   = useState('')   // owner view filter
   const [loading,       setLoading]       = useState(true)
-  const [showModal,     setShowModal]     = useState(false)
+  const [showModal, openModal, closeModal] = useHistoryModal('expense-add')
   const [confirmId,     setConfirmId]     = useState(null)
   const [showBreakdown, setShowBreakdown] = useState(false)
   const [toast,         setToast]         = useState(null)
@@ -149,7 +150,7 @@ export default function Expenses() {
             <MdRefresh style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             {loading ? 'Loading...' : 'Refresh'}
           </button>
-          <button className={styles.btnPrimary} onClick={() => setShowModal(true)}>
+          <button className={styles.btnPrimary} onClick={() => openModal()}>
             <MdAdd /> Log Expense
           </button>
         </div>
@@ -303,7 +304,7 @@ export default function Expenses() {
             <div className={styles.empty}>
               <div className={styles.emptyIcon}>💸</div>
               <p>No expenses recorded{filterDate ? ` for ${filterDate}` : ''}.</p>
-              <button className={styles.btnPrimary} style={{ marginTop: 12 }} onClick={() => setShowModal(true)}>
+              <button className={styles.btnPrimary} style={{ marginTop: 12 }} onClick={() => openModal()}>
                 <MdAdd /> Log First Expense
               </button>
             </div>
@@ -378,8 +379,8 @@ export default function Expenses() {
         <LogExpenseModal
           store={currentUser?.store || ''}
           isOwner={isOwner}
-          onClose={() => setShowModal(false)}
-          onSaved={() => { setShowModal(false); load(); showToast('Expense logged') }}
+          onClose={closeModal}
+          onSaved={() => { closeModal(); load(); showToast('Expense logged') }}
           logExpense={logExpense}
         />
       )}

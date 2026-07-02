@@ -6,6 +6,7 @@ import {
   MdAccessTime, MdExpandMore, MdExpandLess, MdCall,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import s from '@/styles/Customers.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────
@@ -439,8 +440,10 @@ export default function Customers() {
   const [storeFilter,  setStoreFilter]  = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [loading,      setLoading]      = useState(false)
-  const [repayModal,   setRepayModal]   = useState(null)
-  const [blkModal,     setBlkModal]     = useState(null)
+  const [showRepay, openRepay, closeRepay] = useHistoryModal('customer-repay')
+  const [repayCust, setRepayCust] = useState(null)
+  const [showBlk, openBlk, closeBlk] = useHistoryModal('customer-bl')
+  const [blkCust, setBlkCust] = useState(null)
   const [repLoading,   setRepLoading]   = useState(false)
   const [blkLoading,   setBlkLoading]   = useState(false)
   const [toast,        setToast]        = useState(null)
@@ -467,13 +470,16 @@ export default function Customers() {
     return () => { active = false; clearTimeout(t) }
   }, [load])
 
+  useEffect(() => { if (!showRepay) setRepayCust(null) }, [showRepay])
+  useEffect(() => { if (!showBlk) setBlkCust(null) }, [showBlk])
+
   const handleRepayment = async (amount, notes) => {
     setRepLoading(true)
-    const res = await recordRepayment(repayModal._id, amount, notes)
+    const res = await recordRepayment(repayCust._id, amount, notes)
     setRepLoading(false)
     if (res.success) {
-      setRepayModal(null)
-      showToast(`KSh ${amount.toLocaleString()} recorded for ${repayModal.name}`)
+      closeRepay()
+      showToast(`KSh ${amount.toLocaleString()} recorded for ${repayCust.name}`)
       load()
     } else {
       showToast(res.message || 'Failed to record payment', 'error')
@@ -482,11 +488,11 @@ export default function Customers() {
 
   const handleBlacklist = async (blacklisted, reason) => {
     setBlkLoading(true)
-    const res = await blacklistCustomer(blkModal._id, blacklisted, reason)
+    const res = await blacklistCustomer(blkCust._id, blacklisted, reason)
     setBlkLoading(false)
     if (res.success) {
-      setBlkModal(null)
-      showToast(blacklisted ? `${blkModal.name} blacklisted` : 'Blacklist removed')
+      closeBlk()
+      showToast(blacklisted ? `${blkCust.name} blacklisted` : 'Blacklist removed')
       load()
     } else {
       showToast(res.message || 'Failed', 'error')
@@ -611,15 +617,15 @@ export default function Customers() {
               customer={customer}
               isOwner={isOwner}
               defaultOpen={customer.overdue || (daysUntil(customer.nextPromiseDate) !== null && daysUntil(customer.nextPromiseDate) <= 1)}
-              onRecord={c => setRepayModal(c)}
-              onBlacklist={c => setBlkModal(c)}
+              onRecord={c => { setRepayCust(c); openRepay() }}
+              onBlacklist={c => { setBlkCust(c); openBlk() }}
             />
           ))}
         </div>
       )}
 
-      {repayModal && <RepaymentModal customer={repayModal} onClose={() => setRepayModal(null)} onSubmit={handleRepayment} loading={repLoading} />}
-      {blkModal   && <BlacklistModal customer={blkModal}   onClose={() => setBlkModal(null)}   onSubmit={handleBlacklist}  loading={blkLoading} />}
+      {showRepay && <RepaymentModal customer={repayCust} onClose={closeRepay} onSubmit={handleRepayment} loading={repLoading} />}
+      {showBlk   && <BlacklistModal customer={blkCust}   onClose={closeBlk}  onSubmit={handleBlacklist}  loading={blkLoading} />}
     </div>
   )
 }

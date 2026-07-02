@@ -3,7 +3,7 @@ import FormInput from './FormInput'
 import styles from '@/styles/Products.module.css'
 import { fmtQty } from '@/utils/utils'
 
-export default function RestockModal({ restockProduct, restockQty, setRestockQty, confirmRestock, setRestockProduct }) {
+export default function RestockModal({ restockProduct, restockQty, setRestockQty, confirmRestock, onClose }) {
   if (!restockProduct) return null
 
   const unit = restockProduct.unit || 'pcs'
@@ -32,7 +32,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
             <span className="text-white text-sm font-bold">Restock Product</span>
           </div>
           <button
-            onClick={() => setRestockProduct(null)}
+            onClick={() => onClose()}
             className={`w-7 h-7 rounded-md flex items-center justify-center transition ${styles.restockCloseBtn}`}
           >
             <MdClose size={18} />
@@ -95,7 +95,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
               Update Stock
             </button>
             <button
-              onClick={() => setRestockProduct(null)}
+              onClick={() => onClose()}
               className={`flex-1 py-2.5 rounded-lg text-sm font-semibold transition ${styles.restockCancelBtn}`}
             >
               Cancel

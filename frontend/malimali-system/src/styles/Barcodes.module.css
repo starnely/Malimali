@@ -649,7 +649,7 @@
   max-width: 440px;
   overflow: hidden;
   box-shadow: var(--shadow-dropdown);
-  max-height: 92vh;
+  max-height: 92dvh;
   overflow-y: auto;
   animation: scaleIn 0.25s ease;
 }

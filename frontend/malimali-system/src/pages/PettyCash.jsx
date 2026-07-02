@@ -4,6 +4,7 @@ import {
   MdArrowDownward, MdLock, MdRefresh, MdStorefront,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
+import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/PettyCash.module.css'
 
 const S = {
@@ -56,7 +57,10 @@ export default function PettyCash() {
   const [history,         setHistory]         = useState([])
   const [loading,         setLoading]         = useState(true)
   const [showTab,         setShowTab]         = useState('today')
-  const [modal,           setModal]           = useState(null)
+  const [showPcOpen, openPcOpen, closePcOpen] = useHistoryModal('pc-open')
+  const [showPcTx,   openPcTx,   closePcTx]   = useHistoryModal('pc-tx')
+  const [showPcClose,openPcClose,closePcClose] = useHistoryModal('pc-close')
+  const [txType,          setTxType]          = useState('out')
   const [toast,           setToast]           = useState(null)
 
   const canEdit = isOwner || isManager
@@ -270,19 +274,19 @@ export default function PettyCash() {
             <MdRefresh /> Refresh
           </button>
           {canEdit && !record && (
-            <button style={btn('var(--primary)')} onClick={() => setModal('open')}>
+            <button style={btn('var(--primary)')} onClick={() => openPcOpen()}>
               <MdAdd /> Open Petty Cash
             </button>
           )}
           {canEdit && record && !isClosed && (
             <>
-              <button style={btn('var(--success)')} onClick={() => setModal({ type: 'tx', txType: 'in' })}>
+              <button style={btn('var(--success)')} onClick={() => { setTxType('in'); openPcTx() }}>
                 <MdArrowDownward /> Cash In
               </button>
-              <button style={btn('var(--danger)')} onClick={() => setModal({ type: 'tx', txType: 'out' })}>
+              <button style={btn('var(--danger)')} onClick={() => { setTxType('out'); openPcTx() }}>
                 <MdArrowUpward /> Cash Out
               </button>
-              <button style={btn('var(--sidebar-bg)')} onClick={() => setModal('close')}>
+              <button style={btn('var(--sidebar-bg)')} onClick={() => openPcClose()}>
                 <MdLock /> Close
               </button>
             </>
@@ -317,7 +321,7 @@ export default function PettyCash() {
                 Petty cash not opened for today{store ? ` · ${store}` : ''}.
               </p>
               {canEdit ? (
-                <button style={btn('var(--primary)')} onClick={() => setModal('open')}>
+                <button style={btn('var(--primary)')} onClick={() => openPcOpen()}>
                   <MdAdd /> Open Petty Cash
                 </button>
               ) : (
@@ -369,10 +373,10 @@ export default function PettyCash() {
                   </span>
                   {canEdit && !isClosed && (
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button style={{ ...btn('var(--success)'), padding: '5px 12px', height: 30, fontSize: 12 }} onClick={() => setModal({ type: 'tx', txType: 'in' })}>
+                      <button style={{ ...btn('var(--success)'), padding: '5px 12px', height: 30, fontSize: 12 }} onClick={() => { setTxType('in'); openPcTx() }}>
                         <MdArrowDownward /> In
                       </button>
-                      <button style={{ ...btn('var(--danger)'), padding: '5px 12px', height: 30, fontSize: 12 }} onClick={() => setModal({ type: 'tx', txType: 'out' })}>
+                      <button style={{ ...btn('var(--danger)'), padding: '5px 12px', height: 30, fontSize: 12 }} onClick={() => { setTxType('out'); openPcTx() }}>
                         <MdArrowUpward /> Out
                       </button>
                     </div>
@@ -467,23 +471,23 @@ export default function PettyCash() {
       </div>
 
       {/* Modals */}
-      {modal === 'open' && (
-        <OpenModal store={store} onClose={() => setModal(null)}
-          onDone={() => { setModal(null); loadToday(); showToast('Petty cash opened') }}
+      {showPcOpen && (
+        <OpenModal store={store} onClose={closePcOpen}
+          onDone={() => { closePcOpen(); loadToday(); showToast('Petty cash opened') }}
           openPettyCash={openPettyCash}
         />
       )}
-      {modal?.type === 'tx' && (
-        <TxModal store={store} txType={modal.txType} balance={balance}
-          onClose={() => setModal(null)}
-          onDone={() => { setModal(null); loadToday(); showToast('Transaction recorded') }}
+      {showPcTx && (
+        <TxModal store={store} txType={txType} balance={balance}
+          onClose={closePcTx}
+          onDone={() => { closePcTx(); loadToday(); showToast('Transaction recorded') }}
           addPettyCashTransaction={addPettyCashTransaction}
         />
       )}
-      {modal === 'close' && (
+      {showPcClose && (
         <CloseModal store={store} record={record}
-          onClose={() => setModal(null)}
-          onDone={() => { setModal(null); loadToday(); loadHistory(); showToast('Petty cash closed') }}
+          onClose={closePcClose}
+          onDone={() => { closePcClose(); loadToday(); loadHistory(); showToast('Petty cash closed') }}
           closePettyCash={closePettyCash}
         />
       )}

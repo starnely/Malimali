@@ -43,6 +43,7 @@ export default function Products() {
   const [storeFilter, setStoreFilter] = useState('All')
   const [showModal, openModal, closeModalHistory] = useHistoryModal('products-form')
   const [editProduct, setEditProduct] = useState(null)
+  const [showRestock, openRestock, closeRestock] = useHistoryModal('restock')
   const [restockProduct, setRestockProduct] = useState(null)
   const [restockQty, setRestockQty] = useState('')
   const [deleteConfirm, setDeleteConfirm] = useState(null)
@@ -237,7 +238,7 @@ export default function Products() {
       const data = await res.json()
       if (res.ok && data.success) {
         fetchProducts()
-        setRestockProduct(null)
+        closeRestock()
         setRestockQty('')
       } else {
         console.error('Restock failed:', data.message)
@@ -260,6 +261,8 @@ export default function Products() {
     } catch (err) { console.error('Delete error:', err) }
     setDeleteConfirm(null)
   }
+
+  useEffect(() => { if (!showRestock) setRestockProduct(null) }, [showRestock])
 
   // ── Effects ────────────────────────────────────────────
   useEffect(() => {
@@ -340,7 +343,7 @@ export default function Products() {
         <ProductList
           filtered={filtered}
           openEdit={openEdit}
-          setRestockProduct={setRestockProduct}
+          setRestockProduct={(p) => { setRestockProduct(p); openRestock() }}
           setDeleteConfirm={setDeleteConfirm}
         />
       </div>
@@ -374,12 +377,14 @@ export default function Products() {
       />
 
       {/* ── Modals ───────────────────────────────────────── */}
-      <RestockModal
-        restockProduct={restockProduct}
-        restockQty={restockQty} setRestockQty={setRestockQty}
-        confirmRestock={confirmRestock}
-        setRestockProduct={setRestockProduct}
-      />
+      {showRestock && restockProduct && (
+        <RestockModal
+          restockProduct={restockProduct}
+          restockQty={restockQty} setRestockQty={setRestockQty}
+          confirmRestock={confirmRestock}
+          onClose={closeRestock}
+        />
+      )}
       <DeleteConfirmModal
         deleteConfirm={deleteConfirm}
         handleDeleteConfirmed={handleDeleteConfirmed}
