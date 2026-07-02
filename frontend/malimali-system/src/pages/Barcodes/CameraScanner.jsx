@@ -22,7 +22,7 @@ function beep() {
     osc.connect(gain)
     gain.connect(ctx.destination)
     osc.type = 'sine'
-    osc.frequency.value = 1046 // C6 — bright, short confirmation tone
+    osc.frequency.value = 1046 // C6
     gain.gain.setValueAtTime(0.3, ctx.currentTime)
     gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.18)
     osc.start(ctx.currentTime)
@@ -30,13 +30,26 @@ function beep() {
   } catch (_) {}
 }
 
-export default function CameraScanner({ onScan, onClose, continuous = false }) {
+// Module-level mutex: serialises all start/stop operations so React
+// StrictMode's mount→unmount→remount cycle never runs two concurrent
+// Html5Qrcode.start() calls against the same div element.
+//
+// Why this is needed:
+//   html5-qrcode's start() calls clearElement() (innerHTML='') at the
+//   very beginning — before the async camera opens. So both the first
+//   and second mount clear the div and then BOTH await their camera
+//   streams, which both inject a <video> when they eventually resolve.
+//   Our earlier innerHTML='' in cleanup ran at the wrong time (before
+//   either scanner had injected) and didn't fix this.
+//
+// The mutex ensures: run1 → stop1 → run2, never run1 ∥ run2.
+let _mutex = Promise.resolve()
+
+export default function CameraScanner({ onScan, onClose, continuous = false, inline = false }) {
   const [error, setError] = useState('')
   const [flash, setFlash] = useState(false)
   const [scanCount, setScanCount] = useState(0)
-  const scannerRef = useRef(null)
   const firedRef = useRef(false)
-  // last accepted scan: { code, time } — used for continuous-mode debounce
   const lastScanRef = useRef({ code: '', time: 0 })
   const onScanRef = useRef(onScan)
   const onCloseRef = useRef(onClose)
@@ -46,82 +59,120 @@ export default function CameraScanner({ onScan, onClose, continuous = false }) {
   })
 
   useEffect(() => {
-    // Task A fix: clear any stale video DOM left by React StrictMode's
-    // mount→unmount→remount cycle. html5-qrcode's async stop() may not have
-    // finished removing its elements before the second mount's start() runs,
-    // leaving two stacked <video> elements in the div.
-    const region = document.getElementById(SCANNER_DIV_ID)
-    if (region) region.innerHTML = ''
+    let cancelled = false
+    let localScanner = null
 
-    // Guard flag so async stop().finally() callbacks after unmount are ignored.
-    let active = true
+    _mutex = _mutex.then(async () => {
+      // StrictMode fast-path: cleanup already fired before this microtask
+      // ran, so cancelled=true. Bail out — the next queued run() (from the
+      // second mount) will start the real scanner.
+      if (cancelled) return
 
-    const html5QrCode = new Html5Qrcode(SCANNER_DIV_ID, {
-      formatsToSupport: RETAIL_FORMATS,
-      useBarCodeDetectorIfSupported: true,
-      verbose: false,
-    })
-    scannerRef.current = html5QrCode
-    firedRef.current = false
+      const region = document.getElementById(SCANNER_DIV_ID)
+      if (region) region.innerHTML = ''
 
-    html5QrCode
-      .start(
-        { facingMode: 'environment' },
-        { fps: 20, qrbox: { width: 240, height: 240 } },
-        (decodedText) => {
-          if (!active) return
+      const scanner = new Html5Qrcode(SCANNER_DIV_ID, {
+        formatsToSupport: RETAIL_FORMATS,
+        useBarCodeDetectorIfSupported: true,
+        verbose: false,
+      })
+      localScanner = scanner
+      firedRef.current = false
 
-          if (!continuous) {
-            // Single-scan mode: fire once then close.
-            if (firedRef.current) return
-            firedRef.current = true
-            html5QrCode
-              .stop()
-              .catch(() => {})
-              .finally(() => {
-                if (!active) return
+      try {
+        await scanner.start(
+          { facingMode: 'environment' },
+          { fps: 20, qrbox: { width: 240, height: 240 } },
+          (decodedText) => {
+            if (cancelled) return
+
+            if (!continuous) {
+              // Single-scan: fire once then close.
+              if (firedRef.current) return
+              firedRef.current = true
+              scanner.stop().catch(() => {}).finally(() => {
+                if (cancelled) return
                 onScanRef.current(decodedText)
                 onCloseRef.current()
               })
-            return
-          }
+              return
+            }
 
-          // Continuous mode: debounce — same code within 1500ms is ignored to
-          // prevent the same barcode firing many times while it stays in frame.
-          // A different code is always accepted immediately.
-          const now = Date.now()
-          const last = lastScanRef.current
-          if (decodedText === last.code && now - last.time < 1500) return
+            // Continuous: debounce same barcode within 1500ms;
+            // a different code is always accepted immediately.
+            const now = Date.now()
+            const last = lastScanRef.current
+            if (decodedText === last.code && now - last.time < 1500) return
 
-          lastScanRef.current = { code: decodedText, time: now }
-          onScanRef.current(decodedText)
+            lastScanRef.current = { code: decodedText, time: now }
+            onScanRef.current(decodedText)
 
-          beep()
-          if (navigator.vibrate) navigator.vibrate(50)
-          setFlash(true)
-          setScanCount(c => c + 1)
-          setTimeout(() => setFlash(false), 200)
-        },
-        () => {}
-      )
-      .catch((err) => {
-        if (!active) return
+            beep()
+            if (navigator.vibrate) navigator.vibrate(50)
+            setFlash(true)
+            setScanCount(c => c + 1)
+            setTimeout(() => setFlash(false), 200)
+          },
+          () => {}
+        )
+
+        // start() has resolved — isScanning is now true. If cleanup fired
+        // while we were awaiting the camera opening, stop immediately so
+        // the mutex's next queued run() gets a clean div.
+        if (cancelled && scanner.isScanning) {
+          await scanner.stop().catch(() => {})
+        }
+      } catch (err) {
+        if (cancelled) return
         const msg = String(err?.message || err || '').toLowerCase()
         if (msg.includes('permission') || msg.includes('denied') || msg.includes('notallowed')) {
           setError('Camera permission denied. Tap the camera icon in your browser address bar and allow access, then try again.')
         } else {
           setError('Could not start camera. Make sure no other app is using it, then try again.')
         }
-      })
+      }
+    }).catch(() => {})
 
     return () => {
-      active = false
-      if (scannerRef.current?.isScanning) {
-        scannerRef.current.stop().catch(() => {})
-      }
+      cancelled = true
+      // Queue teardown after this mount's start() has completed. html5-qrcode
+      // throws synchronously if stop() is called before start() resolves,
+      // so we must wait for the mutex slot to arrive before calling stop().
+      _mutex = _mutex.then(async () => {
+        if (localScanner?.isScanning) {
+          await localScanner.stop().catch(() => {})
+        }
+      }).catch(() => {})
     }
   }, [continuous]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── Inline mode: slot into the left panel in place of category tabs + grid ──
+  if (inline) {
+    return (
+      <div className={p.posInlineCamera}>
+        {error ? (
+          <div className={p.cameraError}>{error}</div>
+        ) : (
+          <>
+            <div
+              id={SCANNER_DIV_ID}
+              className={p.posInlineCameraRegion}
+              style={flash ? { outline: '3px solid var(--success)', outlineOffset: '-3px' } : undefined}
+            />
+            <div className={p.posInlineCameraFooter}>
+              <p className={p.posInlineCameraHint}>
+                {scanCount > 0
+                  ? `${scanCount} item${scanCount !== 1 ? 's' : ''} scanned — keep scanning`
+                  : 'Point camera at barcodes — auto-adds to cart'}
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  // ── Overlay mode: full-screen (used in Add Product registration) ──
   return (
     <div className={p.cameraScannerOverlay} onClick={(e) => { if (e.target === e.currentTarget) onClose() }}>
       <div className={p.cameraScannerBox}>
