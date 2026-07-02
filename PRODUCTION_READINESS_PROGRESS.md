@@ -1090,6 +1090,7 @@ See dedicated section above. Not started. Requires full planning session before 
 - `Mycredits.module.css` — 6 CSS class definitions are duplicated (second block correctly overrides first via cascade). Clean up the dead first definitions.
 - `ProductCombobox` portal vs `containerRef` outside-click mismatch — fragile but currently works. Fix when refactoring the combobox.
 - Topbar warning + chat button sticky hover on touch — dynamic inline `background` prevents clean CSS hover replacement. Minor cosmetic issue.
+- **Split M-Pesa verification state is in-memory, not persisted.** `pendingVerifications` Map in `backend/routes/mpesa.js` is stored in-memory only. If the server restarts during the ~60s window between sending a split STK push and receiving Safaricom's callback, the verification state is lost and the split payment falls through to a timeout on the cashier's screen, even if the customer actually paid. Not a money-safety bug (fails safe as a timeout, not a false success) but should be moved to a persistent MongoDB collection (e.g. `PendingMpesaVerification`) before relying on this in daily production use with real cashiers. Related to Bug 2 (ngrok callback URL) — both should be resolved together once the system is deployed with stable hosting.
 
 ---
 
