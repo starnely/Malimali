@@ -198,6 +198,7 @@ export default function ScanPanel({
       {/* Camera scanner overlay */}
       {cameraOpen && (
         <CameraScanner
+          continuous
           onScan={processScan}
           onClose={() => {
             setCameraOpen(false)
