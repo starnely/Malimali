@@ -13,6 +13,8 @@ import DailySummaryModal from '@/components/modals/DailySummaryModal'
 import { API_BASE_URL as backendUrl } from '@/config/api'
 import tb from '@/styles/Topbar.module.css'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const pageTitles = {
   '/': 'Dashboard',
   '/products': 'Products',
@@ -369,8 +371,8 @@ export default function TopBar() {
                       border: `1.5px solid ${isActive ? 'var(--primary)' : 'var(--primary-muted)'}`,
                       boxShadow: isActive ? '0 2px 8px rgba(0,0,0,0.12)' : '0 1px 3px rgba(0,0,0,0.06)',
                     }}
-                    onMouseEnter={e => { if (!isActive) { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)' } }}
-                    onMouseLeave={e => { if (!isActive) { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary-muted)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)' } }}
+                    onMouseEnter={e => { if (!isActive && !isTouchDevice()) { e.currentTarget.style.background = 'var(--primary)'; e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.12)' } }}
+                    onMouseLeave={e => { if (!isActive && !isTouchDevice()) { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--primary)'; e.currentTarget.style.borderColor = 'var(--primary-muted)'; e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.06)' } }}
                   >
                     {s.icon} {s.label}
                   </button>
@@ -411,8 +413,8 @@ export default function TopBar() {
             <button onClick={() => navigate('/products', { state: { filter: 'lowStock' } })}
               className={`relative p-2 rounded-lg transition ${tb.iconBtn}`}
               style={{ background: lowStockCount > 0 ? 'var(--warning-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
-              onMouseEnter={e => e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'var(--bg-muted)'}
-              onMouseLeave={e => e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'transparent'}>
+              onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'var(--bg-muted)' }}
+              onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'transparent' }}>
               <MdWarning className="text-xl" style={{ color: lowStockCount > 0 ? 'var(--warning-dark)' : 'var(--text-muted)' }} />
               {lowStockCount > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
@@ -426,8 +428,8 @@ export default function TopBar() {
           {/* Chat */}
           <button onClick={handleOpenChat} className={`relative p-2 rounded-lg transition ${tb.iconBtn}`}
             style={{ background: unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'}
-            onMouseLeave={e => e.currentTarget.style.background = unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent'}>
+            onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-light)' }}
+            onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent' }}>
             <MdChat className="text-xl" style={{ color: unreadMsgCount > 0 ? 'var(--primary)' : 'var(--text-muted)' }} />
             {unreadMsgCount > 0 && (
               <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"

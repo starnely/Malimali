@@ -7,6 +7,8 @@ import { useApp } from '@/context/AppContext'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/Categories.module.css'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function Categories() {
   const { currentUser, stores, isOwner } = useApp()
 
@@ -333,7 +335,7 @@ export default function Categories() {
                   type="text" placeholder="e.g. Beverages, Hardware, Wines..."
                   value={name} onChange={e => { setName(e.target.value); setError('') }}
                   onKeyDown={e => e.key === 'Enter' && handleSave()}
-                  autoFocus
+                  autoFocus={!isTouchDevice()}
                   style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `1.5px solid ${error ? 'var(--danger)' : 'var(--border-medium)'}`, background: 'var(--bg-muted)', fontSize: 14, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
                   onFocus={e => { e.target.style.borderColor = 'var(--primary)'; e.target.style.background = 'var(--bg-card)' }}
                   onBlur={e => { e.target.style.borderColor = error ? 'var(--danger)' : 'var(--border-medium)'; e.target.style.background = 'var(--bg-muted)' }}

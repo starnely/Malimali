@@ -4,6 +4,8 @@ import { useApp } from '@/context/AppContext'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/Stores.module.css'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const emptyForm = { name: '', location: '', phone: '' }
 
 export default function Stores() {
@@ -114,6 +116,7 @@ export default function Stores() {
           className="rounded-xl overflow-hidden"
           style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}
         >
+          <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr style={{ background: 'var(--sidebar-bg)' }}>
@@ -207,6 +210,7 @@ export default function Stores() {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -231,8 +235,8 @@ export default function Stores() {
                 onClick={() => setShowModal(false)}
                 className="w-7 h-7 flex items-center justify-center rounded-lg transition"
                 style={{ color: 'rgba(255,255,255,0.6)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+                onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
               >
                 <MdClose size={18} />
               </button>

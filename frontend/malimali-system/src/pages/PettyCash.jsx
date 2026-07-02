@@ -170,8 +170,8 @@ export default function PettyCash() {
                     key={storeName}
                     onClick={() => setSelectedStore(storeName)}
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-lg)', padding: '18px 20px', boxShadow: 'var(--shadow-card)', cursor: 'pointer', transition: 'all 0.15s' }}
-                    onMouseEnter={e => { e.currentTarget.style.boxShadow = 'var(--shadow-dropdown)'; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                    onMouseLeave={e => { e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = 'translateY(0)' }}
+                    onMouseEnter={e => { if (!isTouchDevice()) { e.currentTarget.style.boxShadow = 'var(--shadow-dropdown)'; e.currentTarget.style.transform = 'translateY(-2px)' } }}
+                    onMouseLeave={e => { if (!isTouchDevice()) { e.currentTarget.style.boxShadow = 'var(--shadow-card)'; e.currentTarget.style.transform = 'translateY(0)' } }}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -428,6 +428,7 @@ export default function PettyCash() {
                 <p style={{ fontSize: 14, margin: 0 }}>No petty cash history yet.</p>
               </div>
             ) : (
+              <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--sidebar-bg)' }}>
@@ -459,6 +460,7 @@ export default function PettyCash() {
                   ))}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         )}

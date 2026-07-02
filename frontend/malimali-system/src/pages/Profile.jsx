@@ -10,6 +10,8 @@ import {
   MdTrendingUp, MdInventory, MdLockClock, MdAccessTime
 } from 'react-icons/md'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 // ── Role config ────────────────────────────────────────────────────────────
 const ROLE_CONFIG = {
   owner:    { label: 'Owner',    color: 'var(--primary)',  bg: 'var(--primary-light)'  },
@@ -327,8 +329,8 @@ export default function Profile() {
                     display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
                     transition: 'background 0.15s', marginTop: '4px',
                   }}
-                  onMouseEnter={e => { if (!saving) e.currentTarget.style.background = 'var(--primary-dark)' }}
-                  onMouseLeave={e => { if (!saving) e.currentTarget.style.background = saving ? 'var(--primary-muted)' : 'var(--primary)' }}
+                  onMouseEnter={e => { if (!saving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+                  onMouseLeave={e => { if (!saving && !isTouchDevice()) e.currentTarget.style.background = saving ? 'var(--primary-muted)' : 'var(--primary)' }}
                 >
                   <MdLock size={16} />
                   {saving ? 'Saving…' : 'Update Password'}

@@ -181,6 +181,7 @@ export default function Suppliers() {
       {/* Table */}
       <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
         <div className="rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', boxShadow: 'var(--shadow-card)' }}>
+          <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
               <tr style={{ background: 'var(--sidebar-bg)' }}>
@@ -302,6 +303,7 @@ export default function Suppliers() {
               })}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 

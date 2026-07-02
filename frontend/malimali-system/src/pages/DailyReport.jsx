@@ -11,6 +11,8 @@ import * as XLSX from 'xlsx'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/DailyReport.module.css'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const TODAY_EAT = new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split('T')[0]
 
 const EXPENSE_CAT_LABELS = {
@@ -444,8 +446,8 @@ export default function DailyReport() {
               <button
                 onClick={handleExport}
                 style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+                onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+                onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}
               >
                 <MdDownload style={{ fontSize: 16 }} /> Export Excel
               </button>

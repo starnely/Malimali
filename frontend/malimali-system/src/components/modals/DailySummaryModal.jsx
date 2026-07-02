@@ -10,6 +10,8 @@ import { buildLiveSummary, fmtQty } from '@/utils/utils'
 import * as XLSX from 'xlsx'
 import { API_BASE_URL } from '@/config/api'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function DailySummaryModal({ onClose }) {
   const {
     sales, products, currentUser, isCashier, isOwner,
@@ -395,7 +397,7 @@ export default function DailySummaryModal({ onClose }) {
       >
         <div
           className="modal-container w-full rounded-xl overflow-hidden flex flex-col"
-          style={{ background: 'var(--bg-card)', maxWidth: '640px', maxHeight: '92vh', boxShadow: 'var(--shadow-dropdown)' }}
+          style={{ background: 'var(--bg-card)', maxWidth: '640px', maxHeight: '92dvh', boxShadow: 'var(--shadow-dropdown)' }}
         >
           {/* Header */}
           <div
@@ -420,10 +422,10 @@ export default function DailySummaryModal({ onClose }) {
               )}
               <button
                 onClick={onClose}
-                className="close-icon w-7 h-7 flex items-center justify-center rounded-lg transition"
+                className="close-icon w-7 h-7 [@media(pointer:coarse)]:w-11 [@media(pointer:coarse)]:h-11 flex items-center justify-center rounded-lg transition"
                 style={{ color: 'rgba(255,255,255,0.6)', background: 'transparent', border: 'none', cursor: 'pointer' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
+                onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
               >
                 <MdClose size={18} />
               </button>
@@ -802,8 +804,8 @@ export default function DailySummaryModal({ onClose }) {
                   onClick={handleDownloadExcel}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition"
                   style={{ background: 'var(--primary)', color: '#fff', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}
+                  onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+                  onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}
                 >
                   <MdDownload /> Download {isCashierMode ? 'Z-Report' : 'Excel'}
                 </button>
@@ -818,8 +820,8 @@ export default function DailySummaryModal({ onClose }) {
                     cursor: closing || actualCash === '' ? 'not-allowed' : 'pointer',
                     border: 'none', fontFamily: 'inherit',
                   }}
-                  onMouseEnter={e => { if (!closing && actualCash !== '') e.currentTarget.style.background = 'var(--primary-dark)' }}
-                  onMouseLeave={e => { if (!closing && actualCash !== '') e.currentTarget.style.background = 'var(--primary)' }}
+                  onMouseEnter={e => { if (!closing && actualCash !== '' && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+                  onMouseLeave={e => { if (!closing && actualCash !== '' && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}
                 >
                   <MdLockClock />
                   {closing ? 'Closing Shift…' : 'Confirm Close Shift'}

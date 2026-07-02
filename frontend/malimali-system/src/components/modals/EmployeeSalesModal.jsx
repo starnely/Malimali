@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { fmtQty } from '@/utils/utils'
 import { MdClose, MdPerson, MdPrint } from 'react-icons/md'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function EmployeeSalesModal({ employee, sales, products = [], date, onClose }) {
   const { employeeSales, totalItems, totalRevenue, totalProfit, productMap } = useMemo(() => {
     const pMap = {}
@@ -45,13 +47,13 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
     <>
       <style>{`@media print { .no-print { display: none !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .modal-overlay { background: white !important; position: static !important; padding: 0 !important; } .modal-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; max-height: none !important; } .scroll-area { overflow: visible !important; height: auto !important; } table { width: 100% !important; border: 1px solid #eee !important; } }`}</style>
       <div className="modal-overlay fixed inset-0 flex items-center justify-center z-[1000] p-4" style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}>
-        <div className="modal-container w-full rounded-xl overflow-hidden flex flex-col" style={{ background: 'var(--bg-card)', maxWidth: '640px', maxHeight: '85vh', boxShadow: 'var(--shadow-dropdown)' }}>
+        <div className="modal-container w-full rounded-xl overflow-hidden flex flex-col" style={{ background: 'var(--bg-card)', maxWidth: '640px', maxHeight: '85dvh', boxShadow: 'var(--shadow-dropdown)' }}>
           <div className="flex-shrink-0 px-5 py-4 flex justify-between items-center" style={{ background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}>
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: 'var(--primary-light)' }}><MdPerson style={{ color: 'var(--primary)', fontSize: '20px' }} /></div>
               <div><div className="text-white text-sm font-bold">{employee}</div><div className="text-xs" style={{ color: 'var(--primary-muted)' }}>{displayDate}</div></div>
             </div>
-            <button className="no-print w-7 h-7 flex items-center justify-center rounded-lg transition" onClick={onClose} style={{ color: 'rgba(255,255,255,0.6)' }} onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}><MdClose size={18} /></button>
+            <button className="no-print w-7 h-7 [@media(pointer:coarse)]:w-11 [@media(pointer:coarse)]:h-11 flex items-center justify-center rounded-lg transition" onClick={onClose} style={{ color: 'rgba(255,255,255,0.6)' }} onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }} onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}><MdClose size={18} /></button>
           </div>
 
           <div className="flex-shrink-0 grid grid-cols-4 gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border-soft)' }}>
@@ -72,6 +74,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
             {employeeSales.length === 0 ? (
               <div className="py-12 text-center" style={{ color: 'var(--text-muted)' }}><div className="text-3xl mb-2">📋</div><p className="text-sm">No sales recorded for this date.</p></div>
             ) : (
+              <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'var(--bg-muted)', position: 'sticky', top: 0, zIndex: 10 }}>
@@ -86,7 +89,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                     const saleRevenue = sale.items?.reduce((rv, it) => { if (it.voidStatus === 'voided') return rv; return rv + (it.price || 0) * activeQty(it) }, 0) || 0
                     const saleProfit  = sale.items?.reduce((s2, item) => { if (item.voidStatus === 'voided') return s2; const buy = productMap[String(item.productId?._id || item.productId)] || 0; return s2 + (item.price - buy) * activeQty(item) }, 0) || 0
                     return (
-                      <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-soft)' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-light)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                      <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-soft)' }} onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-light)' }} onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{i + 1}</td>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>{sale.receiptId || '—'}</td>
                         <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)' }}>{fmtQty(saleItems)}</td>
@@ -107,10 +110,11 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                   </tr>
                 </tfoot>
               </table>
+              </div>
             )}
           </div>
           <div className="no-print flex-shrink-0 px-5 py-3 flex justify-end" style={{ borderTop: '1px solid var(--border-soft)' }}>
-            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition" style={{ background: 'var(--primary)' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'} onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}><MdPrint /> Print Report</button>
+            <button onClick={() => window.print()} className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition" style={{ background: 'var(--primary)' }} onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }} onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}><MdPrint /> Print Report</button>
           </div>
         </div>
       </div>

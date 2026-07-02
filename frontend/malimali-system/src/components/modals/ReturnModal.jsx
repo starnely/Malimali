@@ -3,6 +3,8 @@ import { MdClose, MdUndo } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { API_BASE_URL } from '@/config/api'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function ReturnModal({ sale, onClose, onSuccess }) {
   const { currentUser } = useApp()
 
@@ -97,7 +99,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
     >
       <div
         className="w-full max-w-md rounded-xl overflow-hidden"
-        style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
+        style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)', maxHeight: '90dvh', display: 'flex', flexDirection: 'column' }}
       >
         {/* Header */}
         <div
@@ -110,10 +112,10 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
           </div>
           <button
             onClick={onClose}
-            className="w-8 h-8 flex items-center justify-center rounded-lg transition"
+            className="w-8 h-8 [@media(pointer:coarse)]:w-11 [@media(pointer:coarse)]:h-11 flex items-center justify-center rounded-lg transition"
             style={{ color: 'rgba(255,255,255,0.7)' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.15)' }}
+            onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
           >
             <MdClose className="text-xl" />
           </button>

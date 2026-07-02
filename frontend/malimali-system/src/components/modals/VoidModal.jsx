@@ -5,6 +5,8 @@ import {
   MdCheckCircle, MdShoppingCart,
 } from 'react-icons/md'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function VoidModal({ sale, onClose, onVoid }) {
   const [mode, setMode] = useState('items')  // 'items' | 'whole'
   const [selectedItems, setSelectedItems] = useState({})       // { itemId: voidQty }
@@ -101,7 +103,7 @@ export default function VoidModal({ sale, onClose, onVoid }) {
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)' }}>
-      <div style={{ width: '100%', maxWidth: 520, background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-dropdown)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90vh' }}>
+      <div style={{ width: '100%', maxWidth: 520, background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-dropdown)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90dvh' }}>
 
         {/* Header */}
         <div style={{ padding: '16px 20px', background: '#7f1d1d', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
@@ -305,8 +307,8 @@ export default function VoidModal({ sale, onClose, onVoid }) {
           </button>
           <button onClick={handleVoid} disabled={loading}
             style={{ flex: 2, padding: '11px', borderRadius: 'var(--radius-md)', border: 'none', background: loading ? 'var(--border-medium)' : 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
-            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--danger-dark)' }}
-            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = loading ? 'var(--border-medium)' : 'var(--danger)' }}>
+            onMouseEnter={e => { if (!loading && !isTouchDevice()) e.currentTarget.style.background = 'var(--danger-dark)' }}
+            onMouseLeave={e => { if (!loading && !isTouchDevice()) e.currentTarget.style.background = loading ? 'var(--border-medium)' : 'var(--danger)' }}>
             <MdBlock size={16} />
             {loading ? 'Verifying…' : mode === 'whole' ? 'Void Entire Sale' : `Void ${selectedCount > 0 ? selectedCount + ' Item(s)' : 'Selected Items'}`}
           </button>

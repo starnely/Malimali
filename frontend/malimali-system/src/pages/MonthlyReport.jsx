@@ -7,6 +7,9 @@ import { useApp } from '@/context/AppContext'
 import { fmtQty } from '@/utils/utils'
 import * as XLSX from 'xlsx'
 import { API_BASE_URL } from '@/config/api'
+import styles from '@/styles/MonthlyReport.module.css'
+
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 const XL_PRIMARY = '185FA5'
 const XL_PRIMARY_DARK = '0C447C'
@@ -449,8 +452,8 @@ export default function MonthlyReport() {
           <button onClick={handleDownloadCSV}
             className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold text-white transition"
             style={{ background: 'var(--primary)', border: 'none', cursor: 'pointer' }}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+            onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+            onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}>
             <MdDownload style={{ fontSize: '16px' }} /> Download Excel
           </button>
         </div>
@@ -502,12 +505,12 @@ export default function MonthlyReport() {
       </div>
 
       {/* Bottom grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '1rem' }}>
+      <div className={styles.bottomGrid}>
 
         {/* Day-by-day table */}
         <div style={card}>
           <h2 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '1rem' }}>Day-by-Day Breakdown</h2>
-          <div style={{ overflowY: 'auto', maxHeight: '320px' }}>
+          <div style={{ overflowY: 'auto', overflowX: 'auto', maxHeight: '320px' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ background: 'var(--bg-muted)' }}>

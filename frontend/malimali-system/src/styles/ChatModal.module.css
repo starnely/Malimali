@@ -14,7 +14,7 @@
   position: fixed;
   top: 0;
   right: 0;
-  height: 100vh;
+  height: 100dvh;
   width: 780px;
   max-width: 100vw;
   z-index: 2000;
@@ -74,7 +74,13 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.headerClose:hover {
+@media (hover: hover) {
+  .headerClose:hover {
+    background: rgba(255,255,255,0.18);
+    color: #fff;
+  }
+}
+.headerClose:active {
   background: rgba(255,255,255,0.18);
   color: #fff;
 }
@@ -142,7 +148,12 @@
   position: relative;
 }
 
-.contactItem:hover {
+@media (hover: hover) {
+  .contactItem:hover {
+    background: var(--primary-light);
+  }
+}
+.contactItem:active {
   background: var(--primary-light);
 }
 
@@ -151,7 +162,12 @@
   border-left: 3px solid var(--primary);
 }
 
-.contactItemActive:hover {
+@media (hover: hover) {
+  .contactItemActive:hover {
+    background: var(--primary-light);
+  }
+}
+.contactItemActive:active {
   background: var(--primary-light);
 }
 
@@ -255,7 +271,12 @@
   transition: background 0.12s;
 }
 
-.broadcastContact:hover {
+@media (hover: hover) {
+  .broadcastContact:hover {
+    background: var(--warning-light);
+  }
+}
+.broadcastContact:active {
   background: var(--warning-light);
 }
 
@@ -576,9 +597,14 @@
   transition: background 0.15s, transform 0.1s;
 }
 
-.sendBtn:hover:not(:disabled) {
+@media (hover: hover) {
+  .sendBtn:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: scale(1.08);
+  }
+}
+.sendBtn:active:not(:disabled) {
   background: var(--primary-dark);
-  transform: scale(1.08);
 }
 
 .sendBtn:disabled {
@@ -672,7 +698,12 @@
   transition: background 0.15s;
 }
 
-.broadcastSendBtn:hover:not(:disabled) {
+@media (hover: hover) {
+  .broadcastSendBtn:hover:not(:disabled) {
+    background: var(--warning-dark);
+  }
+}
+.broadcastSendBtn:active:not(:disabled) {
   background: var(--warning-dark);
 }
 

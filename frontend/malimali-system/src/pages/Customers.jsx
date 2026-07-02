@@ -151,7 +151,7 @@ function BlacklistModal({ customer, onClose, onSubmit, loading }) {
           {isBlacklisting && (
             <div style={{ marginBottom: 16 }}>
               <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Reason (optional)</label>
-              <input type="text" placeholder="e.g. Failed to pay previous debt" value={reason} onChange={e => setReason(e.target.value)} autoFocus
+              <input type="text" placeholder="e.g. Failed to pay previous debt" value={reason} onChange={e => setReason(e.target.value)} autoFocus={!isTouchDevice()}
                 style={{ width: '100%', padding: '9px 12px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }} />
             </div>
           )}

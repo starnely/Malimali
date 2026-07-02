@@ -12,6 +12,8 @@ import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
 import { API_BASE_URL as backendUrl } from '@/config/api'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const ownerLinks = [
   { to: '/', label: 'Dashboard', icon: <MdDashboard /> },
   { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner /> },
@@ -104,8 +106,8 @@ function NavGroup({ group, onMobileClose }) {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150"
         style={{ color: 'var(--sidebar-text)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+        onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
       >
         <span className="text-[17px] flex-shrink-0">{group.icon}</span>
         <span className="truncate flex-1 text-left">{group.label}</span>
@@ -173,8 +175,8 @@ export default function Sidebar() {
         <button
           onClick={() => { navigate(homeRoute); setSidebarOpen(false) }}
           style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, flex: 1, minWidth: 0, touchAction: 'manipulation', userSelect: 'none' }}
-          onMouseEnter={e => e.currentTarget.style.opacity = '0.85'}
-          onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+          onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.opacity = '0.85' }}
+          onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.opacity = '1' }}
           onMouseDown={e => e.currentTarget.style.opacity = '0.7'}
           onMouseUp={e => e.currentTarget.style.opacity = '1'}
           title="Go to home"
@@ -249,8 +251,8 @@ export default function Sidebar() {
           onClick={handleLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150"
           style={{ color: '#FDA4AF', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#FCA5A5' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#FDA4AF' }}
+          onMouseEnter={e => { if (!isTouchDevice()) { e.currentTarget.style.background = 'rgba(239,68,68,0.12)'; e.currentTarget.style.color = '#FCA5A5' } }}
+          onMouseLeave={e => { if (!isTouchDevice()) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#FDA4AF' } }}
         >
           <MdLogout className="text-[17px] flex-shrink-0" />
           <span>Sign Out</span>

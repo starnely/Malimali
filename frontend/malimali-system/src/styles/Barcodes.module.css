@@ -131,11 +131,13 @@
   box-shadow: var(--shadow-card);
 }
 
-.tabBtn:hover:not(.tabBtnActive) {
-  background: var(--primary-light);
-  color: var(--primary);
-  border-color: var(--primary);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .tabBtn:hover:not(.tabBtnActive) {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+    transform: translateY(-1px);
+  }
 }
 
 .tabBtnActive {
@@ -170,8 +172,10 @@
   box-shadow: var(--shadow-card);
 }
 
-.card:hover {
-  box-shadow: var(--shadow-dropdown);
+@media (hover: hover) {
+  .card:hover {
+    box-shadow: var(--shadow-dropdown);
+  }
 }
 
 .cardPad {
@@ -290,12 +294,16 @@
   transition: var(--transition);
 }
 
-.lastScanned:hover .lastScannedIcon {
-  background: var(--primary);
+@media (hover: hover) {
+  .lastScanned:hover .lastScannedIcon {
+    background: var(--primary);
+  }
 }
 
-.lastScanned:hover .lastScannedIcon svg {
-  color: #fff !important;
+@media (hover: hover) {
+  .lastScanned:hover .lastScannedIcon svg {
+    color: #fff !important;
+  }
 }
 
 .lastScannedName {
@@ -382,8 +390,10 @@
   border-bottom: none;
 }
 
-.cartRow:hover {
-  background: var(--primary-light);
+@media (hover: hover) {
+  .cartRow:hover {
+    background: var(--primary-light);
+  }
 }
 
 .cartItemName {
@@ -423,11 +433,13 @@
   flex-shrink: 0;
 }
 
-.qtyBtn:hover {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
-  transform: scale(1.1);
+@media (hover: hover) {
+  .qtyBtn:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+    transform: scale(1.1);
+  }
 }
 
 .qtyInput {
@@ -464,13 +476,17 @@
   transition: var(--transition);
 }
 
-.deleteBtn:hover {
-  background: var(--danger);
-  transform: scale(1.1);
+@media (hover: hover) {
+  .deleteBtn:hover {
+    background: var(--danger);
+    transform: scale(1.1);
+  }
 }
 
-.deleteBtn:hover svg {
-  color: #fff !important;
+@media (hover: hover) {
+  .deleteBtn:hover svg {
+    color: #fff !important;
+  }
 }
 
 .clearCartBtn {
@@ -485,10 +501,12 @@
   transition: var(--transition);
 }
 
-.clearCartBtn:hover {
-  background: var(--danger);
-  color: #fff;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .clearCartBtn:hover {
+    background: var(--danger);
+    color: #fff;
+    transform: translateY(-1px);
+  }
 }
 
 /* ── CHECKOUT SIDEBAR ─────────────────────────────────────────────── */
@@ -583,10 +601,12 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
-.chargeBtn:hover:not(:disabled) {
-  background: var(--success-dark);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+@media (hover: hover) {
+  .chargeBtn:hover:not(:disabled) {
+    background: var(--success-dark);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .chargeBtn:disabled {
@@ -816,11 +836,13 @@
   transition: var(--transition);
 }
 
-.payBtnItem:hover:not(.payBtnActive) {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-light);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .payBtnItem:hover:not(.payBtnActive) {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+    transform: translateY(-1px);
+  }
 }
 
 .payBtnActive {
@@ -855,10 +877,12 @@
   transition: var(--transition);
 }
 
-.quickAmt:hover {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
+@media (hover: hover) {
+  .quickAmt:hover {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
 }
 
 .quickAmtActive {
@@ -875,9 +899,11 @@
   font-weight: 600;
 }
 
-.quickAmtExact:hover {
-  background: var(--primary);
-  color: #fff;
+@media (hover: hover) {
+  .quickAmtExact:hover {
+    background: var(--primary);
+    color: #fff;
+  }
 }
 
 .changeBanner {
@@ -974,8 +1000,10 @@
   transition: var(--transition);
 }
 
-.mpesaBtnSecondary:hover {
-  background: var(--bg-muted);
+@media (hover: hover) {
+  .mpesaBtnSecondary:hover {
+    background: var(--bg-muted);
+  }
 }
 
 .mpesaBtnConfirm {
@@ -991,9 +1019,11 @@
   transition: var(--transition);
 }
 
-.mpesaBtnConfirm:hover {
-  background: var(--success-dark);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .mpesaBtnConfirm:hover {
+    background: var(--success-dark);
+    transform: translateY(-1px);
+  }
 }
 
 .mpesaConfirmed {
@@ -1030,8 +1060,10 @@
   transition: var(--transition);
 }
 
-.mpesaUndoBtn:hover {
-  background: var(--success-light);
+@media (hover: hover) {
+  .mpesaUndoBtn:hover {
+    background: var(--success-light);
+  }
 }
 
 .stkBtn {
@@ -1051,10 +1083,12 @@
   cursor: pointer;
 }
 
-.stkBtnActive:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.2);
+@media (hover: hover) {
+  .stkBtnActive:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.2);
+  }
 }
 
 .stkBtnDisabled {
@@ -1227,9 +1261,11 @@
   transition: var(--transition);
 }
 
-.modalBtnBack:hover {
-  background: var(--bg-muted);
-  border-color: var(--border-medium);
+@media (hover: hover) {
+  .modalBtnBack:hover {
+    background: var(--bg-muted);
+    border-color: var(--border-medium);
+  }
 }
 
 .modalBtnConfirm {
@@ -1252,9 +1288,11 @@
   cursor: pointer;
 }
 
-.modalBtnConfirmActive:hover {
-  background: var(--success-dark);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .modalBtnConfirmActive:hover {
+    background: var(--success-dark);
+    transform: translateY(-2px);
+  }
 }
 
 .modalBtnConfirmDisabled {
@@ -1342,9 +1380,11 @@
   transition: var(--transition);
 }
 
-.printBtn:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .printBtn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+  }
 }
 
 .tableCard {
@@ -1400,8 +1440,10 @@
   border-bottom: none;
 }
 
-.barcodeTable tbody tr:hover {
-  background: var(--primary-light) !important;
+@media (hover: hover) {
+  .barcodeTable tbody tr:hover {
+    background: var(--primary-light) !important;
+  }
 }
 
 .barcodeTable tbody tr:nth-child(even) {
@@ -1438,9 +1480,11 @@
   transition: var(--transition);
 }
 
-.barcodeChip:hover {
-  background: var(--primary);
-  color: #fff;
+@media (hover: hover) {
+  .barcodeChip:hover {
+    background: var(--primary);
+    color: #fff;
+  }
 }
 
 .idChip {
@@ -1454,8 +1498,10 @@
   transition: var(--transition);
 }
 
-.idChip:hover {
-  background: var(--border-soft);
+@media (hover: hover) {
+  .idChip:hover {
+    background: var(--border-soft);
+  }
 }
 
 .typeBadge {
@@ -1546,9 +1592,11 @@
   flex-shrink: 0;
 }
 
-.scannerLinkBtn:hover {
-  background: var(--primary);
-  color: #fff;
+@media (hover: hover) {
+  .scannerLinkBtn:hover {
+    background: var(--primary);
+    color: #fff;
+  }
 }
 
 /* ── GENERATE TAB ─────────────────────────────────────────────────── */
@@ -1654,10 +1702,12 @@
   box-shadow: var(--shadow-card);
 }
 
-.barcodeCard:hover {
-  border-color: var(--primary);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  transform: translateY(-2px);
+@media (hover: hover) {
+  .barcodeCard:hover {
+    border-color: var(--primary);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+  }
 }
 
 .barcodeImgWrap {
@@ -1730,10 +1780,12 @@
   font-weight: 500;
 }
 
-.downloadBtn:hover {
-  background: var(--primary);
-  color: #fff;
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .downloadBtn:hover {
+    background: var(--primary);
+    color: #fff;
+    transform: translateY(-1px);
+  }
 }
 
 /* ── CHECKOUT EMPTY ───────────────────────────────────────────────── */
@@ -1852,8 +1904,10 @@
   transition: var(--transition);
 }
 
-.receiptBtnSecondary:hover {
-  background: var(--bg-muted);
+@media (hover: hover) {
+  .receiptBtnSecondary:hover {
+    background: var(--bg-muted);
+  }
 }
 
 .receiptBtnPrimary {
@@ -1874,9 +1928,11 @@
   transition: var(--transition);
 }
 
-.receiptBtnPrimary:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .receiptBtnPrimary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+  }
 }
 
 /* ── PRINT OPTIMIZATION ───────────────────────────────────────────── */
@@ -2045,10 +2101,12 @@
   white-space: nowrap;
 }
 
-.posTabBtn:hover:not(.posTabBtnActive) {
-  background: var(--primary-light);
-  color: var(--primary);
-  border-color: var(--primary);
+@media (hover: hover) {
+  .posTabBtn:hover:not(.posTabBtnActive) {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
 }
 
 .posTabBtnActive {
@@ -2188,8 +2246,10 @@
   transition: all 0.12s;
 }
 
-.posSearchClear:hover {
-  background: var(--border-medium);
+@media (hover: hover) {
+  .posSearchClear:hover {
+    background: var(--border-medium);
+  }
 }
 
 .posScannerPill {
@@ -2301,10 +2361,12 @@
   white-space: nowrap;
 }
 
-.posCatPill:hover:not(.posCatPillActive) {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-light);
+@media (hover: hover) {
+  .posCatPill:hover:not(.posCatPillActive) {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
 }
 
 .posCatPillActive {
@@ -2348,10 +2410,12 @@
   font-family: inherit;
 }
 
-.posProductCard:hover:not(.posProductCardDisabled) {
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .posProductCard:hover:not(.posProductCardDisabled) {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+  }
 }
 
 .posProductCard:active:not(.posProductCardDisabled) {
@@ -2487,10 +2551,12 @@
   font-family: inherit;
 }
 
-.posClearBtn:hover {
-  background: rgba(239,68,68,0.25);
-  border-color: rgba(239,68,68,0.4);
-  color: #fff;
+@media (hover: hover) {
+  .posClearBtn:hover {
+    background: rgba(239,68,68,0.25);
+    border-color: rgba(239,68,68,0.4);
+    color: #fff;
+  }
 }
 
 .posOrderItems {
@@ -2560,10 +2626,12 @@
   flex-shrink: 0;
 }
 
-.posQtyBtn:hover:not(:disabled) {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
+@media (hover: hover) {
+  .posQtyBtn:hover:not(:disabled) {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
 }
 
 .posQtyValue {
@@ -2598,9 +2666,11 @@
   transition: all 0.1s;
 }
 
-.posOrderDeleteBtn:hover {
-  background: var(--danger);
-  color: #fff;
+@media (hover: hover) {
+  .posOrderDeleteBtn:hover {
+    background: var(--danger);
+    color: #fff;
+  }
 }
 
 /* ── Checkout footer ── */
@@ -2653,10 +2723,12 @@
   letter-spacing: 0.01em;
 }
 
-.posChargeBtn:hover:not(.posChargeBtnDisabled) {
-  background: var(--success-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+@media (hover: hover) {
+  .posChargeBtn:hover:not(.posChargeBtnDisabled) {
+    background: var(--success-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  }
 }
 
 .posChargeBtnDisabled {
@@ -2750,10 +2822,12 @@
   white-space: nowrap;
 }
 
-.posTabBtn:hover:not(.posTabBtnActive) {
-  background: var(--primary-light);
-  color: var(--primary);
-  border-color: var(--primary);
+@media (hover: hover) {
+  .posTabBtn:hover:not(.posTabBtnActive) {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: var(--primary);
+  }
 }
 
 .posTabBtnActive {
@@ -2893,8 +2967,10 @@
   transition: all 0.12s;
 }
 
-.posSearchClear:hover {
-  background: var(--border-medium);
+@media (hover: hover) {
+  .posSearchClear:hover {
+    background: var(--border-medium);
+  }
 }
 
 .posScannerPill {
@@ -3006,10 +3082,12 @@
   white-space: nowrap;
 }
 
-.posCatPill:hover:not(.posCatPillActive) {
-  border-color: var(--primary);
-  color: var(--primary);
-  background: var(--primary-light);
+@media (hover: hover) {
+  .posCatPill:hover:not(.posCatPillActive) {
+    border-color: var(--primary);
+    color: var(--primary);
+    background: var(--primary-light);
+  }
 }
 
 .posCatPillActive {
@@ -3053,10 +3131,12 @@
   font-family: inherit;
 }
 
-.posProductCard:hover:not(.posProductCardDisabled) {
-  border-color: var(--primary);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-  transform: translateY(-1px);
+@media (hover: hover) {
+  .posProductCard:hover:not(.posProductCardDisabled) {
+    border-color: var(--primary);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transform: translateY(-1px);
+  }
 }
 
 .posProductCard:active:not(.posProductCardDisabled) {
@@ -3192,10 +3272,12 @@
   font-family: inherit;
 }
 
-.posClearBtn:hover {
-  background: rgba(239,68,68,0.25);
-  border-color: rgba(239,68,68,0.4);
-  color: #fff;
+@media (hover: hover) {
+  .posClearBtn:hover {
+    background: rgba(239,68,68,0.25);
+    border-color: rgba(239,68,68,0.4);
+    color: #fff;
+  }
 }
 
 .posOrderItems {
@@ -3265,10 +3347,12 @@
   flex-shrink: 0;
 }
 
-.posQtyBtn:hover:not(:disabled) {
-  background: var(--primary-light);
-  border-color: var(--primary);
-  color: var(--primary);
+@media (hover: hover) {
+  .posQtyBtn:hover:not(:disabled) {
+    background: var(--primary-light);
+    border-color: var(--primary);
+    color: var(--primary);
+  }
 }
 
 .posQtyValue {
@@ -3303,9 +3387,11 @@
   transition: all 0.1s;
 }
 
-.posOrderDeleteBtn:hover {
-  background: var(--danger);
-  color: #fff;
+@media (hover: hover) {
+  .posOrderDeleteBtn:hover {
+    background: var(--danger);
+    color: #fff;
+  }
 }
 
 /* ── Checkout footer ── */
@@ -3358,10 +3444,12 @@
   letter-spacing: 0.01em;
 }
 
-.posChargeBtn:hover:not(.posChargeBtnDisabled) {
-  background: var(--success-dark);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+@media (hover: hover) {
+  .posChargeBtn:hover:not(.posChargeBtnDisabled) {
+    background: var(--success-dark);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  }
 }
 
 .posChargeBtnDisabled {
@@ -3461,6 +3549,49 @@
   transition: opacity 0.12s;
 }
 
-.posManualClearBtn:hover {
-  opacity: 1;
+@media (hover: hover) {
+  .posManualClearBtn:hover {
+    opacity: 1;
+  }
 }
+
+/* ── TOUCH ACTIVE STATES ───────────────────────────────────────────────
+   :active provides tap feedback on touch (pointer:coarse) devices.
+   Transforms excluded — lift/scale animations do not suit a press gesture.
+   ──────────────────────────────────────────────────────────────────── */
+.tabBtn:active:not(.tabBtnActive)             { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+.card:active                                  { box-shadow: var(--shadow-dropdown); }
+.lastScanned:active .lastScannedIcon          { background: var(--primary); }
+.lastScanned:active .lastScannedIcon svg      { color: #fff !important; }
+.cartRow:active                               { background: var(--primary-light); }
+.qtyBtn:active                                { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+.deleteBtn:active                             { background: var(--danger); }
+.deleteBtn:active svg                         { color: #fff !important; }
+.clearCartBtn:active                          { background: var(--danger); color: #fff; }
+.chargeBtn:active:not(:disabled)             { background: var(--success-dark); }
+.payBtnItem:active:not(.payBtnActive)         { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.quickAmt:active                              { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+.quickAmtExact:active                         { background: var(--primary); color: #fff; }
+.mpesaBtnSecondary:active                     { background: var(--bg-muted); }
+.mpesaBtnConfirm:active                       { background: var(--success-dark); }
+.mpesaUndoBtn:active                          { background: var(--success-light); }
+.stkBtnActive:active                          { background: var(--primary-dark); }
+.modalBtnBack:active                          { background: var(--bg-muted); }
+.modalBtnConfirmActive:active                 { background: var(--success-dark); }
+.printBtn:active                              { background: var(--primary-dark); }
+.barcodeTable tbody tr:active                 { background: var(--primary-light) !important; }
+.barcodeChip:active                           { background: var(--primary); color: #fff; }
+.idChip:active                                { background: var(--border-soft); }
+.scannerLinkBtn:active                        { background: var(--primary); color: #fff; }
+.barcodeCard:active                           { border-color: var(--primary); }
+.downloadBtn:active                           { background: var(--primary); color: #fff; }
+.receiptBtnSecondary:active                   { background: var(--bg-muted); }
+.receiptBtnPrimary:active                     { background: var(--primary-dark); }
+.posTabBtn:active:not(.posTabBtnActive)       { background: var(--primary-light); color: var(--primary); border-color: var(--primary); }
+.posSearchClear:active                        { background: var(--border-medium); }
+.posCatPill:active:not(.posCatPillActive)     { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
+.posClearBtn:active                           { background: rgba(239,68,68,0.25); border-color: rgba(239,68,68,0.4); color: #fff; }
+.posQtyBtn:active:not(:disabled)              { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+.posOrderDeleteBtn:active                     { background: var(--danger); color: #fff; }
+.posChargeBtn:active:not(.posChargeBtnDisabled) { background: var(--success-dark); }
+.posManualClearBtn:active                     { opacity: 1; }

@@ -94,5 +94,9 @@ module.exports = {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function ({ addVariant }) {
+      addVariant('hover', '@media (hover: hover) { &:hover }')
+    },
+  ],
 }

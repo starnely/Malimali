@@ -6,6 +6,8 @@ import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/Products.module.css'
 import CameraScanner from '../Barcodes/CameraScanner'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function ProductFormPanel({
   showModal, editProduct, mode, setMode,
   barcode, setBarcode, savedBarcode,
@@ -226,7 +228,8 @@ export default function ProductFormPanel({
             </button>
           </div>
           <input
-            autoFocus
+            autoFocus={!isTouchDevice()}
+            tabIndex={isTouchDevice() ? -1 : 0}
             type="text"
             value={barcode}
             onChange={e => setBarcode(e.target.value)}

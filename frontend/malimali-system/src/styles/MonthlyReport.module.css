@@ -1,0 +1,11 @@
+.bottomGrid {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 1rem;
+}
+
+@media (max-width: 767px) {
+  .bottomGrid {
+    grid-template-columns: 1fr;
+  }
+}

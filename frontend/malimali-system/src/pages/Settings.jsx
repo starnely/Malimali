@@ -9,6 +9,8 @@ import {
   MdSecurity, MdBadge, MdMarkEmailRead, MdLanguage,
 } from 'react-icons/md'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const PAYMENT_METHODS = ['cash', 'mpesa', 'card', 'credit', 'split', 'bank']
 const PRINTER_TYPES   = [
   { value: 'usb',     label: 'USB Printer',    desc: 'Direct USB connection to this PC'   },
@@ -185,8 +187,8 @@ export default function Settings() {
               display: 'flex', alignItems: 'center', gap: '6px',
               transition: 'background 0.15s', flexShrink: 0, fontFamily: 'inherit',
             }}
-            onMouseEnter={e => { if (!saving) e.currentTarget.style.background = 'var(--primary-dark)' }}
-            onMouseLeave={e => { if (!saving) e.currentTarget.style.background = 'var(--primary)' }}
+            onMouseEnter={e => { if (!saving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+            onMouseLeave={e => { if (!saving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}
           >
             <MdSave size={16} />
             {saving ? 'Saving…' : 'Save Changes'}
@@ -463,8 +465,8 @@ export default function Settings() {
             <button
               onClick={handleTestEmail}
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', background: 'var(--bg-muted)', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)' }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-medium)'; e.currentTarget.style.color = 'var(--text-secondary)' }}
+              onMouseEnter={e => { if (!isTouchDevice()) { e.currentTarget.style.borderColor = 'var(--primary)'; e.currentTarget.style.color = 'var(--primary)' } }}
+              onMouseLeave={e => { if (!isTouchDevice()) { e.currentTarget.style.borderColor = 'var(--border-medium)'; e.currentTarget.style.color = 'var(--text-secondary)' } }}
             >
               <MdMarkEmailRead size={16} /> Send Test Email
             </button>
@@ -487,8 +489,8 @@ export default function Settings() {
             onClick={handleSave}
             disabled={saving}
             style={{ background: saving ? 'var(--primary-muted)' : 'var(--primary)', color: '#fff', border: 'none', padding: '12px 28px', borderRadius: 'var(--radius-md)', cursor: saving ? 'not-allowed' : 'pointer', fontWeight: '700', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '6px', transition: 'background 0.15s', fontFamily: 'inherit' }}
-            onMouseEnter={e => { if (!saving) e.currentTarget.style.background = 'var(--primary-dark)' }}
-            onMouseLeave={e => { if (!saving) e.currentTarget.style.background = 'var(--primary)' }}
+            onMouseEnter={e => { if (!saving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+            onMouseLeave={e => { if (!saving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}
           >
             <MdSave /> {saving ? 'Saving…' : 'Save Changes'}
           </button>

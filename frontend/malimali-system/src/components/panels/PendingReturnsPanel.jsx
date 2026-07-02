@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { MdWarning, MdCheckCircle, MdClose } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const StatusBadge = ({ status }) => {
   const config = {
     approved: { bg: 'var(--success-light)', color: 'var(--success-dark)', border: 'var(--success)' },
@@ -151,8 +153,8 @@ export default function PendingReturnsPanel({ pendingReturns }) {
                           color: 'var(--text-secondary)',
                           background: 'var(--bg-card)',
                         }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--danger-light)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}
+                        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--danger-light)' }}
+                        onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--bg-card)' }}
                       >
                         Reject
                       </button>
@@ -161,8 +163,8 @@ export default function PendingReturnsPanel({ pendingReturns }) {
                         disabled={!!loadingId}
                         className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1 transition"
                         style={{ background: 'var(--success)' }}
-                        onMouseEnter={e => e.currentTarget.style.background = 'var(--success-dark)'}
-                        onMouseLeave={e => e.currentTarget.style.background = 'var(--success)'}
+                        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--success-dark)' }}
+                        onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--success)' }}
                       >
                         <MdCheckCircle className="text-sm" /> Approve & Restore
                       </button>

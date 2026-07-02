@@ -646,7 +646,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
               <div
                 key={p._id}
                 onMouseDown={e => { e.preventDefault(); if (!isUsed) select(p._id) }}
-                onMouseEnter={() => setActiveIdx(idx)}
+                onMouseEnter={() => { if (!isTouchDevice()) setActiveIdx(idx) }}
                 style={{
                   ...ROW,
                   cursor: isUsed ? 'not-allowed' : 'pointer',
@@ -679,7 +679,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
               <div
                 key={p._id}
                 onMouseDown={e => { e.preventDefault(); if (!isUsed) select(p._id) }}
-                onMouseEnter={() => setActiveIdx(idx)}
+                onMouseEnter={() => { if (!isTouchDevice()) setActiveIdx(idx) }}
                 style={{
                   ...ROW,
                   cursor: isUsed ? 'not-allowed' : 'pointer',
@@ -704,8 +704,8 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
     <div
       ref={containerRef}
       style={{ position: 'relative' }}
-      onMouseEnter={() => !disabled && setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      onMouseEnter={() => { if (!isTouchDevice() && !disabled) setHovered(true) }}
+      onMouseLeave={() => { if (!isTouchDevice()) setHovered(false) }}
     >
       <input
         value={open ? query : (selected?.name || '')}

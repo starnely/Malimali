@@ -4,6 +4,8 @@ import { useApp } from '@/context/AppContext'
 import { API_BASE_URL } from '@/config/api'
 import styles from '@/styles/ExpiredStock.module.css'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function ExpiredStock() {
   const { currentUser, products, fetchProducts, isOwner, isManager, stores } = useApp()
 
@@ -328,8 +330,8 @@ export default function ExpiredStock() {
                               onClick={() => setConfirmId(e._id)}
                               className="p-1.5 rounded-lg transition"
                               style={{ color: 'var(--danger)' }}
-                              onMouseEnter={e2 => e2.currentTarget.style.background = 'var(--danger-light)'}
-                              onMouseLeave={e2 => e2.currentTarget.style.background = 'transparent'}
+                              onMouseEnter={e2 => { if (!isTouchDevice()) e2.currentTarget.style.background = 'var(--danger-light)' }}
+                              onMouseLeave={e2 => { if (!isTouchDevice()) e2.currentTarget.style.background = 'transparent' }}
                             >
                               <MdDelete />
                             </button>
@@ -376,8 +378,8 @@ export default function ExpiredStock() {
                 onClick={() => { setMoveModal(null); setMoveQty(''); setMoveNotes('') }}
                 className="w-7 h-7 flex items-center justify-center rounded-lg transition"
                 style={{ color: 'rgba(255,255,255,0.6)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.15)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.15)' }}
+                onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
               >
                 <MdClose size={18} />
               </button>

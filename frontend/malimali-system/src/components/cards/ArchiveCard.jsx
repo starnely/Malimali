@@ -5,6 +5,8 @@ import {
 } from 'react-icons/md'
 import { fmtQty } from '@/utils/utils'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebtors }) {
   const pb = archive.paymentBreakdown || {}
 
@@ -59,8 +61,8 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
         onClick={onToggle}
         className="flex justify-between items-center p-4 cursor-pointer transition-colors duration-200"
         style={{ background: isExpanded ? 'var(--primary-light)' : 'var(--bg-card)' }}
-        onMouseEnter={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--bg-muted)' }}
-        onMouseLeave={e => { if (!isExpanded) e.currentTarget.style.background = 'var(--bg-card)' }}
+        onMouseEnter={e => { if (!isExpanded && !isTouchDevice()) e.currentTarget.style.background = 'var(--bg-muted)' }}
+        onMouseLeave={e => { if (!isExpanded && !isTouchDevice()) e.currentTarget.style.background = 'var(--bg-card)' }}
       >
         <div className="flex items-center gap-3">
           <div

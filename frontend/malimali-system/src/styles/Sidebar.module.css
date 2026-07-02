@@ -40,8 +40,13 @@
   cursor: pointer;
   transition: background 0.2s ease;
 }
-.shiftOpen:hover {
-  background: rgba(255,255,255,0.25);
+@media (hover: hover) {
+  .shiftOpen:hover {
+    background: rgba(255,255,255,0.25);
+  }
+}
+.shiftOpen:active {
+  background: rgba(255,255,255,0.35);
 }
 
 /* ── Animations ───────────────────────────────────────────── */

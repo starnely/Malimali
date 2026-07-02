@@ -16,7 +16,13 @@
   color: #ffffff;
   border-color: var(--primary);
 }
-.primary:hover {
+@media (hover: hover) {
+  .primary:hover {
+    background-color: var(--primary-dark);
+    border-color: var(--primary-dark);
+  }
+}
+.primary:active {
   background-color: var(--primary-dark);
   border-color: var(--primary-dark);
 }
@@ -26,7 +32,13 @@
   color: #ffffff;
   border-color: var(--success);
 }
-.success:hover {
+@media (hover: hover) {
+  .success:hover {
+    background-color: var(--success-dark);
+    border-color: var(--success-dark);
+  }
+}
+.success:active {
   background-color: var(--success-dark);
   border-color: var(--success-dark);
 }

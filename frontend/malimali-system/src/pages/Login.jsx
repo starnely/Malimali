@@ -81,7 +81,7 @@ export default function Login({ onLogin }) {
       {/* ── Full page split layout ────────────────────────────────── */}
       <div
         className={styles.splitLayout}
-        style={{ minHeight: '100vh', fontFamily: "'DM Sans', system-ui, sans-serif" }}
+        style={{ minHeight: '100dvh', fontFamily: "'DM Sans', system-ui, sans-serif" }}
       >
 
         {/* ── LEFT — brand panel ──────────────────────────────────── */}

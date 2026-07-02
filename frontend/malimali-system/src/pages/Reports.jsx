@@ -10,6 +10,8 @@ import styles from '@/styles/Reports.module.css'
 import * as XLSX from 'xlsx'
 import MonthlyReport from './MonthlyReport'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 const TABS = [
   { id: 'summary', label: 'Product Summary', icon: <MdLeaderboard /> },
   { id: 'monthly', label: 'Monthly Report', icon: <MdCalendarMonth /> },
@@ -205,8 +207,8 @@ export default function Reports() {
               <button onClick={handleDownloadCSV}
                 className="flex items-center gap-2 text-xs font-bold px-4 py-2 rounded-xl text-white transition-all"
                 style={{ background: 'var(--primary)' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--primary-dark)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--primary)'}>
+                onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+                onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}>
                 <MdDownload className="text-base" /> Download Excel
               </button>
             )}
@@ -222,8 +224,8 @@ export default function Reports() {
                 ? { background: 'var(--primary)', color: '#fff' }
                 : { background: 'transparent', color: 'var(--text-muted)' }
               }
-              onMouseEnter={e => { if (activeTab !== tab.id) e.currentTarget.style.background = 'var(--bg-muted)' }}
-              onMouseLeave={e => { if (activeTab !== tab.id) e.currentTarget.style.background = 'transparent' }}
+              onMouseEnter={e => { if (activeTab !== tab.id && !isTouchDevice()) e.currentTarget.style.background = 'var(--bg-muted)' }}
+              onMouseLeave={e => { if (activeTab !== tab.id && !isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
             >
               <span>{tab.icon}</span>{tab.label}
             </button>

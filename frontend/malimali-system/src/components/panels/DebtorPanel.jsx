@@ -2,6 +2,8 @@ import { useMemo } from 'react'
 import { MdClose, MdWarning, MdReceipt } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 
+const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
+
 export default function DebtorPanel({ date, onClose }) {
   const { sales, isOwner, currentUser } = useApp()
 
@@ -79,8 +81,8 @@ export default function DebtorPanel({ date, onClose }) {
               onClick={onClose}
               className="w-9 h-9 rounded-full flex items-center justify-center transition"
               style={{ background: 'rgba(255,255,255,0.1)' }}
-              onMouseEnter={e => e.currentTarget.style.background = 'rgba(255,255,255,0.2)'}
-              onMouseLeave={e => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+              onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.2)' }}
+              onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.1)' }}
             >
               <MdClose size={20} className="text-white" />
             </button>

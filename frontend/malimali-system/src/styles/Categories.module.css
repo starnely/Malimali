@@ -4,7 +4,7 @@
   border: 1px solid var(--border-soft);
   box-shadow: var(--shadow-card);
   overflow: hidden;
-  max-height: calc(100vh - 320px);
+  max-height: calc(100dvh - 320px);
   display: flex;
   flex-direction: column;
 }
