@@ -745,6 +745,37 @@ export function AppProvider({ children }) {
     }
   }
 
+  // Sends a real STK push for just the M-Pesa portion of a split payment.
+  // No sale document is created — the callback fires "mpesa_verify_result"
+  // on the cashier's socket room.  Returns { success, checkoutRequestId }.
+  const initiateSplitMpesaVerify = async ({ phone, amount }) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/mpesa/stk-verify`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ phone, amount: Number(amount) }),
+      })
+      const data = await res.json()
+      return data
+    } catch (err) {
+      console.error('M-Pesa split verify error:', err)
+      return { success: false, message: 'Failed to reach the payment server.' }
+    }
+  }
+
+  // Queries Safaricom directly for the authoritative status before a retry.
+  const queryMpesaStatus = async (checkoutRequestId) => {
+    try {
+      const res = await authFetchRef.current(
+        `${API_BASE_URL}/api/mpesa/query/${checkoutRequestId}`
+      )
+      return await res.json()
+    } catch (err) {
+      console.error('M-Pesa query error:', err)
+      return { success: false }
+    }
+  }
+
   // ── RETURNS ────────────────────────────────────────────────────────────
   const processReturn = async (saleId, returnItems, reason, customerName) => {
     try {
@@ -1104,11 +1135,11 @@ export function AppProvider({ children }) {
 
   const todaySales = sales.filter(s => {
     const saleDate = new Date(s.date).toLocaleDateString('en-CA')
-    return saleDate === today && !s.returned && !s.voided
+    return saleDate === today && !s.returned && !s.voided && s.status !== 'pending'
   })
 
   const totalRevenue = sales.reduce((sum, s) => {
-    if (s.returned) return sum
+    if (s.returned || s.status === 'pending') return sum
     const returnedValue = s.items?.reduce((rv, item) => {
       if (item.returnStatus === 'approved') return rv + (item.price || 0) * Math.max(0, item.qty - (item.voidedQty || 0) - (item.returnedQty || 0))
       return rv
@@ -1151,7 +1182,7 @@ export function AppProvider({ children }) {
       users, setUsers,
       fetchUsers, addUser, updateUser, deleteUser, toggleUserStatus,
       products, fetchProducts,
-      sales, fetchSales, recordMultipleSales, initiateMpesaPayment, checkMpesaStatus,
+      sales, fetchSales, recordMultipleSales, initiateMpesaPayment, checkMpesaStatus, initiateSplitMpesaVerify, queryMpesaStatus,
       todaySales, totalRevenue,
       returns, pendingReturns, fetchReturns,
       processReturn, approveReturn, rejectReturn,

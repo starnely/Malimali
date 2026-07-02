@@ -142,6 +142,56 @@ async function initiateSTKPush({ phone, amount, accountReference, description })
   };
 }
 
+/**
+ * queryStkStatus — queries Safaricom's STK Push Query API for a given CheckoutRequestID.
+ *
+ * Returns { resultCode, resultDesc } where:
+ *   resultCode === 0    → payment confirmed
+ *   resultCode  >  0    → payment failed/cancelled (code matches RESULT_MESSAGES below)
+ *   resultCode === -1   → transaction still in progress or query itself failed (leave as pending)
+ *
+ * Throws only on network-level errors; Safaricom API errors are folded into resultCode -1.
+ */
+async function queryStkStatus(checkoutRequestId) {
+  const shortcode = process.env.MPESA_SHORTCODE;
+  const passkey   = process.env.MPESA_PASSKEY;
+  if (!shortcode || !passkey) throw new Error("MPESA_SHORTCODE and MPESA_PASSKEY must be set");
+
+  const token     = await getAccessToken();
+  const timestamp = getTimestamp();
+  const password  = Buffer.from(`${shortcode}${passkey}${timestamp}`).toString("base64");
+
+  const res = await fetch(`${getBaseUrl()}/mpesa/stkpushquery/v1/query`, {
+    method:  "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      BusinessShortCode: shortcode,
+      Password:          password,
+      Timestamp:         timestamp,
+      CheckoutRequestID: checkoutRequestId,
+    }),
+  });
+
+  const data = await res.json().catch(() => ({}));
+  console.log("[MPesa STK Query]", checkoutRequestId, "| HTTP:", res.status, "| Body:", JSON.stringify(data));
+
+  // errorCode present means the transaction is still processing or the query failed
+  if (data.errorCode || data.errorMessage) {
+    console.warn("[MPesa STK Query] Still pending or query error:", data.errorMessage || data.errorCode);
+    return { resultCode: -1, resultDesc: data.errorMessage || "In progress" };
+  }
+
+  if (!res.ok) {
+    console.warn("[MPesa STK Query] HTTP error:", res.status);
+    return { resultCode: -1, resultDesc: `HTTP ${res.status}` };
+  }
+
+  return {
+    resultCode: Number(data.ResultCode ?? -1),
+    resultDesc: data.ResultDesc || "",
+  };
+}
+
 // Maps Safaricom result codes to user-facing messages shown in the POS UI
 const RESULT_MESSAGES = {
   1:    "Insufficient M-Pesa balance",
@@ -156,4 +206,4 @@ function getResultMessage(code, fallback) {
   return RESULT_MESSAGES[Number(code)] || fallback || "Payment failed";
 }
 
-module.exports = { getAccessToken, initiateSTKPush, getResultMessage };
+module.exports = { getAccessToken, initiateSTKPush, queryStkStatus, getResultMessage };

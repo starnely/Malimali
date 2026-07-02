@@ -26,7 +26,7 @@ const isValidBankRef  = (r) => r.length >= 8 && CODE_RX.test(r)
 
 
 export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) {
-  const { currentUser, settings, checkCustomerCredit, initiateMpesaPayment, checkMpesaStatus } = useApp()
+  const { currentUser, settings, checkCustomerCredit, initiateMpesaPayment, checkMpesaStatus, initiateSplitMpesaVerify, queryMpesaStatus } = useApp()
   const socket = useSocket()
 
   const enabledMethods = settings?.paymentMethods?.length
@@ -57,6 +57,12 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
   const [mpesaReceiptNumber,     setMpesaReceiptNumber]     = useState('')
   const [mpesaErrorMsg,          setMpesaErrorMsg]          = useState('')
   const mpesaTimerRef = useRef(null)
+
+  // ── Split M-Pesa verification state ───────────────────────────────
+  const [splitMpesaCheckoutRequestId, setSplitMpesaCheckoutRequestId] = useState('')
+  const [splitMpesaReceiptNumber,     setSplitMpesaReceiptNumber]     = useState('')
+  const [splitMpesaErrorMsg,          setSplitMpesaErrorMsg]          = useState('')
+  const splitMpesaTimerRef = useRef(null)
 
   // ── Blacklist check state ─────────────────────────────────────────
   const [blacklistInfo, setBlacklistInfo] = useState(null)
@@ -188,10 +194,88 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
     return () => clearInterval(poll)
   }, [mpesaStep, mpesaCheckoutRequestId, checkMpesaStatus])
 
-  // Cleanup timer on unmount
-  useEffect(() => () => clearTimeout(mpesaTimerRef.current), [])
+  // Cleanup timers on unmount
+  useEffect(() => () => {
+    clearTimeout(mpesaTimerRef.current)
+    clearTimeout(splitMpesaTimerRef.current)
+  }, [])
 
-  const handleSplitSendSTK = () => { if (!isValidKenyanPhone(splitMpesaPhone)) return; setSplitMpesaStep('waiting') }
+  // Socket: listen for split M-Pesa verification result
+  useEffect(() => {
+    if (!socket || splitMpesaStep !== 'waiting') return
+    const handleVerifyResult = (data) => {
+      clearTimeout(splitMpesaTimerRef.current)
+      if (data.status === 'success') {
+        setSplitMpesaReceiptNumber(data.mpesaReceiptNumber || '')
+        setSplitMpesaStep('confirmed')
+      } else {
+        setSplitMpesaErrorMsg(data.message || 'Payment failed. Please try again.')
+        setSplitMpesaStep('failed')
+      }
+    }
+    socket.on('mpesa_verify_result', handleVerifyResult)
+    return () => socket.off('mpesa_verify_result', handleVerifyResult)
+  }, [socket, splitMpesaStep])
+
+  // Polling fallback for split verification
+  useEffect(() => {
+    if (splitMpesaStep !== 'waiting' || !splitMpesaCheckoutRequestId) return
+    const poll = setInterval(async () => {
+      const data = await checkMpesaStatus(splitMpesaCheckoutRequestId)
+      if (!data?.success) return
+      if (data.status === 'confirmed') {
+        clearTimeout(splitMpesaTimerRef.current)
+        setSplitMpesaReceiptNumber(data.mpesaReceiptNumber || '')
+        setSplitMpesaStep('confirmed')
+      } else if (data.status === 'failed') {
+        clearTimeout(splitMpesaTimerRef.current)
+        setSplitMpesaStep('failed')
+        setSplitMpesaErrorMsg('Payment was cancelled or failed. Please try again.')
+      }
+    }, 5000)
+    return () => clearInterval(poll)
+  }, [splitMpesaStep, splitMpesaCheckoutRequestId, checkMpesaStatus])
+
+  const handleSplitSendSTK = async () => {
+    if (!isValidKenyanPhone(splitMpesaPhone) || mpesaPartNum <= 0) return
+    setSplitMpesaStep('loading')
+    setSplitMpesaErrorMsg('')
+
+    const result = await initiateSplitMpesaVerify({ phone: splitMpesaPhone, amount: mpesaPartNum })
+    if (!result.success) {
+      setSplitMpesaStep('failed')
+      setSplitMpesaErrorMsg(result.message || 'Failed to send M-Pesa request. Please try again.')
+      return
+    }
+
+    setSplitMpesaCheckoutRequestId(result.checkoutRequestId)
+    setSplitMpesaStep('waiting')
+    splitMpesaTimerRef.current = setTimeout(() => setSplitMpesaStep('timeout'), 2 * 60 * 1000)
+  }
+
+  // Bug 5 guard: before allowing a retry we verify the original request is
+  // truly resolved to prevent sending a second STK push while the first is
+  // still pending (double-charge risk if the original callback arrives late).
+  const handleRetry = async () => {
+    if (mpesaCheckoutRequestId) {
+      const data = await queryMpesaStatus(mpesaCheckoutRequestId)
+      if (data?.status === 'confirmed') {
+        // Original payment actually went through — surface it as success
+        setMpesaReceiptNumber(data.mpesaReceiptNumber || '')
+        setMpesaConfirmedSale(data)
+        setMpesaStep('confirmed')
+        return
+      }
+      if (data?.status === 'pending') {
+        setMpesaErrorMsg('Original payment may still be processing — please wait a few seconds before retrying.')
+        return
+      }
+      // 'failed' or query error → safe to retry
+    }
+    setMpesaStep('enter')
+    setMpesaErrorMsg('')
+    setMpesaCheckoutRequestId('')
+  }
 
   const handleCashPartChange = (val) => {
     setCashPart(val)
@@ -203,6 +287,10 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
     setPaymentMethod(method)
     setMpesaStep('enter')
     setSplitMpesaStep('enter')
+    clearTimeout(splitMpesaTimerRef.current)
+    setSplitMpesaCheckoutRequestId('')
+    setSplitMpesaReceiptNumber('')
+    setSplitMpesaErrorMsg('')
     setCardApprovalCode(''); setCardApprovalCodeConfirm('')
     setBankReference('');    setBankReferenceConfirm('')
   }
@@ -258,6 +346,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
       customerPhone: paymentMethod === 'credit' ? normalizePhone(customerPhone) : '',
       promiseDate:   paymentMethod === 'credit' ? promiseDate : '',
       mpesaPhone: paymentMethod === 'split' ? normalizePhone(splitMpesaPhone) : '',
+      splitMpesaReceiptNumber: paymentMethod === 'split' ? splitMpesaReceiptNumber : '',
       cashPart:  cashPartNum,
       mpesaPart: mpesaPartNum,
       cardApprovalCode: paymentMethod === 'card' ? cardApprovalCode.trim() : '',
@@ -534,7 +623,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                       : mpesaErrorMsg || 'Something went wrong. Please try again.'}
                   </div>
                   <button
-                    onClick={() => { setMpesaStep('enter'); setMpesaErrorMsg(''); setMpesaCheckoutRequestId('') }}
+                    onClick={handleRetry}
                     className={s.mpesaBtnSecondary}
                     style={{ marginTop: 12 }}
                   >
@@ -604,21 +693,61 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                         </button>
                       </>
                     )}
+                    {splitMpesaStep === 'loading' && (
+                      <div className={s.mpesaBox}>
+                        <div className={s.mpesaEmoji}>⏳</div>
+                        <div className={s.mpesaTitle}>Initiating M-Pesa...</div>
+                        <div className={s.mpesaDesc}>Connecting to Safaricom. Please wait.</div>
+                      </div>
+                    )}
                     {splitMpesaStep === 'waiting' && (
                       <div className={s.mpesaBox}>
-                        <div className={s.mpesaTitle}>📲 Waiting for M-Pesa PIN</div>
-                        <div className={s.mpesaDesc}>{splitMpesaPhone} — KSh {mpesaPartNum.toLocaleString()}</div>
-                        <div className={s.mpesaBtns}>
-                          <button onClick={() => setSplitMpesaStep('enter')} className={s.mpesaBtnSecondary}>Wrong number</button>
-                          <button onClick={() => setSplitMpesaStep('confirmed')} className={s.mpesaBtnConfirm}>✅ Received</button>
+                        <div className={s.mpesaEmoji}>📲</div>
+                        <div className={s.mpesaTitle}>Waiting for M-Pesa PIN</div>
+                        <div className={s.mpesaPhone}>{splitMpesaPhone}</div>
+                        <div className={s.mpesaDesc}>
+                          Customer entering PIN to pay <strong>KSh {mpesaPartNum.toLocaleString()}</strong>.
+                          Do not click "Received" until Safaricom confirms.
                         </div>
+                        <div className={s.mpesaBtns}>
+                          <button
+                            onClick={() => { clearTimeout(splitMpesaTimerRef.current); setSplitMpesaStep('enter'); setSplitMpesaCheckoutRequestId('') }}
+                            className={s.mpesaBtnSecondary}
+                          >
+                            Wrong number
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                    {(splitMpesaStep === 'failed' || splitMpesaStep === 'timeout') && (
+                      <div className={s.mpesaBox}>
+                        <div className={s.mpesaEmoji}>❌</div>
+                        <div className={s.mpesaTitle} style={{ color: 'var(--danger)' }}>
+                          {splitMpesaStep === 'timeout' ? 'Payment Timed Out' : 'Payment Failed'}
+                        </div>
+                        <div className={s.mpesaDesc}>
+                          {splitMpesaStep === 'timeout'
+                            ? 'Customer did not respond within 2 minutes.'
+                            : splitMpesaErrorMsg || 'Something went wrong. Please try again.'}
+                        </div>
+                        <button
+                          onClick={() => { setSplitMpesaStep('enter'); setSplitMpesaErrorMsg(''); setSplitMpesaCheckoutRequestId('') }}
+                          className={s.mpesaBtnSecondary}
+                          style={{ marginTop: 12 }}
+                        >
+                          Try Again
+                        </button>
                       </div>
                     )}
                     {splitMpesaStep === 'confirmed' && (
                       <div className={s.mpesaConfirmed}>
                         <MdCheckCircle style={{ color: 'var(--success)', fontSize: '20px' }} />
-                        <div className={s.mpesaConfirmedTitle}>M-Pesa KSh {mpesaPartNum.toLocaleString()} confirmed</div>
-                        <button onClick={() => setSplitMpesaStep('waiting')} className={s.mpesaUndoBtn}>Undo</button>
+                        <div>
+                          <div className={s.mpesaConfirmedTitle}>M-Pesa KSh {mpesaPartNum.toLocaleString()} confirmed</div>
+                          {splitMpesaReceiptNumber && (
+                            <div className={s.mpesaConfirmedSub}>Receipt: {splitMpesaReceiptNumber}</div>
+                          )}
+                        </div>
                       </div>
                     )}
                   </>

@@ -5,7 +5,12 @@ const Sale     = require("../models/Sale");
 const Product  = require("../models/Product");
 const User     = require("../models/User");
 const { authMiddleware } = require("../middleware/authMiddleware");
-const { initiateSTKPush, getResultMessage } = require("../utils/mpesaClient");
+const { initiateSTKPush, queryStkStatus, getResultMessage } = require("../utils/mpesaClient");
+
+// In-process store for split-payment verifications.
+// Maps checkoutRequestId → { cashierId: String, amount: Number }
+// Entries are auto-deleted after 3 minutes (well past Safaricom's 60s window).
+const pendingVerifications = new Map();
 const { sendSmsReceipt } = require("../utils/smsReceipt");
 
 function getEATDate() {
@@ -177,9 +182,31 @@ router.post("/callback", async (req, res) => {
     console.log("[MPesa Callback] CheckoutRequestID:", CheckoutRequestID, "| ResultCode:", ResultCode, "| ResultDesc:", ResultDesc);
     if (!CheckoutRequestID) return;
 
+    const io = req.app.get("io");
+
     const sale = await Sale.findOne({ mpesaCheckoutRequestId: CheckoutRequestID });
+
+    // No full sale — check if this is a split-payment verification instead
     if (!sale) {
-      console.warn("[MPesa Callback] No sale found for CheckoutRequestID:", CheckoutRequestID);
+      const verif = pendingVerifications.get(CheckoutRequestID);
+      if (!verif) {
+        console.warn("[MPesa Callback] No sale or verification found for CheckoutRequestID:", CheckoutRequestID);
+        return;
+      }
+      pendingVerifications.delete(CheckoutRequestID);
+      const metaItems  = CallbackMetadata?.Item || [];
+      const receiptNum = ResultCode === 0
+        ? String(metaItems.find(i => i.Name === "MpesaReceiptNumber")?.Value || "")
+        : "";
+      console.log(`[MPesa Callback] Split verify ${ResultCode === 0 ? "SUCCESS" : "FAILED"}: ${CheckoutRequestID} | cashierId: ${verif.cashierId}`);
+      if (io) {
+        io.to(verif.cashierId).emit("mpesa_verify_result", {
+          checkoutRequestId:  CheckoutRequestID,
+          status:             ResultCode === 0 ? "success" : "failed",
+          mpesaReceiptNumber: receiptNum,
+          message:            ResultCode !== 0 ? getResultMessage(ResultCode, ResultDesc) : "",
+        });
+      }
       return;
     }
     if (sale.status !== "pending") {
@@ -187,8 +214,6 @@ router.post("/callback", async (req, res) => {
       return;
     }
     console.log("[MPesa Callback] Matched sale:", String(sale._id), "| receiptId:", sale.receiptId);
-
-    const io = req.app.get("io");
 
     if (ResultCode === 0) {
       // ── Payment succeeded ─────────────────────────────────────────
@@ -286,5 +311,115 @@ router.get("/status/:checkoutRequestId", authMiddleware, async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to fetch payment status.", error: err.message });
   }
 });
+
+// ── 4. STK VERIFY — split payment M-Pesa portion (no sale created) ────
+//
+// Sends a real STK push for the M-Pesa portion of a split payment without
+// creating a Sale document or touching stock. On callback the cashier's
+// socket room receives "mpesa_verify_result". The full split sale is
+// recorded separately via POST /api/sales once the cashier confirms.
+router.post("/stk-verify", authMiddleware, async (req, res) => {
+  try {
+    const { phone, amount } = req.body;
+    if (!phone || !amount || Number(amount) <= 0) {
+      return res.status(400).json({ success: false, message: "Phone and amount are required." });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(401).json({ success: false, message: "User not found." });
+
+    let stkResult;
+    try {
+      stkResult = await initiateSTKPush({
+        phone,
+        amount:           Math.ceil(Number(amount)),
+        accountReference: "SPLIT-PAY",
+        description:      "Split M-Pesa",
+      });
+    } catch (stkErr) {
+      console.error("[MPesa STK Verify] STK push error:", stkErr.message);
+      return res.status(502).json({ success: false, message: stkErr.message || "Failed to reach M-Pesa." });
+    }
+
+    // Register so the callback can route the result to this cashier
+    pendingVerifications.set(stkResult.checkoutRequestId, {
+      cashierId: String(user._id),
+      amount:    Number(amount),
+    });
+    // Auto-expire after 3 min in case the callback never arrives
+    setTimeout(() => pendingVerifications.delete(stkResult.checkoutRequestId), 3 * 60 * 1000);
+
+    console.log("[MPesa STK Verify] Initiated | phone:", phone, "| amount:", amount, "| cashier:", user._id);
+
+    return res.status(202).json({
+      success:           true,
+      checkoutRequestId: stkResult.checkoutRequestId,
+    });
+  } catch (err) {
+    console.error("[MPesa STK Verify] Unhandled error:", err);
+    return res.status(500).json({ success: false, message: "Failed to initiate M-Pesa verification." });
+  }
+});
+
+
+// ── 5. ON-DEMAND STK QUERY — used by frontend before retry ────────────
+//
+// Lets the frontend ask "what is the REAL status of this checkout
+// request?" before allowing a retry.  Calls Safaricom directly so we
+// have an authoritative answer even if the callback was missed.
+router.get("/query/:checkoutRequestId", authMiddleware, async (req, res) => {
+  try {
+    const { checkoutRequestId } = req.params;
+    const sale = await Sale.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
+    if (!sale) {
+      return res.status(404).json({ success: false, message: "Payment not found." });
+    }
+
+    // Already resolved — no need to hit Safaricom
+    if (sale.status !== "pending") {
+      return res.json({ success: true, status: sale.status });
+    }
+
+    // Query Safaricom for the authoritative result
+    const { resultCode, resultDesc } = await queryStkStatus(checkoutRequestId);
+
+    if (resultCode === 0) {
+      const updated = await Sale.findOneAndUpdate(
+        { _id: sale._id, status: "pending" },
+        { $set: { status: "confirmed" } },
+        { new: true }
+      );
+      const io = req.app.get("io");
+      if (updated && io) {
+        io.emit("productsUpdated");
+        io.emit("sync_system_data");
+      }
+      return res.json({ success: true, status: updated ? "confirmed" : sale.status });
+
+    } else if (resultCode !== -1) {
+      // Definitive failure — restock and mark failed
+      const updated = await Sale.findOneAndUpdate(
+        { _id: sale._id, status: "pending" },
+        { $set: { status: "failed" } }
+      );
+      if (updated) {
+        for (const item of sale.items) {
+          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.qty } });
+        }
+        const io = req.app.get("io");
+        if (io) io.emit("productsUpdated");
+      }
+      return res.json({ success: true, status: "failed", message: getResultMessage(resultCode, resultDesc) });
+    }
+
+    // resultCode === -1: still processing or query itself failed — leave as pending
+    return res.json({ success: true, status: "pending" });
+
+  } catch (err) {
+    console.error("[MPesa On-Demand Query] Error:", err);
+    return res.status(500).json({ success: false, message: "Failed to query payment status.", error: err.message });
+  }
+});
+
 
 module.exports = router;

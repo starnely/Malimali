@@ -187,6 +187,80 @@ mongoose.connection.once("open", async () => {
   }
 
   scheduleAutoExpiryCheck();
+
+  // ── M-PESA ORPHAN CLEANUP JOB ─────────────────────────────────────────
+  // Every 45 s, find pending M-Pesa sales older than 90 s and query Safaricom
+  // directly.  Resolves sales where the callback was silently dropped (e.g.
+  // ngrok expiry).  Uses findOneAndUpdate with status:"pending" as the filter
+  // so the update is a no-op if the real callback arrived in the interim —
+  // prevents any double-processing race between the job and the live callback.
+  const { queryStkStatus, getResultMessage: mpesaMsg } = require("./utils/mpesaClient");
+
+  setInterval(async () => {
+    try {
+      const SaleM   = require("./models/Sale");
+      const ProductM = require("./models/Product");
+      const cutoff  = new Date(Date.now() - 90 * 1000);
+
+      const pendingSales = await SaleM.find({
+        status: "pending",
+        mpesaCheckoutRequestId: { $nin: ["", null] },
+        createdAt: { $lte: cutoff },
+      }).lean();
+
+      if (pendingSales.length === 0) return;
+      console.log(`[MPesa Job] Querying ${pendingSales.length} orphaned pending sale(s)...`);
+
+      for (const sale of pendingSales) {
+        try {
+          const { resultCode, resultDesc } = await queryStkStatus(sale.mpesaCheckoutRequestId);
+
+          if (resultCode === 0) {
+            // Payment confirmed — atomic claim (no-op if callback beat us here)
+            const updated = await SaleM.findOneAndUpdate(
+              { _id: sale._id, status: "pending" },
+              { $set: { status: "confirmed" } }
+            );
+            if (updated) {
+              console.log(`[MPesa Job] ✅ Confirmed orphaned sale: ${sale.receiptId}`);
+              io.to(String(sale.cashierId)).emit("mpesa_result", {
+                checkoutRequestId:  sale.mpesaCheckoutRequestId,
+                status:             "success",
+                mpesaReceiptNumber: "",
+                sale:               { ...sale, status: "confirmed" },
+              });
+              io.emit("sync_system_data");
+            }
+
+          } else if (resultCode !== -1) {
+            // Definitive failure — atomic claim, then restock
+            const updated = await SaleM.findOneAndUpdate(
+              { _id: sale._id, status: "pending" },
+              { $set: { status: "failed" } }
+            );
+            if (updated) {
+              for (const item of sale.items) {
+                await ProductM.findByIdAndUpdate(item.productId, { $inc: { stock: item.qty } });
+              }
+              console.log(`[MPesa Job] ❌ Failed orphaned sale: ${sale.receiptId} | Code: ${resultCode}`);
+              io.to(String(sale.cashierId)).emit("mpesa_result", {
+                checkoutRequestId: sale.mpesaCheckoutRequestId,
+                status:            "failed",
+                resultCode,
+                message:           mpesaMsg(resultCode, resultDesc),
+              });
+              io.emit("productsUpdated");
+            }
+          }
+          // resultCode === -1: still in progress or query itself failed — leave as pending
+        } catch (queryErr) {
+          console.error(`[MPesa Job] Query error for sale ${sale._id}:`, queryErr.message);
+        }
+      }
+    } catch (err) {
+      console.error("[MPesa Job] Job error:", err.message);
+    }
+  }, 45 * 1000);
 });
 
 // ── 9. SHARED EXPIRY LOGIC ───────────────────────────────────────────

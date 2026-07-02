@@ -291,6 +291,7 @@ export default function Barcodes() {
       promiseDate: paymentDetails.promiseDate || '',
       cardApprovalCode: paymentDetails.cardApprovalCode || '',
       bankReference: paymentDetails.bankReference || '',
+      mpesaReceiptNumber: paymentDetails.splitMpesaReceiptNumber || '',
     }
 
     const result = await recordMultipleSales(cart, paymentInfo)

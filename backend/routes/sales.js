@@ -113,6 +113,7 @@ router.post("/", async (req, res) => {
         change: Number(paymentInfo?.change) || 0,
         cardApprovalCode: paymentInfo?.cardApprovalCode || "",
         bankReference: paymentInfo?.bankReference || "",
+        mpesaReceiptNumber: paymentInfo?.mpesaReceiptNumber || "",
       },
       date: getEATDate(),
       returnStatus: "none",
@@ -163,7 +164,7 @@ router.get("/", async (req, res) => {
       }
     }
 
-    const rawSales = await Sale.find({ ...query, status: { $ne: "failed" } })
+    const rawSales = await Sale.find({ ...query, status: "confirmed" })
       .populate("cashierId", "username fullname")
       .populate("items.productId", "name sellPrice category")
       .sort({ createdAt: -1 })

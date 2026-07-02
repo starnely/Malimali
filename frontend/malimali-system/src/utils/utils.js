@@ -28,7 +28,7 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All", 
   const targetDate = normalize(date)
 
   const daySales = sales.filter(s => {
-    const dateMatch = normalize(s.date) === targetDate && !s.returned && !s.voided
+    const dateMatch = normalize(s.date) === targetDate && !s.returned && !s.voided && s.status !== 'pending'
     const storeMatch = storeName === "All" || s.store === storeName
     return dateMatch && storeMatch
   })
