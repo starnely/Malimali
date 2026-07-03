@@ -16,6 +16,7 @@ export default function ProductFormPanel({
   handleScan, saveProduct,
   closeModal, printBarcode,
   products = [],
+  storeLocked = false,
 }) {
 
   const [cameraOpen, setCameraOpen] = useState(false)
@@ -311,12 +312,34 @@ export default function ProductFormPanel({
 
           {/* Store must come BEFORE category so filter works */}
           <div className="col-span-2 md:col-span-1">
-            <FormInputDropdown
-              label="Warehouse / Store"
-              value={form.store || ''}
-              onChange={handleStoreChange}
-              options={stores}
-            />
+            {storeLocked ? (
+              <div>
+                <div style={{
+                  fontSize: 11, fontWeight: 700, textTransform: 'uppercase',
+                  letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 4,
+                }}>
+                  Warehouse / Store
+                </div>
+                <div style={{
+                  padding: '8px 12px', borderRadius: 'var(--radius-md)',
+                  border: '1px solid var(--border-soft)', background: 'var(--bg-muted)',
+                  fontSize: 13, color: 'var(--text-secondary)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                }}>
+                  <span>{form.store || 'Unknown'}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>
+                    locked
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <FormInputDropdown
+                label="Warehouse / Store"
+                value={form.store || ''}
+                onChange={handleStoreChange}
+                options={stores}
+              />
+            )}
           </div>
 
           {/* Category — filtered by selected store */}

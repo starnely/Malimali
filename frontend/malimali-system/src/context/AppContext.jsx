@@ -1061,11 +1061,14 @@ export function AppProvider({ children }) {
       const saleDate = new Date(s.date).toLocaleDateString('en-CA')
       return saleDate === today && s.cashier === employeeName && !s.returned && !s.voided
     })
-    const revenue = empTodaySales.reduce((sum, s) =>
-      sum + (s.items?.reduce((rv, item) => {
+    const revenue = empTodaySales.reduce((sum, s) => {
+      const gross = s.items?.reduce((rv, item) => {
         if (item.voidStatus === 'voided') return rv
         return rv + (item.price || 0) * Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
-      }, 0) || 0), 0)
+      }, 0) || 0
+      const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
+      return sum + gross * taxFactor
+    }, 0)
     const transactions = empTodaySales.length
     const itemsSold = empTodaySales.reduce((sum, s) =>
       sum + (s.items?.reduce((q, item) => {
@@ -1144,7 +1147,9 @@ export function AppProvider({ children }) {
       if (item.returnStatus === 'approved') return rv + (item.price || 0) * Math.max(0, item.qty - (item.voidedQty || 0) - (item.returnedQty || 0))
       return rv
     }, 0) || 0
-    return sum + (s.total || 0) - returnedValue
+    const gross = (s.total || 0) - returnedValue
+    const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
+    return sum + gross * taxFactor
   }, 0)
 
   const lowStockProducts = products.filter(p => p.stock <= (settings?.lowStockThreshold || 5))

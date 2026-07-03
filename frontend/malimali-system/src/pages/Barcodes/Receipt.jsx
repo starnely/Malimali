@@ -1,4 +1,4 @@
-﻿import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { MdPrint, MdWarning } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import s from '@/styles/Barcodes.module.css'
@@ -17,6 +17,7 @@ export default function Receipt({ receipt, onClose }) {
   const receiptAddress    = matchedStore?.location || settings?.location || settings?.businessAddress || settings?.address || receipt?.address || 'Address Not Set'
   const receiptPhone      = matchedStore?.phone || settings?.phone || settings?.businessPhone || settings?.telephone || receipt?.phone || 'Phone Not Set'
   const receiptFooter     = settings?.receiptFooter || 'Thank you for shopping with us!'
+  const currency          = settings?.currency || 'KSh'
 
   const payment          = receipt?.paymentInfo || receipt || {}
   const cashierName      = receipt?.cashier || receipt?.soldBy || currentUser?.fullname || currentUser?.name || currentUser?.username || 'Staff'
@@ -30,11 +31,14 @@ export default function Receipt({ receipt, onClose }) {
     ? new Date(receipt.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
 
-  const subtotal = (receipt?.items || []).reduce(
+  const subtotal  = (receipt?.items || []).reduce(
     (sum, item) => sum + (Number(item.price || item.sellPrice || 0) * item.qty), 0
   )
-  const discount = Number(payment.discount || receipt?.discount || 0)
-  const total    = Number(receipt?.total || receipt?.finalTotal || (subtotal - discount))
+  const discount  = Number(payment.discount || receipt?.discount || 0)
+  const total     = Number(receipt?.total || receipt?.finalTotal || (subtotal - discount))
+  const taxRate   = Number(receipt?.taxRate || 0)
+  const taxAmount = Number(receipt?.taxAmount || 0)
+  const taxPct    = Math.round(taxRate * 100)
 
   const promiseDate      = payment.promiseDate || ''
   const isCredit         = payment.paymentMethod === 'credit'
@@ -72,7 +76,9 @@ export default function Receipt({ receipt, onClose }) {
     cashier:          cashierName,
     receiptFooter,
     kraPin:           settings?.kraPin || '',
-    currency:         settings?.currency || 'KSh',
+    currency,
+    taxRate,
+    taxAmount,
   })
 
   const callPrintAPI = async () => {
@@ -193,8 +199,8 @@ export default function Receipt({ receipt, onClose }) {
             ? `${item.name} (${item.weightGrams}g)`
             : item.name
           const displaySub  = isWeighed
-            ? `${Number(item.weightKg || 0).toFixed(3)} kg × KSh ${Number(item.pricePerKg || 0).toLocaleString()}/kg`
-            : `@ KSh ${itemPrice.toLocaleString()}`
+            ? `${Number(item.weightKg || 0).toFixed(3)} kg × ${currency} ${Number(item.pricePerKg || 0).toLocaleString()}/kg`
+            : `@ ${currency} ${itemPrice.toLocaleString()}`
 
           return (
             <div key={i} className={s.rRow}>
@@ -203,7 +209,7 @@ export default function Receipt({ receipt, onClose }) {
                 <div>{displayName}</div>
                 <div className={s.rSub}>{displaySub}</div>
               </div>
-              <span>KSh {itemTotal.toLocaleString()}</span>
+              <span>{currency} {itemTotal.toLocaleString()}</span>
             </div>
           )
         })}
@@ -211,16 +217,22 @@ export default function Receipt({ receipt, onClose }) {
         <div className={s.rDivider} />
 
         <div className={s.rSummaryRow}>
-          <span>Subtotal</span><span>KSh {subtotal.toLocaleString()}</span>
+          <span>Subtotal</span><span>{currency} {subtotal.toLocaleString()}</span>
         </div>
         {discount > 0 && (
           <div className={s.rSummaryRow} style={{ color: '#d32f2f' }}>
-            <span>Discount</span><span>− KSh {discount.toLocaleString()}</span>
+            <span>Discount</span><span>− {currency} {discount.toLocaleString()}</span>
           </div>
         )}
         <div className={s.rSummaryRow} style={{ fontSize: '1.15rem', fontWeight: 'bold', marginTop: '4px' }}>
-          <span>Total</span><span>KSh {total.toLocaleString()}</span>
+          <span>Total</span><span>{currency} {total.toLocaleString()}</span>
         </div>
+        {taxRate > 0 && (
+          <div className={s.rSummaryRow} style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginTop: 2 }}>
+            <span>Incl. VAT ({taxPct}%)</span>
+            <span>{currency} {Math.round(taxAmount).toLocaleString()}</span>
+          </div>
+        )}
 
         <div className={s.rDivider} style={{ borderStyle: 'dashed' }} />
 
@@ -232,12 +244,12 @@ export default function Receipt({ receipt, onClose }) {
         </div>
         {Number(payment.cashGiven) > 0 && (
           <div className={s.rSummaryRow}>
-            <span>Amount Tendered</span><span>KSh {Number(payment.cashGiven).toLocaleString()}</span>
+            <span>Amount Tendered</span><span>{currency} {Number(payment.cashGiven).toLocaleString()}</span>
           </div>
         )}
         {Number(payment.change) > 0 && (
           <div className={s.rSummaryRow} style={{ fontWeight: 'bold' }}>
-            <span>Change Due</span><span>KSh {Number(payment.change).toLocaleString()}</span>
+            <span>Change Due</span><span>{currency} {Number(payment.change).toLocaleString()}</span>
           </div>
         )}
         {payment.paymentMethod === 'mpesa' && payment.mpesaPhone && (
@@ -246,10 +258,10 @@ export default function Receipt({ receipt, onClose }) {
         {payment.paymentMethod === 'split' && (
           <>
             <div className={s.rSummaryRow} style={{ fontSize: '0.9rem', color: '#666', paddingLeft: '8px' }}>
-              <span>• Cash Portion</span><span>KSh {Number(payment.cashPart).toLocaleString()}</span>
+              <span>• Cash Portion</span><span>{currency} {Number(payment.cashPart).toLocaleString()}</span>
             </div>
             <div className={s.rSummaryRow} style={{ fontSize: '0.9rem', color: '#666', paddingLeft: '8px' }}>
-              <span>• M-Pesa Portion</span><span>KSh {Number(payment.mpesaPart).toLocaleString()}</span>
+              <span>• M-Pesa Portion</span><span>{currency} {Number(payment.mpesaPart).toLocaleString()}</span>
             </div>
           </>
         )}

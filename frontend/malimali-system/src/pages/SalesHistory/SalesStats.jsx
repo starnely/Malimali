@@ -1,12 +1,13 @@
 import { MdAttachMoney, MdInventory, MdReceipt } from 'react-icons/md'
 import { fmtQty } from '@/utils/utils'
 
-export default function SalesStats({ isOwner, filtered, category }) {
+export default function SalesStats({ isOwner, filtered, category, currency = 'KSh' }) {
 
   // Exclude voided sales from all calculations
   const activeFiltered = filtered.filter(sale => !sale.voided)
 
   const totalRevenue = activeFiltered.reduce((sum, sale) => {
+    const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
     const itemRevenue = sale.items
       ?.filter(item => category === 'All' || item.productId?.category === category)
       .reduce((itemSum, item) => {
@@ -14,7 +15,7 @@ export default function SalesStats({ isOwner, filtered, category }) {
         const qty = Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
         return itemSum + (item.price * qty)
       }, 0) || 0
-    return sum + itemRevenue
+    return sum + itemRevenue * taxFactor
   }, 0)
 
   const totalItemsSold = activeFiltered.reduce((sum, sale) => {
@@ -39,7 +40,7 @@ export default function SalesStats({ isOwner, filtered, category }) {
   const cards = [
     {
       label: isOwner ? 'Total Revenue' : 'Your Revenue (30 days)',
-      value: `KSh ${totalRevenue.toLocaleString()}`,
+      value: `${currency} ${Math.round(totalRevenue).toLocaleString()}`,
       icon: <MdAttachMoney />,
       color: 'var(--primary)',
       bg: 'var(--primary-light)',

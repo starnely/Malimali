@@ -1,10 +1,14 @@
 import { useMemo } from 'react'
 import { fmtQty } from '@/utils/utils'
 import { MdClose, MdPerson, MdPrint } from 'react-icons/md'
+import { useApp } from '@/context/AppContext'
 
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 export default function EmployeeSalesModal({ employee, sales, products = [], date, onClose }) {
+  const { settings } = useApp()
+  const currency = settings?.currency || 'KSh'
+
   const { employeeSales, totalItems, totalRevenue, totalProfit, productMap } = useMemo(() => {
     const pMap = {}
     products.forEach(p => { pMap[String(p._id)] = p.buyPrice || 0 })
@@ -20,14 +24,15 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
 
     let itemsCount = 0, revenue = 0, profit = 0
     filtered.forEach(sale => {
+      const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
       sale.items?.forEach(item => {
         if (item.voidStatus === 'voided') return
         const qty = activeQty(item)
         if (qty <= 0) return
         itemsCount += qty
-        revenue    += (item.price || 0) * qty
+        revenue    += (item.price || 0) * qty * taxFactor
         const buy   = pMap[String(item.productId?._id || item.productId)] || 0
-        profit     += (item.price - buy) * qty
+        profit     += (item.price * taxFactor - buy) * qty
       })
     })
 
@@ -60,8 +65,8 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
             {[
               { label: 'Transactions', value: employeeSales.length, color: 'var(--primary)', bg: 'var(--primary-light)' },
               { label: 'Items Sold', value: fmtQty(totalItems), color: 'var(--success-dark)', bg: 'var(--success-light)' },
-              { label: 'Revenue', value: `KSh ${totalRevenue.toLocaleString()}`, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
-              { label: 'Profit', value: `KSh ${totalProfit.toLocaleString()}`, color: 'var(--info-dark)', bg: 'var(--info-light)' },
+              { label: 'Revenue', value: `${currency} ${Math.round(totalRevenue).toLocaleString()}`, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
+              { label: 'Profit', value: `${currency} ${Math.round(totalProfit).toLocaleString()}`, color: 'var(--info-dark)', bg: 'var(--info-light)' },
             ].map((card, i) => (
               <div key={i} className="rounded-lg p-2.5 text-center" style={{ background: card.bg }}>
                 <div className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: card.color }}>{card.label}</div>
@@ -85,16 +90,17 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                 </thead>
                 <tbody>
                   {employeeSales.map((sale, i) => {
+                    const taxFactor   = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
                     const saleItems   = sale.items?.reduce((q, it) => { if (it.voidStatus === 'voided') return q; return q + activeQty(it) }, 0) || 0
-                    const saleRevenue = sale.items?.reduce((rv, it) => { if (it.voidStatus === 'voided') return rv; return rv + (it.price || 0) * activeQty(it) }, 0) || 0
-                    const saleProfit  = sale.items?.reduce((s2, item) => { if (item.voidStatus === 'voided') return s2; const buy = productMap[String(item.productId?._id || item.productId)] || 0; return s2 + (item.price - buy) * activeQty(item) }, 0) || 0
+                    const saleRevenue = (sale.items?.reduce((rv, it) => { if (it.voidStatus === 'voided') return rv; return rv + (it.price || 0) * activeQty(it) }, 0) || 0) * taxFactor
+                    const saleProfit  = sale.items?.reduce((s2, item) => { if (item.voidStatus === 'voided') return s2; const buy = productMap[String(item.productId?._id || item.productId)] || 0; return s2 + (item.price * taxFactor - buy) * activeQty(item) }, 0) || 0
                     return (
                       <tr key={sale._id} style={{ borderBottom: '1px solid var(--border-soft)' }} onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-light)' }} onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{i + 1}</td>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>{sale.receiptId || '—'}</td>
                         <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)' }}>{fmtQty(saleItems)}</td>
-                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>KSh {saleRevenue.toLocaleString()}</td>
-                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--success-dark)', fontWeight: 600 }}>KSh {saleProfit.toLocaleString()}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{currency} {Math.round(saleRevenue).toLocaleString()}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--success-dark)', fontWeight: 600 }}>{currency} {Math.round(saleProfit).toLocaleString()}</td>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{sale.time || '—'}</td>
                       </tr>
                     )
@@ -104,8 +110,8 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                   <tr style={{ background: 'var(--bg-muted)', borderTop: '2px solid var(--border-medium)' }}>
                     <td colSpan={2} style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Totals</td>
                     <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{fmtQty(totalItems)}</td>
-                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>KSh {totalRevenue.toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--success-dark)' }}>KSh {totalProfit.toLocaleString()}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>{currency} {Math.round(totalRevenue).toLocaleString()}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--success-dark)' }}>{currency} {Math.round(totalProfit).toLocaleString()}</td>
                     <td />
                   </tr>
                 </tfoot>

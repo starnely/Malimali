@@ -657,6 +657,24 @@
   color: #fff;
 }
 
+/* Relocated Clear button for mobile — sits in total row, hidden on desktop */
+.posClearBtnMobile {
+  display: none;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--danger);
+  background: var(--danger-light);
+  color: var(--danger);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  touch-action: manipulation;
+  transition: all 0.13s;
+}
+
 .posOrderItems {
   flex: 1;
   overflow-y: auto;
@@ -1067,6 +1085,29 @@
     width: 18px;
     height: 18px;
     font-size: 9px;
+  }
+
+  /* ── Right panel: remove redundant header bar, relocate Clear ──────── */
+  /* Header just says "Current Order · N items" — obvious from the cart list.
+     Hiding it recovers ~42px for cart items. Clear moves to the total row. */
+  .posOrderHeader { display: none; }
+  /* Show the mobile Clear button that's hidden globally */
+  .posClearBtnMobile { display: flex; }
+  /* Hint below Charge button is decorative once users know the flow */
+  .posChargeBtnHint { display: none; }
+
+  /* ── Inline camera: constrain height so cart remains visible below ── */
+  /* Global min-height:300px is overridden here; 220px is enough to aim. */
+  .posInlineCamera {
+    min-height: 220px;
+    max-height: 250px;
+  }
+
+  /* Hide the last-scanned strip while the inline camera is active —
+     the camera footer already shows "X items scanned — keep scanning".
+     Class applied in JSX; defined only here so desktop is unaffected. */
+  .posLastScannedHiddenOnCamera {
+    display: none;
   }
 }
 

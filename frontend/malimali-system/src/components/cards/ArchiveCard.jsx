@@ -4,10 +4,13 @@ import {
   MdInventory, MdRefresh, MdStore
 } from 'react-icons/md'
 import { fmtQty } from '@/utils/utils'
+import { useApp } from '@/context/AppContext'
 
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebtors }) {
+  const { settings } = useApp()
+  const currency = settings?.currency || 'KSh'
   const pb = archive.paymentBreakdown || {}
 
   // ── All payment method tiles — only show card/bank if they have value
@@ -110,13 +113,13 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
           <div className="text-right hidden sm:block">
             <div className="text-[10px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>Revenue</div>
             <div className="text-lg font-black" style={{ color: 'var(--primary)' }}>
-              KSh {(archive.totalRevenue || 0).toLocaleString()}
+              {currency} {(archive.totalRevenue || 0).toLocaleString()}
             </div>
           </div>
           <div className="text-right">
             <div className="text-[10px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>Profit</div>
             <div className="text-lg font-black" style={{ color: 'var(--success-dark)' }}>
-              KSh {(archive.totalProfit || 0).toLocaleString()}
+              {currency} {(archive.totalProfit || 0).toLocaleString()}
             </div>
           </div>
           {isExpanded
@@ -133,8 +136,8 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
           {/* Summary grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
             {[
-              { label: 'Total Revenue', value: `KSh ${(archive.totalRevenue || 0).toLocaleString()}`, color: 'var(--primary)',      bg: 'var(--primary-light)',  icon: <MdAttachMoney /> },
-              { label: 'Total Profit',  value: `KSh ${(archive.totalProfit  || 0).toLocaleString()}`, color: 'var(--success-dark)', bg: 'var(--success-light)', icon: <MdTrendingUp />  },
+              { label: 'Total Revenue', value: `${currency} ${(archive.totalRevenue || 0).toLocaleString()}`, color: 'var(--primary)',      bg: 'var(--primary-light)',  icon: <MdAttachMoney /> },
+              { label: 'Total Profit',  value: `${currency} ${(archive.totalProfit  || 0).toLocaleString()}`, color: 'var(--success-dark)', bg: 'var(--success-light)', icon: <MdTrendingUp />  },
               { label: 'Transactions',  value: archive.totalTransactions || 0,                        color: 'var(--warning-dark)', bg: 'var(--warning-light)', icon: <MdPointOfSale /> },
               { label: 'Items Sold',    value: fmtQty(archive.totalItems || 0),                      color: 'var(--info-dark)',    bg: 'var(--info-light)',    icon: <MdInventory />   },
             ].map((card, i) => (
@@ -165,7 +168,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
                   {tile.label}
                 </div>
                 <div className="text-xl font-black" style={{ color: tile.color }}>
-                  KSh {tile.value.toLocaleString()}
+                  {currency} {tile.value.toLocaleString()}
                 </div>
               </div>
             ))}
@@ -189,7 +192,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
                 className="text-xl font-black"
                 style={{ color: pb.credit > 0 ? 'var(--danger)' : 'var(--text-muted)' }}
               >
-                KSh {(pb.credit || 0).toLocaleString()}
+                {currency} {(pb.credit || 0).toLocaleString()}
               </div>
             </button>
           </div>

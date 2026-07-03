@@ -41,9 +41,10 @@ const pageTitles = {
 function NotificationPanel({ onClose }) {
   const {
     myNotifications, markNotificationRead, markAllNotificationsRead,
-    clearNotifications, isOwner, currentUser,
+    clearNotifications, isOwner, currentUser, settings,
     shiftCloseNotifs, markShiftCloseNotifRead, clearShiftCloseNotifs
   } = useApp()
+  const currency = settings?.currency || 'KSh'
 
   const target = isOwner ? 'owner' : (currentUser?.fullname || currentUser?.username || 'staff')
 
@@ -51,7 +52,7 @@ function NotificationPanel({ onClose }) {
     ? [
       ...(shiftCloseNotifs || []).map(n => ({
         id: n.id,
-        message: `🔒 ${n.employeeName} closed shift at ${n.time} — KSh ${(n.revenue || 0).toLocaleString()}`,
+        message: `🔒 ${n.employeeName} closed shift at ${n.time} — ${currency} ${(n.revenue || 0).toLocaleString()}`,
         type: 'info', read: n.read, date: n.date, time: n.time, isShiftClose: true,
       })),
       ...(myNotifications || []),
@@ -148,6 +149,8 @@ export default function TopBar() {
     setSidebarOpen,
   } = useApp()
 
+  const currency = settings?.currency || 'KSh'
+
   const socket = useSocket()
   const location = useLocation()
   const navigate = useNavigate()
@@ -205,7 +208,7 @@ export default function TopBar() {
       addToast({
         type: 'return',
         title: 'New Return Request',
-        message: `${data.requesterName} wants to return — KSh ${(data.refundAmount || 0).toLocaleString()}`,
+        message: `${data.requesterName} wants to return — ${currency} ${(data.refundAmount || 0).toLocaleString()}`,
         action: () => navigate('/sales-history')
       })
     }
@@ -233,7 +236,7 @@ export default function TopBar() {
         addToast({
           type: 'info',
           title: 'Shift Closed',
-          message: `${data.employeeName || 'An employee'} closed their shift — KSh ${(data.revenue || 0).toLocaleString()}`
+          message: `${data.employeeName || 'An employee'} closed their shift — ${currency} ${(data.revenue || 0).toLocaleString()}`
         })
       }
     }

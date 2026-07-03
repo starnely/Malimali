@@ -1,4 +1,5 @@
-const mongoose = require("mongoose")
+﻿const mongoose = require("mongoose")
+const Setting  = require("./Setting")
 
 function nowEAT() { return new Date(Date.now() + 3 * 60 * 60 * 1000) }
 function dateEAT() { return nowEAT().toISOString().split("T")[0] }
@@ -23,7 +24,7 @@ const saleSchema = new mongoose.Schema(
           default: "none",
         },
         returnedQty: { type: Number, default: 0 },
-        // ── Per-item void fields ──────────────────────────────────────
+        // â”€â”€ Per-item void fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
         voidStatus: {
           type: String,
           enum: ["none", "voided"],
@@ -37,7 +38,7 @@ const saleSchema = new mongoose.Schema(
     ],
     total: { type: Number, required: true },
 
-    // ── Multi-store tracking ──────────────────────────────────────────
+    // â”€â”€ Multi-store tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     store: { type: String, required: true, index: true },
     cashierId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     cashier: { type: String, default: "Cashier" },
@@ -68,10 +69,10 @@ const saleSchema = new mongoose.Schema(
       mpesaReceiptNumber: { type: String, default: "" },
     },
 
-    // ── M-Pesa STK Push integration ───────────────────────────────────
-    // "pending"   — stock reserved, STK push sent, awaiting callback
-    // "confirmed" — callback received (success), or created by non-M-Pesa method
-    // "failed"    — callback received (failure), stock has been restocked
+    // â”€â”€ M-Pesa STK Push integration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // "pending"   â€” stock reserved, STK push sent, awaiting callback
+    // "confirmed" â€” callback received (success), or created by non-M-Pesa method
+    // "failed"    â€” callback received (failure), stock has been restocked
     status: {
       type: String,
       enum: ["pending", "confirmed", "failed"],
@@ -82,7 +83,10 @@ const saleSchema = new mongoose.Schema(
 
     date: { type: String, required: true, default: dateEAT },
     time: { type: String, required: true, default: timeEAT },
-    receiptId: { type: String, unique: true, sparse: true },
+    receiptId:  { type: String, unique: true, sparse: true },
+    taxRate:    { type: Number, default: 0 },
+    taxAmount:  { type: Number, default: 0 },
+    netRevenue: { type: Number, default: 0 },
     returned: { type: Boolean, default: false },
     returnStatus: {
       type: String,
@@ -91,7 +95,7 @@ const saleSchema = new mongoose.Schema(
     },
     returnId: { type: mongoose.Schema.Types.ObjectId, ref: "Return" },
 
-    // ── Whole-sale void fields ────────────────────────────────────────
+    // â”€â”€ Whole-sale void fields â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     voided: { type: Boolean, default: false },
     voidedAt: { type: Date },
     voidedBy: { type: String, default: "" },
@@ -104,7 +108,9 @@ saleSchema.pre("save", async function () {
   if (!this.receiptId) {
     const timestamp = Date.now().toString().slice(-6)
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
-    this.receiptId = `RCP-${timestamp}-${random}`
+    const s = await Setting.findOne().select("receiptPrefix").lean()
+    const prefix = s?.receiptPrefix?.trim() || "RCP"
+    this.receiptId = `${prefix}-${timestamp}-${random}`
   }
 })
 

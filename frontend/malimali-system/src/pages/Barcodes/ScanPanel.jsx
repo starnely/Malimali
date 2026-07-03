@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   MdPointOfSale, MdWarning, MdCheckCircle,
   MdRemove, MdAdd, MdDelete, MdSearch,
@@ -36,6 +36,8 @@ export default function ScanPanel({
   const [manualError, setManualError] = useState('')
   const [cameraOpen, setCameraOpen] = useState(false)
   const manualRef = useRef(null)
+  const orderItemsRef = useRef(null)
+  const prevCartLengthRef = useRef(0)
 
   // Flash product card briefly when scanned/added
   useEffect(() => {
@@ -44,6 +46,14 @@ export default function ScanPanel({
     const t2 = setTimeout(() => setFlashId(null), 800)
     return () => { clearTimeout(t1); clearTimeout(t2) }
   }, [lastScanned])
+
+  // Scroll cart to bottom when a new LINE is added (not on qty increment)
+  useEffect(() => {
+    if (cart.length > prevCartLengthRef.current) {
+      orderItemsRef.current?.scrollTo({ top: orderItemsRef.current.scrollHeight, behavior: 'smooth' })
+    }
+    prevCartLengthRef.current = cart.length
+  }, [cart.length])
 
   // Clear manual error as soon as the cashier edits the code
   useEffect(() => { setManualError('') }, [manualCode])
@@ -178,6 +188,11 @@ export default function ScanPanel({
     addToCart(product.barcode || product._id)
   }
 
+  const closeCamera = () => {
+    setCameraOpen(false)
+    setTimeout(() => { if (!isTouchDevice()) scanInputRef.current?.focus() }, 100)
+  }
+
   return (
     <div className={p.posTerminal}>
 
@@ -195,24 +210,12 @@ export default function ScanPanel({
         aria-label="Barcode scanner input"
       />
 
-      {/* Camera scanner overlay */}
-      {cameraOpen && (
-        <CameraScanner
-          continuous
-          onScan={processScan}
-          onClose={() => {
-            setCameraOpen(false)
-            setTimeout(() => { if (!isTouchDevice()) scanInputRef.current?.focus() }, 100)
-          }}
-        />
-      )}
-
       {/* ══════════════════════════════════════════
           LEFT — Product browser
       ══════════════════════════════════════════ */}
       <div className={p.posLeft}>
 
-        {/* Search bar */}
+        {/* Search bar + scanner pill + camera toggle */}
         <div className={p.posLeftHeader}>
           <div className={p.posSearchWrap}>
             <MdSearch className={p.posSearchIcon} />
@@ -233,18 +236,19 @@ export default function ScanPanel({
             <span className={p.posScannerDot} />
             <span className={p.posScannerLabel}>Scanner active</span>
           </div>
+          {/* Camera toggle — opens/closes inline camera in the grid space */}
           <button
-            className={p.cameraCamBtn}
-            onClick={() => setCameraOpen(true)}
-            aria-label="Open camera scanner"
-            title="Scan with phone camera"
+            className={`${p.cameraCamBtn}${cameraOpen ? ` ${p.cameraCamBtnActive}` : ''}`}
+            onClick={() => cameraOpen ? closeCamera() : setCameraOpen(true)}
+            aria-label={cameraOpen ? 'Close camera' : 'Open camera scanner'}
+            title={cameraOpen ? 'Close camera' : 'Scan with phone camera'}
           >
-            <MdCameraAlt size={14} />
-            <span>Camera</span>
+            {cameraOpen ? <MdClose size={14} /> : <MdCameraAlt size={14} />}
+            <span>{cameraOpen ? 'Close' : 'Camera'}</span>
           </button>
         </div>
 
-        {/* Manual entry bar */}
+        {/* Manual entry bar — always visible, works while camera is active */}
         <div className={p.posManualBar}>
           <MdKeyboard size={16} style={{ color: 'var(--primary)', flexShrink: 0 }} />
           <div className={p.posManualBarContent}>
@@ -349,9 +353,9 @@ export default function ScanPanel({
           </div>
         )}
 
-        {/* Last scanned confirmation */}
+        {/* Last scanned confirmation — always visible while there's a result */}
         {lastScanned && !manualCode && (
-          <div className={p.posLastScanned}>
+          <div className={`${p.posLastScanned}${cameraOpen ? ` ${p.posLastScannedHiddenOnCamera}` : ''}`}>
             <MdCheckCircle size={15} style={{ color: 'var(--success)', flexShrink: 0 }} />
             <span className={p.posLastScannedName}>{lastScanned.name}</span>
             <span className={p.posLastScannedPrice}>
@@ -361,87 +365,102 @@ export default function ScanPanel({
           </div>
         )}
 
-        {/* Category pills */}
-        <div className={p.posCatBar}>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => setActiveCategory(cat)}
-              className={`${p.posCatPill} ${activeCategory === cat ? p.posCatPillActive : ''}`}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-
-        {/* Product grid */}
-        <div className={p.posProductGrid}>
-          {loadingProducts ? (
-            <div className={p.posGridEmpty}>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
-                Loading products...
-              </div>
-            </div>
-          ) : filteredProducts.length === 0 ? (
-            <div className={p.posGridEmpty}>
-              <MdPointOfSale size={32} style={{ color: 'var(--border-medium)', marginBottom: 8 }} />
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
-                No products found
-              </div>
-            </div>
-          ) : (
-            filteredProducts.map(product => {
-              const outOfStock = (product.stock ?? 0) < 1
-              const inCart = cart.find(c => c.productId === product._id || c._id === product._id)
-              const isFlashing = flashId === product._id
-              const badge = stockBadge(product.stock ?? 0)
-
-              return (
+        {/* ── Inline camera OR category tabs + product grid ──────────── */}
+        {cameraOpen ? (
+          // Inline camera: sits in the space the grid normally occupies.
+          // Manual entry bar above stays fully active — cashier can type a
+          // code at any time without closing the camera.
+          <CameraScanner
+            inline
+            continuous
+            onScan={processScan}
+            onClose={closeCamera}
+          />
+        ) : (
+          <>
+            {/* Category pills */}
+            <div className={p.posCatBar}>
+              {categories.map(cat => (
                 <button
-                  key={product._id}
-                  onClick={() => handleProductClick(product)}
-                  disabled={outOfStock || product.isWeighed}
-                  className={[
-                    p.posProductCard,
-                    outOfStock ? p.posProductCardDisabled : '',
-                    product.isWeighed && !outOfStock ? p.posProductCardWeighed : '',
-                    isFlashing ? p.posProductCardFlash : '',
-                    inCart ? p.posProductCardInCart : '',
-                  ].filter(Boolean).join(' ')}
-                  title={
-                    product.isWeighed
-                      ? `${product.name} — scan label from weigh station`
-                      : outOfStock ? `${product.name} — out of stock` : product.name
-                  }
+                  key={cat}
+                  onClick={() => setActiveCategory(cat)}
+                  className={`${p.posCatPill} ${activeCategory === cat ? p.posCatPillActive : ''}`}
                 >
-                  {inCart && <div className={p.posCartBadge}>{inCart.qty}</div>}
-                  <div className={p.posProductCardBody}>
-                    <div className={p.posProductCat}>{product.category || 'General'}</div>
-                    <div className={p.posProductName}>{product.name}</div>
-                    {product.isWeighed ? (
-                      <div style={{
-                        fontSize: 11, color: 'var(--primary)', fontWeight: 700,
-                        marginTop: 4, display: 'flex', alignItems: 'center', gap: 4,
-                      }}>
-                        <MdScale size={12} /> Scan label
-                      </div>
-                    ) : (
-                      <div className={p.posProductPrice}>
-                        KSh {Number(product.sellPrice || 0).toLocaleString()}
-                      </div>
-                    )}
-                    <div
-                      className={p.posStockBadge}
-                      style={{ color: badge.color, background: badge.bg }}
-                    >
-                      {badge.label}
-                    </div>
-                  </div>
+                  {cat}
                 </button>
-              )
-            })
-          )}
-        </div>
+              ))}
+            </div>
+
+            {/* Product grid */}
+            <div className={p.posProductGrid}>
+              {loadingProducts ? (
+                <div className={p.posGridEmpty}>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
+                    Loading products...
+                  </div>
+                </div>
+              ) : filteredProducts.length === 0 ? (
+                <div className={p.posGridEmpty}>
+                  <MdPointOfSale size={32} style={{ color: 'var(--border-medium)', marginBottom: 8 }} />
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 500 }}>
+                    No products found
+                  </div>
+                </div>
+              ) : (
+                filteredProducts.map(product => {
+                  const outOfStock = (product.stock ?? 0) < 1
+                  const inCart = cart.find(c => c.productId === product._id || c._id === product._id)
+                  const isFlashing = flashId === product._id
+                  const badge = stockBadge(product.stock ?? 0)
+
+                  return (
+                    <button
+                      key={product._id}
+                      onClick={() => handleProductClick(product)}
+                      disabled={outOfStock || product.isWeighed}
+                      className={[
+                        p.posProductCard,
+                        outOfStock ? p.posProductCardDisabled : '',
+                        product.isWeighed && !outOfStock ? p.posProductCardWeighed : '',
+                        isFlashing ? p.posProductCardFlash : '',
+                        inCart ? p.posProductCardInCart : '',
+                      ].filter(Boolean).join(' ')}
+                      title={
+                        product.isWeighed
+                          ? `${product.name} — scan label from weigh station`
+                          : outOfStock ? `${product.name} — out of stock` : product.name
+                      }
+                    >
+                      {inCart && <div className={p.posCartBadge}>{inCart.qty}</div>}
+                      <div className={p.posProductCardBody}>
+                        <div className={p.posProductCat}>{product.category || 'General'}</div>
+                        <div className={p.posProductName}>{product.name}</div>
+                        {product.isWeighed ? (
+                          <div style={{
+                            fontSize: 11, color: 'var(--primary)', fontWeight: 700,
+                            marginTop: 4, display: 'flex', alignItems: 'center', gap: 4,
+                          }}>
+                            <MdScale size={12} /> Scan label
+                          </div>
+                        ) : (
+                          <div className={p.posProductPrice}>
+                            KSh {Number(product.sellPrice || 0).toLocaleString()}
+                          </div>
+                        )}
+                        <div
+                          className={p.posStockBadge}
+                          style={{ color: badge.color, background: badge.bg }}
+                        >
+                          {badge.label}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* ══════════════════════════════════════════
@@ -468,7 +487,7 @@ export default function ScanPanel({
           )}
         </div>
 
-        <div className={p.posOrderItems}>
+        <div ref={orderItemsRef} className={p.posOrderItems}>
           {cart.length === 0 ? (
             <div className={p.posOrderEmpty}>
               <MdReceipt size={30} style={{ color: 'var(--border-medium)', marginBottom: 8 }} />
@@ -550,7 +569,12 @@ export default function ScanPanel({
         <div className={p.posCheckoutFooter}>
           {cart.length > 0 && (
             <div className={p.posTotalRow}>
-              <span className={p.posTotalLabel}>TOTAL</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span className={p.posTotalLabel}>TOTAL</span>
+                <button onClick={clearCart} className={p.posClearBtnMobile}>
+                  <MdDelete size={13} /> Clear
+                </button>
+              </div>
               <span className={p.posTotalValue}>
                 KSh {Number(cartTotal).toLocaleString()}
               </span>

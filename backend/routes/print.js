@@ -119,6 +119,10 @@ function buildReceiptBuffer(data) {
   push(CMD.bold);
   push(twoCol('TOTAL:', `${currency} ${Number(data.finalTotal || data.total || subtotal).toLocaleString()}`));
   push(CMD.boldOff);
+  if (Number(data.taxRate) > 0) {
+    const taxPct = Math.round(Number(data.taxRate) * 100)
+    push(twoCol(`  Incl. VAT (${taxPct}%):`, `${currency} ${Math.round(Number(data.taxAmount) || 0).toLocaleString()}`));
+  }
   push(divider('='));
 
   // ── Payment ──────────────────────────────────────────────────────────
@@ -254,7 +258,8 @@ router.post("/receipt", async (req, res) => {
       mpesaPhone, cashPart, mpesaPart,
       cardApprovalCode, bankReference,
       customerName, cashier,
-      receiptFooter, kraPin, currency,customerPhone, promiseDate,
+      receiptFooter, kraPin, currency, customerPhone, promiseDate,
+      taxRate, taxAmount,
     } = req.body;
 
     const buffer = buildReceiptBuffer({
@@ -266,6 +271,7 @@ router.post("/receipt", async (req, res) => {
       cardApprovalCode, bankReference,
       customerName, cashier,
       receiptFooter, kraPin, currency, customerPhone, promiseDate,
+      taxRate, taxAmount,
     });
 
     const type = printerType || 'browser';

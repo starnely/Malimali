@@ -15,9 +15,10 @@ const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 export default function DailySummaryModal({ onClose }) {
   const {
     sales, products, currentUser, isCashier, isOwner,
-    closeShift, hasClosedShiftToday,
+    closeShift, hasClosedShiftToday, settings,
     fetchExpenseSummary, fetchPettyCashToday,   // ★ Phase 6
   } = useApp()
+  const currency = settings?.currency || 'KSh'
 
   const today = new Date().toLocaleDateString('en-CA')
   // EAT today string (for expense/petty cash API calls)
@@ -238,13 +239,14 @@ export default function DailySummaryModal({ onClose }) {
 
     // Summary
     sc(r, 0, 'SUMMARY', secStyle); mc(r, 0, COLS - 1); r++
-    const net = summary.totalRevenue - expenseTotal  // ★ Phase 6: P&L
+    const net = summary.totalRevenue - expenseTotal
     const kpis = [
-      ['Total Revenue', `KSh ${fmt(summary.totalRevenue)}`, 'Transactions', String(summary.totalTransactions)],
-      ['Total Profit', `KSh ${fmt(summary.totalProfit)}`, 'Items Sold', String(fmtQty(summary.totalItems || 0))],
-      ['Cost of Goods', `KSh ${fmt(summary.totalCOGS)}`, '', ''],
-      ['Total Expenses', `KSh ${fmt(expenseTotal)}`, 'Net (Rev−Exp)', `KSh ${fmt(net)}`],   // ★ Phase 6
-      ['Debt Collected', `KSh ${fmt(totalDebtCollected)}`, 'Collections', String(todayRepayments.length)],
+      ['Net Revenue (excl. VAT)', `${currency} ${fmt(summary.totalRevenue)}`, 'Transactions', String(summary.totalTransactions)],
+      ['Total Profit', `${currency} ${fmt(summary.totalProfit)}`, 'Items Sold', String(fmtQty(summary.totalItems || 0))],
+      ['Cost of Goods', `${currency} ${fmt(summary.totalCOGS)}`, '', ''],
+      ...(summary.totalTaxCollected > 0 ? [['VAT Collected (→ KRA)', `${currency} ${fmt(summary.totalTaxCollected)}`, '', '']] : []),
+      ['Total Expenses', `${currency} ${fmt(expenseTotal)}`, 'Net (Rev−Exp)', `${currency} ${fmt(net)}`],
+      ['Debt Collected', `${currency} ${fmt(totalDebtCollected)}`, 'Collections', String(todayRepayments.length)],
     ]
     kpis.forEach(([l1, v1, l2, v2]) => {
       sc(r, 0, l1, kvL); sc(r, 1, v1, kvV)
@@ -313,7 +315,8 @@ export default function DailySummaryModal({ onClose }) {
     // ★ Phase 6: P&L summary in Excel
     sc(r, 0, 'PROFIT & LOSS SUMMARY', secStyle); mc(r, 0, COLS - 1); r++
     const plRows = [
-      ['Gross Revenue', summary.totalRevenue, '#2E7D32'],
+      ['Net Revenue (excl. VAT)', summary.totalRevenue, '#2E7D32'],
+      ...(summary.totalTaxCollected > 0 ? [['VAT Collected (→ KRA)', summary.totalTaxCollected, '7c3aed']] : []),
       ['Total Expenses', expenseTotal, '#C62828'],
       ['Net Profit', summary.totalRevenue - expenseTotal, (summary.totalRevenue - expenseTotal) >= 0 ? '#2E7D32' : '#C62828'],
     ]
@@ -462,11 +465,12 @@ export default function DailySummaryModal({ onClose }) {
                 {/* Summary cards */}
                 <div className="grid grid-cols-2 gap-3 mb-5">
                   {[
-                    { label: 'Total Revenue', value: `KSh ${summary.totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: 'var(--primary)', bg: 'var(--primary-light)' },
-                    { label: 'Profit Today', value: `KSh ${summary.totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bg: summary.totalProfit >= 0 ? 'var(--success-light)' : 'var(--danger-light)' },
+                    { label: 'Net Revenue', value: `${currency} ${summary.totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: 'var(--primary)', bg: 'var(--primary-light)' },
+                    { label: 'Profit Today', value: `${currency} ${summary.totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bg: summary.totalProfit >= 0 ? 'var(--success-light)' : 'var(--danger-light)' },
                     { label: 'Items Sold', value: fmtQty(summary?.totalItems || 0), icon: <MdInventory />, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
                     { label: 'Transactions', value: summary.totalTransactions, icon: <MdPerson />, color: 'var(--info-dark)', bg: 'var(--info-light)' },
-                    { label: 'Debt Collected', value: `KSh ${totalDebtCollected.toLocaleString()}`, icon: <MdPeopleAlt />, color: '#0369a1', bg: '#e0f2fe' },
+                    ...(summary.totalTaxCollected > 0 ? [{ label: 'VAT Collected', value: `${currency} ${summary.totalTaxCollected.toLocaleString()}`, icon: <MdAttachMoney />, color: '#7c3aed', bg: '#f5f3ff' }] : []),
+                    { label: 'Debt Collected', value: `${currency} ${totalDebtCollected.toLocaleString()}`, icon: <MdPeopleAlt />, color: '#0369a1', bg: '#e0f2fe' },
                   ].map((card, i) => (
                     <div key={i} className="rounded-xl p-4 flex items-center gap-3" style={{ background: card.bg }}>
                       <div className="text-2xl" style={{ color: card.color }}>{card.icon}</div>
@@ -482,9 +486,10 @@ export default function DailySummaryModal({ onClose }) {
                 <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-soft)' }}>
                   <div className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Profit Breakdown</div>
                   {[
-                    { label: 'Revenue', value: `KSh ${summary.totalRevenue.toLocaleString()}`, color: 'var(--primary)' },
-                    { label: 'Cost of Goods Sold', value: `− KSh ${summary.totalCOGS.toLocaleString()}`, color: 'var(--danger)' },
-                    { label: 'Profit', value: `KSh ${summary.totalProfit.toLocaleString()}`, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bold: true },
+                    { label: 'Net Revenue (excl. VAT)', value: `${currency} ${summary.totalRevenue.toLocaleString()}`, color: 'var(--primary)' },
+                    ...(summary.totalTaxCollected > 0 ? [{ label: `VAT Collected (→ KRA)`, value: `${currency} ${summary.totalTaxCollected.toLocaleString()}`, color: '#7c3aed', note: true }] : []),
+                    { label: 'Cost of Goods Sold', value: `− ${currency} ${summary.totalCOGS.toLocaleString()}`, color: 'var(--danger)' },
+                    { label: 'Profit', value: `${currency} ${summary.totalProfit.toLocaleString()}`, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bold: true },
                   ].map((row, i) => (
                     <div key={i} className="flex justify-between py-2"
                       style={{ borderTop: i === 2 ? '1px solid var(--border-soft)' : 'none', marginTop: i === 2 ? '4px' : '0' }}>
@@ -510,8 +515,8 @@ export default function DailySummaryModal({ onClose }) {
                     style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', color: 'var(--text-muted)' }}>
                     <span>Balanced Total (all methods)</span>
                     <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                      KSh {balancedTotal.toLocaleString()}
-                      {balancedTotal === summary.totalRevenue ? ' ✅ Match' : ' ⚠️ Discrepancy'}
+                      {currency} {balancedTotal.toLocaleString()}
+                      {balancedTotal === (summary.totalGrossRevenue ?? summary.totalRevenue) ? ' ✅ Match' : ' ⚠️ Discrepancy'}
                     </span>
                   </div>
                 </div>
@@ -559,19 +564,20 @@ export default function DailySummaryModal({ onClose }) {
                         📊 Profit & Loss (Today)
                       </div>
                       {[
-                        { label: 'Gross Revenue', value: summary.totalRevenue, color: 'var(--success-dark)' },
+                        { label: 'Net Revenue (excl. VAT)', value: summary.totalRevenue, color: 'var(--success-dark)' },
+                        ...(summary.totalTaxCollected > 0 ? [{ label: 'VAT Collected (→ KRA)', value: summary.totalTaxCollected, color: '#7c3aed' }] : []),
                         { label: 'Total Expenses', value: expenseTotal, color: 'var(--danger)', prefix: '− ' },
                       ].map((row, i) => (
                         <div key={i} className="flex justify-between py-1.5" style={{ fontSize: '13px' }}>
                           <span style={{ color: 'var(--text-secondary)' }}>{row.label}</span>
-                          <span style={{ fontWeight: 700, color: row.color }}>{row.prefix || ''}KSh {row.value.toLocaleString()}</span>
+                          <span style={{ fontWeight: 700, color: row.color }}>{row.prefix || ''}{currency} {row.value.toLocaleString()}</span>
                         </div>
                       ))}
                       <div className="flex justify-between pt-3 mt-1"
                         style={{ borderTop: `2px solid ${net >= 0 ? 'var(--success)' : 'var(--danger)'}`, fontSize: '15px', fontWeight: 900 }}>
                         <span style={{ color: net >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)' }}>Net Profit</span>
                         <span style={{ color: net >= 0 ? 'var(--success-dark)' : 'var(--danger)' }}>
-                          {net < 0 ? '−' : ''}KSh {Math.abs(net).toLocaleString()}
+                          {net < 0 ? '−' : ''}{currency} {Math.abs(net).toLocaleString()}
                         </span>
                       </div>
                     </div>

@@ -69,6 +69,8 @@ function StatusBadge({ customer }) {
 
 // ── Repayment Modal ───────────────────────────────────────────────────
 function RepaymentModal({ customer, onClose, onSubmit, loading }) {
+  const { settings } = useApp()
+  const currency = settings?.currency || 'KSh'
   const [amount, setAmount] = useState('')
   const [notes,  setNotes]  = useState('')
   const [error,  setError]  = useState('')
@@ -76,7 +78,7 @@ function RepaymentModal({ customer, onClose, onSubmit, loading }) {
   const handleSubmit = () => {
     const amt = Number(amount)
     if (!amt || amt <= 0)       return setError('Enter a valid amount')
-    if (amt > customer.balance) return setError(`Max payable: KSh ${customer.balance.toLocaleString()}`)
+    if (amt > customer.balance) return setError(`Max payable: ${currency} ${customer.balance.toLocaleString()}`)
     setError(''); onSubmit(amt, notes)
   }
 
@@ -87,16 +89,16 @@ function RepaymentModal({ customer, onClose, onSubmit, loading }) {
           <div>
             <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>Record Payment</div>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-              {customer.name} · Balance: <strong style={{ color: 'var(--danger)' }}>KSh {customer.balance?.toLocaleString()}</strong>
+              {customer.name} · Balance: <strong style={{ color: 'var(--danger)' }}>{currency} {customer.balance?.toLocaleString()}</strong>
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 20 }}><MdClose /></button>
         </div>
         <div style={{ padding: 20 }}>
           <div style={{ marginBottom: 12 }}>
-            <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Amount (KSh) *</label>
+            <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Amount ({currency}) *</label>
             <input type="number" min="1" max={customer.balance}
-              placeholder={`Max KSh ${customer.balance?.toLocaleString()}`}
+              placeholder={`Max ${currency} ${customer.balance?.toLocaleString()}`}
               value={amount} onChange={e => { setAmount(e.target.value); setError('') }} autoFocus={!isTouchDevice()}
               style={{ width: '100%', padding: '10px 12px', borderRadius: 'var(--radius-md)', border: `1.5px solid ${error ? 'var(--danger)' : 'var(--border-medium)'}`, background: 'var(--bg-muted)', fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
               onFocus={e => e.target.style.borderColor = 'var(--primary)'}
@@ -113,7 +115,7 @@ function RepaymentModal({ customer, onClose, onSubmit, loading }) {
             ))}
             <button onClick={() => setAmount(String(customer.balance))}
               style={{ padding: '5px 14px', borderRadius: 20, fontSize: 12, fontWeight: 700, border: `1px solid ${Number(amount) === customer.balance ? 'var(--success)' : 'var(--border-medium)'}`, background: Number(amount) === customer.balance ? 'var(--success)' : 'var(--bg-muted)', color: Number(amount) === customer.balance ? '#fff' : 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>
-              Full · KSh {customer.balance?.toLocaleString()}
+              Full · {currency} {customer.balance?.toLocaleString()}
             </button>
           </div>
           <div style={{ marginBottom: 18 }}>
@@ -125,7 +127,7 @@ function RepaymentModal({ customer, onClose, onSubmit, loading }) {
             <button onClick={onClose} style={{ flex: 1, padding: 10, borderRadius: 'var(--radius-md)', border: '1px solid var(--border-medium)', background: 'var(--bg-muted)', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit' }}>Cancel</button>
             <button onClick={handleSubmit} disabled={loading || !amount}
               style={{ flex: 2, padding: 10, borderRadius: 'var(--radius-md)', border: 'none', background: !amount || loading ? 'var(--bg-muted)' : 'var(--primary)', fontSize: 13, fontWeight: 700, color: !amount || loading ? 'var(--text-muted)' : '#fff', cursor: !amount || loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit' }}>
-              {loading ? 'Recording...' : `💰 Record KSh ${Number(amount || 0).toLocaleString()}`}
+              {loading ? 'Recording...' : `💰 Record ${currency} ${Number(amount || 0).toLocaleString()}`}
             </button>
           </div>
         </div>
@@ -171,7 +173,8 @@ function BlacklistModal({ customer, onClose, onSubmit, loading }) {
 
 // ── Expanded inline detail ────────────────────────────────────────────
 function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner }) {
-  const { fetchCustomer } = useApp()
+  const { fetchCustomer, settings } = useApp()
+  const currency = settings?.currency || 'KSh'
   const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(true)
 
@@ -198,9 +201,9 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
       {/* Financial summary bar */}
       <div className={s.statGrid} style={{ background: 'var(--bg-muted)' }}>
         {[
-          { label: 'Total Borrowed', value: `KSh ${totalCredit.toLocaleString()}`,                           color: 'var(--text-primary)'  },
-          { label: 'Total Paid',     value: `KSh ${totalPaid.toLocaleString()}`,                              color: 'var(--success-dark)'  },
-          { label: 'Balance Due',    value: `KSh ${(customer.balance || 0).toLocaleString()}`,                color: customer.balance > 0 ? 'var(--danger)' : 'var(--success-dark)' },
+          { label: 'Total Borrowed', value: `${currency} ${totalCredit.toLocaleString()}`,                           color: 'var(--text-primary)'  },
+          { label: 'Total Paid',     value: `${currency} ${totalPaid.toLocaleString()}`,                              color: 'var(--success-dark)'  },
+          { label: 'Balance Due',    value: `${currency} ${(customer.balance || 0).toLocaleString()}`,                color: customer.balance > 0 ? 'var(--danger)' : 'var(--success-dark)' },
           { label: 'Credit Sales',   value: `${sales?.length || 0} sale${sales?.length !== 1 ? 's' : ''}`,   color: 'var(--primary)'       },
           { label: 'Payments Made',  value: `${repayments?.length || 0} payment${repayments?.length !== 1 ? 's' : ''}`, color: 'var(--success-dark)' },
         ].map((s, i) => (
@@ -231,7 +234,7 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
                   {/* Amount + promise pill */}
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 5 }}>
                     <span style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-primary)' }}>
-                      KSh {(sale.paymentInfo?.finalTotal || sale.total)?.toLocaleString()}
+                      {currency} {(sale.paymentInfo?.finalTotal || sale.total)?.toLocaleString()}
                     </span>
                     {sale.paymentInfo?.promiseDate && <PromisePill dateStr={sale.paymentInfo.promiseDate} size="sm" />}
                   </div>
@@ -280,7 +283,7 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
                 <div key={rep._id} style={{ padding: '12px 16px', borderBottom: idx < repayments.length - 1 ? '1px solid var(--border-soft)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <div>
                     <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--success-dark)', marginBottom: 3 }}>
-                      + KSh {rep.amount?.toLocaleString()}
+                      + {currency} {rep.amount?.toLocaleString()}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
                       📅 {formatDate(rep.date)}
@@ -319,6 +322,8 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
 
 // ── Customer row ──────────────────────────────────────────────────────
 function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) {
+  const { settings } = useApp()
+  const currency = settings?.currency || 'KSh'
   const [open, setOpen] = useState(defaultOpen || false)
 
   const days         = daysUntil(customer.nextPromiseDate)
@@ -356,7 +361,7 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
           {/* Balance — big and clear */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
             <div style={{ fontSize: 20, fontWeight: 900, color: customer.balance === 0 ? 'var(--success-dark)' : customer.overdue ? '#dc2626' : 'var(--primary)', lineHeight: 1 }}>
-              KSh {customer.balance?.toLocaleString()}
+              {currency} {customer.balance?.toLocaleString()}
             </div>
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 2 }}>
               {customer.balance === 0 ? 'Settled' : 'Outstanding'}
@@ -433,7 +438,8 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
 // MAIN PAGE
 // ══════════════════════════════════════════════════════════════════════
 export default function Customers() {
-  const { fetchCustomers, recordRepayment, blacklistCustomer, stores, currentUser, isOwner } = useApp()
+  const { fetchCustomers, recordRepayment, blacklistCustomer, stores, currentUser, isOwner, settings } = useApp()
+  const currency = settings?.currency || 'KSh'
 
   const [customers,    setCustomers]    = useState([])
   const [search,       setSearch]       = useState('')
@@ -479,7 +485,7 @@ export default function Customers() {
     setRepLoading(false)
     if (res.success) {
       closeRepay()
-      showToast(`KSh ${amount.toLocaleString()} recorded for ${repayCust.name}`)
+      showToast(`${currency} ${amount.toLocaleString()} recorded for ${repayCust.name}`)
       load()
     } else {
       showToast(res.message || 'Failed to record payment', 'error')
@@ -542,7 +548,7 @@ export default function Customers() {
       {/* Summary cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 18 }}>
         {[
-          { label: 'Outstanding',  value: `KSh ${totalDebt.toLocaleString()}`, icon: <MdTrendingDown />, color: 'var(--primary)',   bg: 'var(--primary-light)', border: 'var(--primary-muted)' },
+          { label: 'Outstanding',  value: `${currency} ${totalDebt.toLocaleString()}`, icon: <MdTrendingDown />, color: 'var(--primary)',   bg: 'var(--primary-light)', border: 'var(--primary-muted)' },
           { label: 'Active',       value: activeCount,                          icon: <MdPeopleAlt />,   color: 'var(--primary)',   bg: 'var(--primary-light)', border: 'var(--primary-muted)' },
           { label: 'Due Soon',     value: dueSoonCount,                         icon: <MdCalendarToday />, color: dueSoonCount > 0 ? 'var(--warning-dark)' : 'var(--text-muted)', bg: dueSoonCount > 0 ? 'var(--warning-light)' : 'var(--bg-card)', border: dueSoonCount > 0 ? 'var(--warning)' : 'var(--border-soft)' },
           { label: 'Overdue',      value: overdueCount,                         icon: <MdWarning />,     color: overdueCount > 0 ? '#dc2626' : 'var(--text-muted)', bg: overdueCount > 0 ? '#fff5f5' : 'var(--bg-card)', border: overdueCount > 0 ? '#fecaca' : 'var(--border-soft)' },

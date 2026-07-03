@@ -54,9 +54,13 @@ router.get("/low-stock", async (req, res) => {
   try {
     const filter = { isExpired: { $ne: true } }
     if (req.query.store) filter.store = req.query.store
+    const rawThreshold = req.query.threshold !== undefined ? parseInt(req.query.threshold, 10) : null
+    const stockExpr = rawThreshold !== null && !isNaN(rawThreshold)
+      ? { $lte: ["$stock", rawThreshold] }
+      : { $lte: ["$stock", { $ifNull: ["$reorderLevel", 5] }] }
     const products = await Product.find({
       ...filter,
-      $expr: { $lte: ["$stock", { $ifNull: ["$reorderLevel", 5] }] },
+      $expr: stockExpr,
     })
       .populate("supplierId", "name company phone")
       .sort({ stock: 1 })
@@ -64,6 +68,24 @@ router.get("/low-stock", async (req, res) => {
   } catch (err) {
     console.error("Low-stock GET error:", err.message)
     res.status(500).json({ success: false, message: "Failed to fetch low-stock products." })
+  }
+})
+
+// ── BARCODE LOOKUP — cross-store duplicate check ──────────────────────
+// No store filter: looks across the entire products collection.
+// Returns 404 when not found so callers can treat that as "free to use".
+// isSameStore compares product.store to the requesting user's store so
+// the frontend can decide between auto-fill-for-edit vs. blocking error.
+router.get("/lookup/:barcode", async (req, res) => {
+  try {
+    const product = await Product.findOne({ barcode: req.params.barcode })
+      .populate("supplierId", "name company phone")
+      .lean()
+    if (!product) return res.status(404).json({ success: false })
+    const isSameStore = product.store === req.user.store
+    res.json({ success: true, product, isSameStore })
+  } catch (err) {
+    res.status(500).json({ success: false, message: "Barcode lookup failed." })
   }
 })
 

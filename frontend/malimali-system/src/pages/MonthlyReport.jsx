@@ -16,8 +16,9 @@ const XL_PRIMARY_DARK = '0C447C'
 const XL_PRIMARY_LIGHT = 'E6F1FB'
 
 const CARD_CONFIG = [
-  { key: 'revenue', label: 'Total Revenue', icon: <MdAttachMoney />, colorVar: 'var(--primary)', bgVar: 'var(--primary-light)' },
+  { key: 'revenue', label: 'Net Revenue', icon: <MdAttachMoney />, colorVar: 'var(--primary)', bgVar: 'var(--primary-light)' },
   { key: 'profit', label: 'Total Profit', icon: <MdTrendingUp />, colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)' },
+  { key: 'taxCollected', label: 'VAT Collected', icon: <MdAttachMoney />, colorVar: '#7c3aed', bgVar: '#f5f3ff' },
   { key: 'items', label: 'Items Sold', icon: <MdInventory />, colorVar: 'var(--warning-dark)', bgVar: 'var(--warning-light)' },
   { key: 'txns', label: 'Transactions', icon: <MdReceiptLong />, colorVar: '#6B21A8', bgVar: '#F3E8FF' },
   { key: 'debtCollected', label: 'Debt Collected', icon: <MdPeopleAlt />, colorVar: '#0369a1', bgVar: '#e0f2fe' },
@@ -42,7 +43,8 @@ function activeQtyM(item) {
 }
 
 export default function MonthlyReport() {
-  const { sales, products, isOwner, currentUser, stores } = useApp()
+  const { sales, products, isOwner, currentUser, stores, settings } = useApp()
+  const currency = settings?.currency || 'KSh'
   const [selectedStore, setSelectedStore] = useState(isOwner ? 'All' : currentUser.store)
   const now = new Date()
   const [year, setYear] = useState(now.getFullYear())
@@ -159,19 +161,25 @@ export default function MonthlyReport() {
     return Object.entries(m).sort((a, b) => b[1].total - a[1].total)
   }, [repayments])
 
-  // ── Totals — all use activeQtyM ───────────────────────────────────
-  const totalRevenue = monthSales.reduce((sum, s) =>
-    sum + (s.items?.reduce((rv, item) => {
+  // ── Totals — all use activeQtyM, revenue/profit are net of VAT ──────
+  const totalRevenue = monthSales.reduce((sum, s) => {
+    const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
+    return sum + (s.items?.reduce((rv, item) => {
       if (item.voidStatus === 'voided') return rv
       return rv + (item.price || 0) * activeQtyM(item)
-    }, 0) || 0), 0)
+    }, 0) || 0) * taxFactor
+  }, 0)
 
-  const totalProfit = monthSales.reduce((sum, sale) =>
-    sum + (sale.items?.reduce((s2, item) => {
+  const totalProfit = monthSales.reduce((sum, sale) => {
+    const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
+    return sum + (sale.items?.reduce((s2, item) => {
       if (item.voidStatus === 'voided') return s2
       const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
-      return s2 + (item.price - buy) * activeQtyM(item)
-    }, 0) || 0), 0)
+      return s2 + (item.price * taxFactor - buy) * activeQtyM(item)
+    }, 0) || 0)
+  }, 0)
+
+  const totalTaxCollected = monthSales.reduce((sum, sale) => sum + (sale.taxAmount || 0), 0)
 
   const totalItems = monthSales.reduce((sum, s) =>
     sum + (s.items?.reduce((q, item) => {
@@ -180,18 +188,19 @@ export default function MonthlyReport() {
     }, 0) || 0), 0)
 
   const summaryValues = {
-    revenue: totalRevenue,
-    profit: totalProfit,
+    revenue: Math.round(totalRevenue),
+    profit: Math.round(totalProfit),
+    taxCollected: Math.round(totalTaxCollected),
     items: totalItems,
     txns: monthSales.length,
     debtCollected: totalDebtCollected,
     expenses: monthlyExpTotal,
     expiredLoss: monthlyExpiredLoss,
-    netProfit: totalProfit - monthlyExpTotal - monthlyExpiredLoss,
+    netProfit: Math.round(totalProfit) - monthlyExpTotal - monthlyExpiredLoss,
   }
 
   const formatCardValue = (key, val) => {
-    if (['revenue', 'profit', 'debtCollected', 'expenses', 'expiredLoss', 'netProfit'].includes(key)) return `KSh ${val.toLocaleString()}`
+    if (['revenue', 'profit', 'taxCollected', 'debtCollected', 'expenses', 'expiredLoss', 'netProfit'].includes(key)) return `${currency} ${Number(val).toLocaleString()}`
     if (key === 'items') return String(fmtQty(val || 0))
     return val.toLocaleString()
   }
@@ -204,18 +213,22 @@ export default function MonthlyReport() {
     const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     const daySales = monthSales.filter(s => s.date?.startsWith(dateStr))
 
-    const revenue = daySales.reduce((sum, s) =>
-      sum + (s.items?.reduce((rv, item) => {
+    const revenue = daySales.reduce((sum, s) => {
+      const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
+      return sum + (s.items?.reduce((rv, item) => {
         if (item.voidStatus === 'voided') return rv
         return rv + (item.price || 0) * activeQtyM(item)
-      }, 0) || 0), 0)
+      }, 0) || 0) * taxFactor
+    }, 0)
 
-    const profit = daySales.reduce((sum, sale) =>
-      sum + (sale.items?.reduce((s2, item) => {
+    const profit = daySales.reduce((sum, sale) => {
+      const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
+      return sum + (sale.items?.reduce((s2, item) => {
         if (item.voidStatus === 'voided') return s2
         const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
-        return s2 + (item.price - buy) * activeQtyM(item)
-      }, 0) || 0), 0)
+        return s2 + (item.price * taxFactor - buy) * activeQtyM(item)
+      }, 0) || 0)
+    }, 0)
 
     const items = daySales.reduce((sum, s) =>
       sum + (s.items?.reduce((q, item) => {
@@ -231,10 +244,11 @@ export default function MonthlyReport() {
 
   const maxRevenue = Math.max(...dailyData.map(d => d.revenue), 1)
 
-  // ── Product sales map — uses activeQtyM ──────────────────────────
+  // ── Product sales map — uses activeQtyM, net revenue ─────────────
   const productSalesMap = useMemo(() => {
     const m = {}
     monthSales.forEach(sale => {
+      const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
       sale.items?.forEach(item => {
         if (item.voidStatus === 'voided') return
         const qty = activeQtyM(item)
@@ -243,7 +257,7 @@ export default function MonthlyReport() {
         const name = productMap[id]?.name || id
         if (!m[name]) m[name] = { qty: 0, revenue: 0 }
         m[name].qty += qty
-        m[name].revenue += qty * item.price
+        m[name].revenue += qty * item.price * taxFactor
       })
     })
     return m
@@ -251,17 +265,18 @@ export default function MonthlyReport() {
 
   const topProducts = Object.entries(productSalesMap).sort((a, b) => b[1].revenue - a[1].revenue).slice(0, 5)
 
-  // ── Employee map — uses activeQtyM ────────────────────────────────
+  // ── Employee map — uses activeQtyM, net revenue/profit ───────────
   const empMap = useMemo(() => {
     const m = {}
     monthSales.forEach(s => {
+      const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
       const name = s.cashier || 'Unknown'
       if (!m[name]) m[name] = { qty: 0, revenue: 0, count: 0, profit: 0 }
 
-      const saleRevenue = s.items?.reduce((rv, item) => {
+      const saleRevenue = (s.items?.reduce((rv, item) => {
         if (item.voidStatus === 'voided') return rv
         return rv + (item.price || 0) * activeQtyM(item)
-      }, 0) || 0
+      }, 0) || 0) * taxFactor
 
       m[name].revenue += saleRevenue
       m[name].count += 1
@@ -272,7 +287,7 @@ export default function MonthlyReport() {
       m[name].profit += s.items?.reduce((s2, item) => {
         if (item.voidStatus === 'voided') return s2
         const buy = productMap[String(item.productId?._id || item.productId)]?.buyPrice || 0
-        return s2 + (item.price - buy) * activeQtyM(item)
+        return s2 + (item.price * taxFactor - buy) * activeQtyM(item)
       }, 0) || 0
     })
     return m
@@ -318,12 +333,12 @@ export default function MonthlyReport() {
 
     sc(r, 0, 'SUMMARY', secStyle); mc(r, 0, 6); r++
       ;[
-        ['Total Revenue',            `KSh ${fmt(totalRevenue)}`,           'Items Sold',       fmt(totalItems)],
-        ['Total Profit',             `KSh ${fmt(totalProfit)}`,            'Transactions',     fmt(monthSales.length)],
-        ['Profit Margin',            `${profitMarginPct}%`,                'Avg. Txn Value',   `KSh ${fmt(avgTxnValue)}`],
-        ['Total Expenses',           `KSh ${fmt(monthlyExpTotal)}`,        'Net Profit (true)',`KSh ${fmt(totalProfit - monthlyExpTotal - monthlyExpiredLoss)}`],
-        ['Inventory Loss (Expired)', `KSh ${fmt(monthlyExpiredLoss)}`,     '',                 ''],
-        ['Debt Collected',           `KSh ${fmt(totalDebtCollected)}`,     'Debt Collections', fmt(repayments.length)],
+        ['Net Revenue (excl. VAT)',   `${currency} ${fmt(Math.round(totalRevenue))}`,   'Items Sold',       fmt(totalItems)],
+        ['Total Profit',             `${currency} ${fmt(Math.round(totalProfit))}`,     'Transactions',     fmt(monthSales.length)],
+        ['VAT Collected (→ KRA)',    `${currency} ${fmt(Math.round(totalTaxCollected))}`,'Avg. Txn Value',  `${currency} ${fmt(Math.round(avgTxnValue))}`],
+        ['Total Expenses',           `${currency} ${fmt(monthlyExpTotal)}`,             'Net Profit (true)',`${currency} ${fmt(Math.round(totalProfit) - monthlyExpTotal - monthlyExpiredLoss)}`],
+        ['Inventory Loss (Expired)', `${currency} ${fmt(monthlyExpiredLoss)}`,          '',                 ''],
+        ['Debt Collected',           `${currency} ${fmt(totalDebtCollected)}`,          'Debt Collections', fmt(repayments.length)],
       ].forEach(([l1, v1, l2, v2]) => {
         sc(r, 0, l1, kvL); sc(r, 1, v1, kvV)
         sc(r, 2, '', { fill: { fgColor: { rgb: 'FFFFFF' } } })
@@ -335,7 +350,7 @@ export default function MonthlyReport() {
     r++
 
     sc(r, 0, 'DAILY BREAKDOWN', secStyle); mc(r, 0, 6); r++
-      ;['Date', 'Transactions', 'Items Sold', 'Revenue (KSh)', 'Profit (KSh)', 'Debt In (KSh)', 'Expenses (KSh)'].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+      ;[`Date`, 'Transactions', 'Items Sold', `Revenue (${currency})`, `Profit (${currency})`, `Debt In (${currency})`, `Expenses (${currency})`].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
     const activeDays = dailyData.filter(d => d.revenue > 0 || d.debtCollected > 0 || d.expenses > 0)
     activeDays.forEach((d, i) => {
       sc(r, 0, fmtDate(d.date), lft(i)); sc(r, 1, d.transactions, cel(i)); sc(r, 2, d.items, cel(i))

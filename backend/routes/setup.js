@@ -177,7 +177,7 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
   try {
     const {
       companyName, phone, email, location, currency, taxRate,
-      receiptFooter, receiptPrefix, lowStockThreshold, timezone,
+      receiptFooter, receiptPrefix, lowStockThreshold,
       paymentMethods, kraPin, printerType, printerIp,
       // Phase 6 additions
       businessAddress, businessWebsite,
@@ -196,7 +196,6 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
     if (currency !== undefined)      existing.currency      = currency.trim();
     if (receiptFooter !== undefined) existing.receiptFooter = receiptFooter.trim();
     if (receiptPrefix !== undefined) existing.receiptPrefix = receiptPrefix.trim();
-    if (timezone !== undefined)      existing.timezone      = timezone.trim();
     if (kraPin !== undefined)        existing.kraPin        = kraPin.trim();
     if (printerIp !== undefined)     existing.printerIp     = printerIp.trim();
 

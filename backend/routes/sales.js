@@ -1,10 +1,11 @@
-const express = require("express")
+﻿const express = require("express")
 const router = express.Router()
 const mongoose = require("mongoose")
 const bcrypt = require("bcryptjs")
 const Sale = require("../models/Sale")
 const Product = require("../models/Product")
 const User = require("../models/User")
+const Setting = require("../models/Setting")
 const { authMiddleware } = require("../middleware/authMiddleware")
 
 router.use(authMiddleware)
@@ -13,7 +14,7 @@ function getEATDate() {
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split("T")[0]
 }
 
-// ── 1. RECORD SALE ───────────────────────────────────────────────────
+// â”€â”€ 1. RECORD SALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.post("/", async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -93,6 +94,11 @@ router.post("/", async (req, res) => {
       })
     }
 
+    const settingsDoc  = await Setting.findOne().select("taxRate").lean()
+    const saleTaxRate  = settingsDoc?.taxRate || 0
+    const finalAmt     = Number(paymentInfo?.finalTotal) || Number(total) || 0
+    const saleTaxAmt   = saleTaxRate > 0 ? finalAmt * (saleTaxRate / (1 + saleTaxRate)) : 0
+
     const sale = new Sale({
       items: resolvedItems,
       total: Number(total) || 0,
@@ -117,6 +123,9 @@ router.post("/", async (req, res) => {
       },
       date: getEATDate(),
       returnStatus: "none",
+      taxRate:  saleTaxRate,
+      taxAmount: saleTaxAmt,
+      netRevenue: finalAmt - saleTaxAmt,
     })
 
     await sale.save({ session })
@@ -143,7 +152,7 @@ router.post("/", async (req, res) => {
   }
 })
 
-// ── 2. GET SALES ─────────────────────────────────────────────────────
+// â”€â”€ 2. GET SALES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.get("/", async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
@@ -173,7 +182,7 @@ router.get("/", async (req, res) => {
       const saleObj = sale.toObject()
 
       // finalTotal is already decremented at return-approval time (returns.js PATCH approve).
-      // Do not subtract returnedAmount a second time — that would double-count the deduction.
+      // Do not subtract returnedAmount a second time â€” that would double-count the deduction.
       saleObj.netTotal = sale.paymentInfo?.finalTotal ?? sale.total
       saleObj.isPartiallyReturned = sale.items.some(i => i.returnStatus === "approved")
 
@@ -188,7 +197,7 @@ router.get("/", async (req, res) => {
   }
 })
 
-// ── 3. VOID ENTIRE SALE ──────────────────────────────────────────────
+// â”€â”€ 3. VOID ENTIRE SALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.patch("/:id/void", async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -293,7 +302,7 @@ router.patch("/:id/void", async (req, res) => {
   }
 })
 
-// ── 4. VOID SPECIFIC ITEMS / PARTIAL QUANTITIES ──────────────────────
+// â”€â”€ 4. VOID SPECIFIC ITEMS / PARTIAL QUANTITIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 router.patch("/:id/void-items", async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()

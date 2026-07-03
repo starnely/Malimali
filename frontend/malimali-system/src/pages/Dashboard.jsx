@@ -18,8 +18,10 @@ export default function Dashboard() {
   const {
     socket, products, sales, todaySales, pendingReturns, dailyArchives,
     fetchSales, fetchArchives, fetchProducts,
-    fetchCustomers, fetchExpenseSummary, currentUser,
+    fetchCustomers, fetchExpenseSummary, currentUser, settings,
   } = useApp()
+  const currency         = settings?.currency || 'KSh'
+  const lowStockThreshold = settings?.lowStockThreshold || 5
 
   const [debtSummary, setDebtSummary] = useState(null)
   const [debtLoading, setDebtLoading] = useState(true)
@@ -61,8 +63,9 @@ export default function Dashboard() {
       setStockLoading(true)
       try {
         const store = currentUser.role === 'owner' ? null : (currentUser.store || null)
-        const stockQuery = store ? `?store=${encodeURIComponent(store)}` : ''
-        const res = await fetch(`${API_BASE_URL}/api/products/low-stock${stockQuery}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
+        const params = new URLSearchParams({ threshold: lowStockThreshold })
+        if (store) params.set('store', store)
+        const res = await fetch(`${API_BASE_URL}/api/products/low-stock?${params}`, { headers: { Authorization: `Bearer ${currentUser.token}` } })
         const data = await res.json()
         if (active) setLowStockCount(data.count ?? data.products?.length ?? 0)
       } catch { if (active) setLowStockCount(0) }
@@ -70,7 +73,7 @@ export default function Dashboard() {
     }
     load()
     return () => { active = false }
-  }, [currentUser])
+  }, [currentUser, lowStockThreshold])
 
   useEffect(() => {
     if (!currentUser?.token) return
@@ -156,7 +159,7 @@ export default function Dashboard() {
     return Math.max(0, (item.qty || 0) - (item.voidedQty || 0) - (item.returnedQty || 0))
   }
 
-  const calcRevenue = (arr) => arr.reduce((sum, s) => {
+  const calcGrossRevenue = (arr) => arr.reduce((sum, s) => {
     if (s.returned || s.voided) return sum
     return sum + (s.items?.reduce((rv, item) => {
       if (item.voidStatus === 'voided') return rv
@@ -164,17 +167,30 @@ export default function Dashboard() {
     }, 0) || 0)
   }, 0)
 
+  const calcRevenue = (arr) => arr.reduce((sum, s) => {
+    if (s.returned || s.voided) return sum
+    const gross = s.items?.reduce((rv, item) => {
+      if (item.voidStatus === 'voided') return rv
+      return rv + (item.price || 0) * activeQty(item)
+    }, 0) || 0
+    const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
+    return sum + gross * taxFactor
+  }, 0)
+
   const calcProfit = (arr) => arr.reduce((sum, sale) => {
     if (sale.returned || sale.voided) return sum
+    const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
     return sum + (sale.items?.reduce((s2, item) => {
       if (item.voidStatus === 'voided') return s2
       const buy = productMap[String(item.productId?._id || item.productId)] || 0
-      return s2 + (item.price - buy) * activeQty(item)
+      return s2 + (item.price * taxFactor - buy) * activeQty(item)
     }, 0) || 0)
   }, 0)
 
   const allSales = sales ?? []
-  const todayRevenue = calcRevenue(safeTodaySales)
+  const todayRevenue      = calcRevenue(safeTodaySales)
+  const todayGrossRevenue = calcGrossRevenue(safeTodaySales)
+  const todayTaxCollected = todayGrossRevenue - todayRevenue
   const todayProfit = calcProfit(safeTodaySales)
   const todayQty = safeTodaySales.reduce((sum, s) => {
     if (s.voided || s.returned) return sum
@@ -231,8 +247,8 @@ export default function Dashboard() {
           <div className={`${styles.icon} ${styles['icon-warning']}`}><MdToday style={{ fontSize: 20 }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Revenue</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {todayRevenue.toLocaleString()}</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{fmtQty(todayQty)} items sold</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>{currency} {todayRevenue.toLocaleString()}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{fmtQty(todayQty)} items sold{Math.round(todayTaxCollected) > 0 ? ` · VAT: ${currency} ${Math.round(todayTaxCollected).toLocaleString()}` : ''}</div>
           </div>
         </div>
         <div className={`${styles.card} ${styles[todayProfit >= 0 ? 'card-success' : 'card-danger']} ${styles['animate-slideUp']}`} style={{ cursor: 'pointer' }} onClick={() => navigate('/reports')}>
@@ -241,7 +257,7 @@ export default function Dashboard() {
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Profit</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {todayProfit.toLocaleString()}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>{currency} {todayProfit.toLocaleString()}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{profitMargin}% margin</div>
           </div>
         </div>
@@ -249,7 +265,7 @@ export default function Dashboard() {
           <div className={`${styles.icon} ${styles[expenseTotal > 0 ? 'icon-danger' : 'icon-primary']}`}><MdAttachMoney style={{ fontSize: 20 }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Today's Expenses</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>{expenseLoading ? '—' : `KSh ${(expenseTotal || 0).toLocaleString()}`}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>{expenseLoading ? '—' : `${currency} ${(expenseTotal || 0).toLocaleString()}`}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>{expenseLoading ? 'Loading...' : expenseTotal > 0 ? `${expenseCats} categor${expenseCats !== 1 ? 'ies' : 'y'}` : 'None logged today'}</div>
           </div>
         </div>
@@ -257,7 +273,7 @@ export default function Dashboard() {
           <div className={`${styles.icon} ${styles[netPosition >= 0 ? 'icon-success' : 'icon-danger']}`}><MdTrendingUp style={{ fontSize: 20 }} /></div>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 4 }}>Net Position</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>KSh {netPosition.toLocaleString()}</div>
+            <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.1 }}>{currency} {netPosition.toLocaleString()}</div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3 }}>Revenue − Expenses</div>
           </div>
         </div>
@@ -272,7 +288,7 @@ export default function Dashboard() {
         </div>
         <div onClick={() => navigate('/purchase-orders')} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? '#fecaca' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
           <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: supplierDebt > 0 ? '#fecaca' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdPayments style={{ color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
-          <div style={{ fontSize: supplierDebt > 0 ? 18 : 26, fontWeight: 900, color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{supplierDebtLoading ? '—' : supplierDebt > 0 ? `KSh ${supplierDebt.toLocaleString()}` : '✓'}</div>
+          <div style={{ fontSize: supplierDebt > 0 ? 18 : 26, fontWeight: 900, color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{supplierDebtLoading ? '—' : supplierDebt > 0 ? `${currency} ${supplierDebt.toLocaleString()}` : '✓'}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Supplier Debt</div>
           <div style={{ fontSize: 11, color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)' }}>{supplierDebtLoading ? 'Loading...' : supplierDebt > 0 ? `${supplierDebtCount} unpaid PO${supplierDebtCount !== 1 ? 's' : ''}` : 'All suppliers paid'}</div>
           {!supplierDebtLoading && pendingInvoiceCount > 0 && (
@@ -287,7 +303,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <DebtWidget summary={debtSummary} loading={debtLoading} onNavigate={() => navigate('/customers')} />
+      <DebtWidget summary={debtSummary} loading={debtLoading} onNavigate={() => navigate('/customers')} currency={currency} />
 
       {safeReturns.length > 0 && (
         <div id="returns-section"><PendingReturnsPanel pendingReturns={safeReturns} /></div>
@@ -320,8 +336,8 @@ export default function Dashboard() {
                     )}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Revenue</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--primary)' }}>KSh {s.total.toLocaleString()}</div></div>
-                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Profit</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--success-dark)' }}>KSh {s.profit.toLocaleString()}</div></div>
+                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Revenue</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--primary)' }}>{currency} {s.total.toLocaleString()}</div></div>
+                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Profit</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--success-dark)' }}>{currency} {s.profit.toLocaleString()}</div></div>
                   </div>
                   <div style={{ height: 4, borderRadius: 4, background: 'var(--border-soft)', overflow: 'hidden', marginBottom: 5 }}>
                     <div style={{ height: '100%', width: `${share}%`, background: 'var(--primary)', borderRadius: 4, transition: 'width 0.5s ease' }} />
@@ -339,7 +355,7 @@ export default function Dashboard() {
   )
 }
 
-function DebtWidget({ summary, loading, onNavigate }) {
+function DebtWidget({ summary, loading, onNavigate, currency = 'KSh' }) {
   if (loading) return (
     <div className={styles.box} style={{ padding: '16px 20px' }}>
       <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading debtor summary...</div>
@@ -357,7 +373,7 @@ function DebtWidget({ summary, loading, onNavigate }) {
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 10, marginBottom: summary.overdueCount > 0 ? 14 : 0 }}>
             {[
-              { label: 'Outstanding', value: `KSh ${summary.totalDebt.toLocaleString()}`, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
+              { label: 'Outstanding', value: `${currency} ${summary.totalDebt.toLocaleString()}`, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
               { label: 'Active Debtors', value: summary.activeCount, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
               { label: 'Overdue', value: summary.overdueCount, bg: summary.overdueCount > 0 ? '#fff7ed' : '#f0fdf4', border: summary.overdueCount > 0 ? '#fed7aa' : '#bbf7d0', color: summary.overdueCount > 0 ? '#ea580c' : 'var(--success-dark)' },
               ...(summary.blacklistedCount > 0 ? [{ label: 'Blacklisted', value: summary.blacklistedCount, bg: '#fef2f2', border: '#fecaca', color: '#dc2626' }] : []),

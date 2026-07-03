@@ -43,6 +43,7 @@ export default function Products() {
   const [storeFilter, setStoreFilter] = useState('All')
   const [showModal, openModal, closeModalHistory] = useHistoryModal('products-form')
   const [editProduct, setEditProduct] = useState(null)
+  const [editViaBarcode, setEditViaBarcode] = useState(false)
   const [showRestock, openRestock, closeRestock] = useHistoryModal('restock')
   const [restockProduct, setRestockProduct] = useState(null)
   const [restockQty, setRestockQty] = useState('')
@@ -59,6 +60,7 @@ export default function Products() {
   // ── Helpers ────────────────────────────────────────────
   const closeModal = useCallback(() => {
     setEditProduct(null)
+    setEditViaBarcode(false)
     setError('')
     setSuccess('')
     setSavedBarcode('')
@@ -80,6 +82,7 @@ export default function Products() {
 
   const openEdit = useCallback((product) => {
     setEditProduct(product)
+    setEditViaBarcode(false)
     setForm({
       name: product.name || '',
       category: product.category || '',
@@ -116,13 +119,71 @@ export default function Products() {
     openModal()
   }
 
-  const handleScan = useCallback((barcodeValue) => {
-    const code = barcodeValue || barcode
-    if (!code.trim()) return
-    setBarcode(code.trim())
-    setSuccess('Barcode captured!')
+  const handleScan = useCallback(async (barcodeValue) => {
+    const code = (barcodeValue || barcode).trim()
+    if (!code) return
+    setBarcode(code)
     setError('')
-  }, [barcode, setBarcode, setError, setSuccess])
+    setSuccess('')
+
+    try {
+      const res = await fetch(
+        `${API_BASE_URL}/api/products/lookup/${encodeURIComponent(code)}`,
+        { headers: { Authorization: `Bearer ${currentUser?.token}` } }
+      )
+
+      if (res.status === 404) {
+        // Barcode is free — normal add flow
+        setSuccess('Barcode captured!')
+        return
+      }
+
+      const data = await res.json()
+      if (!data.success || !data.product) {
+        setSuccess('Barcode captured!')
+        return
+      }
+
+      const { product, isSameStore } = data
+
+      if (isSameStore) {
+        // Same store — auto-fill form and switch to edit mode
+        setEditProduct(product)
+        setEditViaBarcode(true)
+        setForm({
+          name: product.name || '',
+          category: product.category || '',
+          unit: product.unit || 'pcs',
+          supplier: product.supplier || '',
+          store: product.store || '',
+          buyPrice: product.buyPrice || '',
+          sellPrice: product.sellPrice || '',
+          stock: product.stock || '',
+          batch: product.batch || '',
+          description: product.description || '',
+          mftDate: product.mftDate ? product.mftDate.split('T')[0] : '',
+          expiryDate: product.expiryDate ? product.expiryDate.split('T')[0] : '',
+          isWeighed: product.isWeighed || false,
+          pricePerKg: product.pricePerKg || '',
+          pluNumber: product.pluNumber || '',
+        })
+        setMode('manual')
+        setSavedBarcode('')
+        setSuccess('This barcode already exists — editing existing product.')
+      } else {
+        // Different store — block; do not auto-fill
+        setBarcode('')
+        setError(
+          `Barcode ${code} is already registered to "${data.product.name}" at ${data.product.store}. Barcodes must be unique across all stores.`
+        )
+      }
+    } catch {
+      // Network failure — fall back to normal add flow so a connectivity
+      // hiccup doesn't silently block the whole add-product flow
+      setSuccess('Barcode captured!')
+    }
+  }, [barcode, currentUser, setBarcode, setError, setSuccess,
+      setEditProduct, setEditViaBarcode, setForm, setMode, setSavedBarcode])
 
   const printBarcode = useCallback(() => {
     if (savedBarcode) {
@@ -374,6 +435,7 @@ export default function Products() {
         saveProduct={saveProduct}
         closeModal={closeModal}
         printBarcode={printBarcode}
+        storeLocked={editViaBarcode}
       />
 
       {/* ── Modals ───────────────────────────────────────── */}

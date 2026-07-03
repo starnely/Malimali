@@ -21,7 +21,8 @@ export function isActiveItem(item) {
 
 /**
  * Build a live summary for a given date from the sales array.
- * Correctly handles partial voids and returned items.
+ * Revenue and profit are net of inclusive VAT (tax excluded).
+ * taxFactor = 1/(1+taxRate) for VAT-inclusive pricing; falls back to 1 for historical sales.
  */
 export function buildLiveSummary(date, sales, products = [], storeName = "All", expiredLoss = 0) {
   const normalize = d => (d ? String(d).slice(0, 10) : null)
@@ -38,6 +39,8 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All", 
   let totalRevenue = 0
   let totalProfit = 0
   let totalCOGS = 0
+  let totalGrossRevenue = 0
+  let totalTaxCollected = 0
   let cashInDrawer = 0
   let mpesaTotal = 0
   let creditTotal = 0
@@ -56,10 +59,12 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All", 
 
   daySales.forEach(s => {
     const method = s.paymentInfo?.paymentMethod
+    // taxFactor converts gross (incl. VAT) price to net price.
+    // For historical sales where taxRate is 0/undefined, factor = 1 (no change).
+    const taxFactor = s.taxRate > 0 ? 1 / (1 + s.taxRate) : 1
 
-    // ── Calculate actual sale revenue from active items only ──────────
-    let saleRevenue = 0
-    let saleProfit = 0
+    let saleGross = 0
+    let saleCOGS = 0
     let saleQty = 0
 
     if (s.items) {
@@ -72,73 +77,79 @@ export function buildLiveSummary(date, sales, products = [], storeName = "All", 
         const buyPrice = item.buyPrice ?? product?.buyPrice ?? 0
         const sellPrice = item.price || 0
 
-        saleRevenue += sellPrice * qty
-        saleProfit += (sellPrice - buyPrice) * qty
-        totalCOGS += buyPrice * qty
-        saleQty += qty
+        saleGross += sellPrice * qty
+        saleCOGS  += buyPrice * qty
+        saleQty   += qty
       })
     }
 
-    // Skip sale if all items were voided/returned (nothing to count)
-    if (saleRevenue === 0 && saleQty === 0) return
+    if (saleGross === 0 && saleQty === 0) return
 
-    totalRevenue += saleRevenue
-    totalProfit += saleProfit
-    totalItems += saleQty
+    const saleNet    = saleGross * taxFactor
+    const saleTax    = saleGross - saleNet
+    const saleProfit = saleNet - saleCOGS
+
+    totalGrossRevenue += saleGross
+    totalRevenue      += saleNet
+    totalProfit       += saleProfit
+    totalCOGS         += saleCOGS
+    totalTaxCollected += saleTax
+    totalItems        += saleQty
     totalTransactions += 1
 
-    // ── Payment method breakdown ──────────────────────────────────────
+    // Payment breakdown uses GROSS amounts (actual money received per method)
     if (method === 'cash') {
-      cashInDrawer += saleRevenue
+      cashInDrawer += saleGross
       cashSalesCount++
     } else if (method === 'mpesa') {
-      mpesaTotal += saleRevenue
+      mpesaTotal += saleGross
       mpesaSalesCount++
     } else if (method === 'credit') {
-      creditTotal += saleRevenue
+      creditTotal += saleGross
       creditSalesCount++
     } else if (method === 'split') {
-      const origCash = s.paymentInfo?.cashPart || 0
+      const origCash  = s.paymentInfo?.cashPart  || 0
       const origMpesa = s.paymentInfo?.mpesaPart || 0
       const origTotal = origCash + origMpesa || 1
-      // Allocate active revenue proportionally across cash/mpesa split
-      cashInDrawer += saleRevenue * (origCash / origTotal)
-      mpesaTotal += saleRevenue * (origMpesa / origTotal)
+      cashInDrawer += saleGross * (origCash  / origTotal)
+      mpesaTotal   += saleGross * (origMpesa / origTotal)
       splitSalesCount++
     } else if (method === 'card') {
-      cardTotal += saleRevenue
+      cardTotal += saleGross
       cardSalesCount++
     } else if (method === 'bank') {
-      bankTotal += saleRevenue
+      bankTotal += saleGross
       bankSalesCount++
     }
 
-    // ── Per-employee tracking ─────────────────────────────────────────
+    // Per-employee tracking (net revenue and profit)
     const empName = s.cashier || 'Unknown'
     if (!employeeMap[empName]) {
       employeeMap[empName] = { name: empName, revenue: 0, profit: 0, transactions: 0, itemsSold: 0 }
     }
-    employeeMap[empName].revenue += saleRevenue
-    employeeMap[empName].profit += saleProfit
+    employeeMap[empName].revenue      += saleNet
+    employeeMap[empName].profit       += saleProfit
     employeeMap[empName].transactions += 1
-    employeeMap[empName].itemsSold += saleQty
+    employeeMap[empName].itemsSold    += saleQty
   })
 
   if (totalTransactions === 0) return null
 
   return {
     date: targetDate,
-    totalRevenue: Math.round(totalRevenue),
-    totalProfit: Math.round(totalProfit),
-    totalCOGS: Math.round(totalCOGS),
+    totalRevenue:      Math.round(totalRevenue),
+    totalProfit:       Math.round(totalProfit),
+    totalCOGS:         Math.round(totalCOGS),
+    totalGrossRevenue: Math.round(totalGrossRevenue),
+    totalTaxCollected: Math.round(totalTaxCollected),
     totalItems,
     totalTransactions,
     paymentBreakdown: {
-      cash: Math.round(cashInDrawer),
-      mpesa: Math.round(mpesaTotal),
+      cash:   Math.round(cashInDrawer),
+      mpesa:  Math.round(mpesaTotal),
       credit: Math.round(creditTotal),
-      card: Math.round(cardTotal),
-      bank: Math.round(bankTotal),
+      card:   Math.round(cardTotal),
+      bank:   Math.round(bankTotal),
     },
     cashSalesCount,
     mpesaSalesCount,

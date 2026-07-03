@@ -1,4 +1,4 @@
-import { useState } from 'react'
+﻿import { useState } from 'react'
 import {
   MdAttachMoney, MdTrendingUp, MdInventory, MdWarning,
   MdPointOfSale, MdBarChart, MdStorefront, MdCalendarMonth,
@@ -22,7 +22,8 @@ const XL_PRIMARY_DARK = '0C447C'
 const XL_PRIMARY_LIGHT = 'E6F1FB'
 
 export default function Reports() {
-  const { products, sales: allSales, currentUser, isOwner, stores } = useApp()
+  const { products, sales: allSales, currentUser, isOwner, stores, settings } = useApp()
+  const currency = settings?.currency || 'KSh'
 
   const categories = ['All', ...Array.from(new Set(products.map(p => p.category).filter(Boolean))).sort()]
   const [category, setCategory] = useState('All')
@@ -36,7 +37,7 @@ export default function Reports() {
     return allSales.filter(s => s.store === currentUser.store)
   })()
 
-  // ── Exclude both returned and voided sales from all calculations ──
+  // â”€â”€ Exclude both returned and voided sales from all calculations â”€â”€
   const activeSales = sales.filter(s => !s.returned && !s.voided)
 
   const activeQtyR = (item) => {
@@ -47,13 +48,14 @@ export default function Reports() {
   const productPerformance = products.map(product => {
     let qtySold = 0, totalRevenue = 0
     activeSales.forEach(sale => {
+      const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
       sale.items?.forEach(item => {
         const id = item.productId?._id || item.productId
         if (String(id) !== String(product._id)) return
         if (item.voidStatus === 'voided') return
         const qty = activeQtyR(item)
         qtySold += qty
-        totalRevenue += qty * item.price
+        totalRevenue += qty * item.price * taxFactor
       })
     })
     const totalCost = qtySold * (product.buyPrice || 0)
@@ -69,15 +71,17 @@ export default function Reports() {
     )
 
   const totalRevenue = activeSales.reduce((sum, sale) => {
+    const taxFactor = sale.taxRate > 0 ? 1 / (1 + sale.taxRate) : 1
     return sum + (sale.items?.reduce((rv, item) => {
       if (item.voidStatus === 'voided') return rv
       return rv + (item.price || 0) * activeQtyR(item)
-    }, 0) || 0)
+    }, 0) || 0) * taxFactor
   }, 0)
+  const totalTaxCollected = activeSales.reduce((sum, sale) => sum + (sale.taxAmount || 0), 0)
   const totalCost = productPerformance.reduce((s, p) => s + p.totalCost, 0)
   const totalProfit = totalRevenue - totalCost
   const totalStockValue = products.reduce((s, p) => s + (p.stock || 0) * (p.buyPrice || 0), 0)
-  const lowStockCount = products.filter(p => p.stock <= 5).length
+  const lowStockCount = products.filter(p => p.stock <= (settings?.lowStockThreshold || 5)).length
   const profitMargin = totalRevenue > 0 ? Math.round((totalProfit / totalRevenue) * 100) : 0
 
   const categoryTotals = categories.filter(c => c !== 'All').map(cat => {
@@ -92,7 +96,7 @@ export default function Reports() {
   const maxCatProfit = Math.max(...categoryTotals.map(c => c.profit), 1)
   const maxProfit = Math.max(...filtered.map(p => p.profit), 1)
 
-  // ── XLSX Export ────────────────────────────────────────────────────
+  // â”€â”€ XLSX Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const handleDownloadCSV = () => {
     const fmt = n => Number(n).toLocaleString('en-KE')
     const ws = {}, merges = []
@@ -126,9 +130,10 @@ export default function Reports() {
 
     sc(r, 0, 'SUMMARY', secStyle); mc(r, 0, COLS - 1); r++
     const kpis = [
-      ['Total Revenue', `KSh ${fmt(totalRevenue)}`, 'Total Cost', `KSh ${fmt(totalCost)}`],
-      ['Total Profit', `KSh ${fmt(totalProfit)}`, 'Profit Margin', `${profitMargin}%`],
-      ['Stock Value', `KSh ${fmt(totalStockValue)}`, 'Low Stock Items', String(lowStockCount)],
+      ['Net Revenue', `${currency} ${fmt(Math.round(totalRevenue))}`, 'Total Cost', `${currency} ${fmt(totalCost)}`],
+      ['Total Profit', `${currency} ${fmt(Math.round(totalProfit))}`, 'Profit Margin', `${profitMargin}%`],
+      ['VAT Collected', `${currency} ${fmt(Math.round(totalTaxCollected))}`, 'Low Stock Items', String(lowStockCount)],
+      ['Stock Value', `${currency} ${fmt(totalStockValue)}`, '', ''],
     ]
     kpis.forEach(([l1, v1, l2, v2]) => {
       sc(r, 0, l1, kvL); sc(r, 1, v1, kvV)
@@ -140,7 +145,7 @@ export default function Reports() {
     r++
 
     sc(r, 0, 'CATEGORY BREAKDOWN', secStyle); mc(r, 0, COLS - 1); r++
-      ;['Category', 'Revenue (KSh)', 'Profit (KSh)', 'Margin %', '', '', '', ''].forEach((h, c) => sc(r, c, h, h ? hdrStyle : { fill: { fgColor: { rgb: '2D7DD2' } } })); r++
+      ;[`Category`, `Revenue (${currency})`, `Profit (${currency})`, 'Margin %', '', '', '', ''].forEach((h, c) => sc(r, c, h, h ? hdrStyle : { fill: { fgColor: { rgb: '2D7DD2' } } })); r++
     categoryTotals.forEach((cat, i) => {
       const margin = cat.revenue > 0 ? ((cat.profit / cat.revenue) * 100).toFixed(1) + '%' : '0.0%'
       sc(r, 0, cat.name, lft(i)); sc(r, 1, cat.revenue, cel(i)); sc(r, 2, cat.profit, grn(i)); sc(r, 3, margin, cel(i))
@@ -149,8 +154,8 @@ export default function Reports() {
     })
     r++
 
-    sc(r, 0, `PRODUCT PERFORMANCE${category !== 'All' ? ' — ' + category : ''}`, secStyle); mc(r, 0, COLS - 1); r++
-      ;['#', 'Product', 'Category', 'Qty Sold', 'Revenue (KSh)', 'Cost (KSh)', 'Profit (KSh)', 'Margin %'].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
+    sc(r, 0, `PRODUCT PERFORMANCE${category !== 'All' ? ' â€” ' + category : ''}`, secStyle); mc(r, 0, COLS - 1); r++
+      ;['#', 'Product', 'Category', 'Qty Sold', `Revenue (${currency})`, `Cost (${currency})`, `Profit (${currency})`, 'Margin %'].forEach((h, c) => sc(r, c, h, hdrStyle)); r++
     filtered.forEach((p, i) => {
       const margin = p.totalRevenue > 0 ? ((p.profit / p.totalRevenue) * 100).toFixed(1) + '%' : '0.0%'
       sc(r, 0, i + 1, cel(i)); sc(r, 1, p.name, lft(i)); sc(r, 2, p.category, lft(i)); sc(r, 3, p.qtySold, cel(i))
@@ -198,8 +203,8 @@ export default function Reports() {
                 <span className="text-xs font-bold uppercase tracking-wider hidden sm:inline" style={{ color: 'var(--text-muted)' }}>Branch:</span>
                 <select value={selectedStore} onChange={e => setSelectedStore(e.target.value)}
                   className="bg-transparent text-sm font-semibold outline-none cursor-pointer" style={{ color: 'var(--text-primary)' }}>
-                  <option value="All">✨ All Locations</option>
-                  {stores?.map(st => <option key={st._id} value={st.name}>📍 {st.name}</option>)}
+                  <option value="All">âœ¨ All Locations</option>
+                  {stores?.map(st => <option key={st._id} value={st.name}>ðŸ“ {st.name}</option>)}
                 </select>
               </div>
             )}
@@ -238,11 +243,11 @@ export default function Reports() {
           <div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
               {[
-                { label: 'Total Revenue', value: `KSh ${totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: 'blue' },
-                { label: 'Total Profit', value: `KSh ${totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: 'green' },
+                { label: 'Net Revenue', value: `${currency} ${Math.round(totalRevenue).toLocaleString()}`, icon: <MdAttachMoney />, color: 'blue' },
+                { label: 'Total Profit', value: `${currency} ${Math.round(totalProfit).toLocaleString()}`, icon: <MdTrendingUp />, color: 'green' },
+                { label: 'VAT Collected', value: `${currency} ${Math.round(totalTaxCollected).toLocaleString()}`, icon: <MdAttachMoney />, color: 'indigo' },
                 { label: 'Profit Margin', value: `${profitMargin}%`, icon: <MdBarChart />, color: 'yellow' },
-                { label: 'Stock Value', value: `KSh ${totalStockValue.toLocaleString()}`, icon: <MdInventory />, color: 'purple' },
-                { label: 'Total Cost', value: `KSh ${totalCost.toLocaleString()}`, icon: <MdPointOfSale />, color: 'indigo' },
+                { label: 'Stock Value', value: `${currency} ${totalStockValue.toLocaleString()}`, icon: <MdInventory />, color: 'purple' },
                 { label: 'Low Stock Items', value: lowStockCount, icon: <MdWarning />, color: 'red' },
               ].map((card, i) => (
                 <div key={i} className={`${styles.card} ${styles[`card-${card.color}`]}`}>
@@ -263,8 +268,8 @@ export default function Reports() {
                     <div className="flex justify-between mb-1 flex-wrap gap-2">
                       <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
                       <div className="flex gap-4">
-                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Revenue: KSh {cat.revenue.toLocaleString()}</span>
-                        <span className="text-sm font-semibold" style={{ color: 'var(--success-dark)' }}>Profit: KSh {cat.profit.toLocaleString()}</span>
+                        <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Revenue: {currency} {cat.revenue.toLocaleString()}</span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--success-dark)' }}>Profit: {currency} {cat.profit.toLocaleString()}</span>
                       </div>
                     </div>
                     <div className="h-2 rounded overflow-hidden" style={{ background: 'var(--bg-muted)' }}>
@@ -319,10 +324,10 @@ export default function Reports() {
                           <td className={styles.td} style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{p.name}</td>
                           <td className={styles.td}>{p.category}</td>
                           <td className={styles.td}>{fmtQty(p.qtySold)}</td>
-                          <td className={styles.td}>KSh {p.totalRevenue.toLocaleString()}</td>
-                          <td className={styles.td}>KSh {p.totalCost.toLocaleString()}</td>
+                          <td className={styles.td}>{currency} {p.totalRevenue.toLocaleString()}</td>
+                          <td className={styles.td}>{currency} {p.totalCost.toLocaleString()}</td>
                           <td className={styles.td} style={{ fontWeight: '600', color: p.profit >= 0 ? 'var(--success-dark)' : 'var(--danger)' }}>
-                            KSh {p.profit.toLocaleString()}
+                            {currency} {p.profit.toLocaleString()}
                           </td>
                           <td className={styles.td}>{margin}%</td>
                           <td className={styles.td} style={{ width: '80px' }}>

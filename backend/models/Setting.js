@@ -39,11 +39,6 @@ const SettingSchema = new mongoose.Schema({
     type:    Number,
     default: 5
   },
-  timezone: {
-    type:    String,
-    default: "Africa/Nairobi"
-  },
-
   // ── KRA Compliance ──────────────────────────────────────────────────
   kraPin: {
     type:    String,

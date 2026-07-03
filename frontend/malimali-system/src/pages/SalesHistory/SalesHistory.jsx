@@ -40,10 +40,11 @@ export default function SalesHistory() {
 
   const socket = useSocket()
   const {
-    isOwner, currentUser, sales, stores,
+    isOwner, currentUser, sales, stores, settings,
     fetchSales, fetchReturns, fetchArchives, fetchStores,
     pendingReturns, products, voidSale
   } = useApp()
+  const currency = settings?.currency || 'KSh'
 
   const categories = useMemo(() => {
     const cats = [...new Set(products.map(p => p.category).filter(Boolean))]
@@ -186,7 +187,7 @@ export default function SalesHistory() {
           <PendingReturnsPanel pendingReturns={pendingReturns} refreshReturns={fetchReturns} />
         )}
 
-        <SalesStats isOwner={isOwner} filtered={filtered} category={category} />
+        <SalesStats isOwner={isOwner} filtered={filtered} category={category} currency={currency} />
 
         <SalesFilters
           search={search} setSearch={setSearch}
