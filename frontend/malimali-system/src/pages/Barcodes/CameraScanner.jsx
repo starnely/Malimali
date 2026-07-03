@@ -14,6 +14,43 @@ const RETAIL_FORMATS = [
   Html5QrcodeSupportedFormats.CODE_39,
 ]
 
+// ── Checksum validation ────────────────────────────────────────────────────
+// GS1 mod-10 check digit shared by EAN-13, UPC-A, EAN-8.
+// Weight rule (from right, 1-indexed): odd distance → ×3, even → ×1.
+function gs1CheckDigit(code) {
+  if (!/^\d+$/.test(code) || code.length < 2) return false
+  const n = code.length
+  let sum = 0
+  for (let i = 0; i < n - 1; i++) {
+    sum += parseInt(code[i], 10) * ((n - 2 - i) % 2 === 0 ? 3 : 1)
+  }
+  return (10 - (sum % 10)) % 10 === parseInt(code[n - 1], 10)
+}
+
+// Expand 8-digit UPC-E to 12-digit UPC-A so gs1CheckDigit can validate it.
+// The final digit of the 6 data digits determines the expansion pattern.
+function expandUPCE(upce) {
+  if (upce.length !== 8 || !/^\d+$/.test(upce)) return null
+  const S = upce[0], D = upce.slice(1, 7), C = upce[7], last = D[5]
+  let mid
+  if (last === '0' || last === '1' || last === '2') mid = D[0]+D[1]+last+'0000'+D[2]+D[3]+D[4]
+  else if (last === '3') mid = D[0]+D[1]+D[2]+'00000'+D[3]+D[4]
+  else if (last === '4') mid = D[0]+D[1]+D[2]+D[3]+'00000'+D[4]
+  else                   mid = D[0]+D[1]+D[2]+D[3]+D[4]+last+'0000'
+  return S + mid + C // 12 digits
+}
+
+const _F = Html5QrcodeSupportedFormats
+// Returns false only for formats with a mandatory checksum that fails.
+// Unrecognised/unlisted formats pass silently (no false rejections).
+function passesChecksum(code, fmt) {
+  if (fmt === _F.EAN_13) return /^\d{13}$/.test(code) && gs1CheckDigit(code)
+  if (fmt === _F.UPC_A)  return /^\d{12}$/.test(code) && gs1CheckDigit(code)
+  if (fmt === _F.EAN_8)  return /^\d{8}$/.test(code)  && gs1CheckDigit(code)
+  if (fmt === _F.UPC_E)  { const e = expandUPCE(code); return e !== null && gs1CheckDigit(e) }
+  return true // Code 39, Code 128, QR — no mandatory check digit
+}
+
 function beep() {
   try {
     const ctx = new (window.AudioContext || window.webkitAudioContext)()
@@ -51,6 +88,7 @@ export default function CameraScanner({ onScan, onClose, continuous = false, inl
   const [scanCount, setScanCount] = useState(0)
   const firedRef = useRef(false)
   const lastScanRef = useRef({ code: '', time: 0 })
+  const prevDecodeRef = useRef({ code: '', count: 0 })
   const onScanRef = useRef(onScan)
   const onCloseRef = useRef(onClose)
   useEffect(() => {
@@ -83,12 +121,28 @@ export default function CameraScanner({ onScan, onClose, continuous = false, inl
         await scanner.start(
           { facingMode: 'environment' },
           { fps: 20, qrbox: { width: 240, height: 240 } },
-          (decodedText) => {
+          (decodedText, decodedResult) => {
             if (cancelled) return
 
+            // Silently reject frames whose GS1 check digit doesn't match.
+            // Keeps corrupted reads and partial decodes from ever reaching onScan.
+            const fmt = decodedResult?.result?.format?.format
+            if (!passesChecksum(decodedText, fmt)) return
+
             if (!continuous) {
-              // Single-scan: fire once then close.
+              // Single-scan with 2-frame consensus: same code must appear on
+              // two consecutive successful decodes before accepting (~50 ms at
+              // 20 fps). A different code on any frame resets the counter.
               if (firedRef.current) return
+              const prev = prevDecodeRef.current
+              if (decodedText === prev.code) {
+                const count = prev.count + 1
+                prevDecodeRef.current = { code: decodedText, count }
+                if (count < 2) return
+              } else {
+                prevDecodeRef.current = { code: decodedText, count: 1 }
+                return
+              }
               firedRef.current = true
               scanner.stop().catch(() => {}).finally(() => {
                 if (cancelled) return
@@ -98,8 +152,9 @@ export default function CameraScanner({ onScan, onClose, continuous = false, inl
               return
             }
 
-            // Continuous: debounce same barcode within 1500ms;
-            // a different code is always accepted immediately.
+            // Continuous (POS): debounce same barcode within 1500ms;
+            // a different code is always accepted immediately. No consensus
+            // check here — speed matters more than double-verification.
             const now = Date.now()
             const last = lastScanRef.current
             if (decodedText === last.code && now - last.time < 1500) return

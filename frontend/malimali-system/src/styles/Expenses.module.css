@@ -101,7 +101,7 @@
 }
 
 .summaryOrange {
-  border-left: 3px solid #ea580c;
+  border-left: 3px solid var(--orange);
 }
 
 .summaryIconWrap {

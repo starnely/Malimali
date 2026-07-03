@@ -35,7 +35,7 @@ export default function Settings() {
     smtpHost: '', smtpPort: 587, smtpUser: '',
     smtpPassword: '', smtpFromName: '', smtpSecure: false,
     // Appearance
-    brandColors: { primary: '', secondary: '', accent: '' },
+    brandColors: { primary: '', secondary: '' },
   }
 
   const mergeWithDefaults = (s) => s ? {
@@ -52,7 +52,6 @@ export default function Settings() {
     brandColors: {
       primary:   s.brandColors?.primary   || '',
       secondary: s.brandColors?.secondary || '',
-      accent:    s.brandColors?.accent    || '',
     },
   } : defaultForm
 
@@ -504,9 +503,8 @@ export default function Settings() {
           </p>
           <div className={styles.grid3} style={{ marginBottom: '1.25rem' }}>
             {[
-              { key: 'primary',   label: 'Primary Color',  fallback: '#1E5FA5', hint: 'Buttons, links, active states'      },
-              { key: 'secondary', label: 'Sidebar Color',  fallback: '#0C3660', hint: 'Navigation sidebar background'      },
-              { key: 'accent',    label: 'Accent Color',   fallback: '#7C3AED', hint: 'VAT tags, highlights, badges'       },
+              { key: 'primary',   label: 'Primary Color',  fallback: '#1E5FA5', hint: 'Buttons, links, hover states — shades auto-derived' },
+              { key: 'secondary', label: 'Secondary / Accent', fallback: '#F59E0B', hint: 'Active nav items, hover highlights, accent elements — text auto-contrast' },
             ].map(({ key, label: lbl, fallback, hint }) => {
               const currentVal = form.brandColors?.[key] || fallback
               return (

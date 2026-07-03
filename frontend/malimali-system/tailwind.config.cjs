@@ -25,6 +25,9 @@ module.exports = {
         indigo:        'var(--indigo)',
         'indigo-light':'var(--indigo-light)',
         'indigo-dark': 'var(--indigo-dark)',
+        orange:        'var(--orange)',
+        'orange-light':'var(--orange-light)',
+        'orange-dark': 'var(--orange-dark)',
 
         // ── Semantic ───────────────────────────────────────────
         success:       'var(--success)',

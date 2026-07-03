@@ -27,14 +27,86 @@ export function AppProvider({ children }) {
     }
   }, [settings]);
 
-  // Apply saved brand colors onto CSS variables whenever settings load/change
+  // Apply saved brand colors onto CSS variables whenever settings load/change.
   useEffect(() => {
     const bc = settings?.brandColors;
     if (!bc) return;
     const root = document.documentElement;
-    if (bc.primary)   root.style.setProperty('--primary',    bc.primary);
-    if (bc.secondary) root.style.setProperty('--sidebar-bg', bc.secondary);
-    if (bc.accent)    root.style.setProperty('--accent',     bc.accent);
+
+    function hexToHSL(hex) {
+      let r = parseInt(hex.slice(1, 3), 16) / 255;
+      let g = parseInt(hex.slice(3, 5), 16) / 255;
+      let b = parseInt(hex.slice(5, 7), 16) / 255;
+      let max = Math.max(r, g, b), min = Math.min(r, g, b);
+      let h = 0, s = 0, l = (max + min) / 2;
+      if (max !== min) {
+        let d = max - min;
+        s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+        if (max === r) h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+        else if (max === g) h = ((b - r) / d + 2) / 6;
+        else h = ((r - g) / d + 4) / 6;
+      }
+      return { h: h * 360, s: s * 100, l: l * 100 };
+    }
+
+    function hslToHex(h, s, l) {
+      h /= 360; s /= 100; l /= 100;
+      function hue2rgb(p, q, t) {
+        if (t < 0) t += 1; if (t > 1) t -= 1;
+        if (t < 1/6) return p + (q - p) * 6 * t;
+        if (t < 1/2) return q;
+        if (t < 2/3) return p + (q - p) * (2/3 - t) * 6;
+        return p;
+      }
+      let r, g, b;
+      if (s === 0) { r = g = b = l; } else {
+        let q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+        let p = 2 * l - q;
+        r = hue2rgb(p, q, h + 1/3);
+        g = hue2rgb(p, q, h);
+        b = hue2rgb(p, q, h - 1/3);
+      }
+      const hex2 = x => { let h2 = Math.round(x * 255).toString(16); return h2.length === 1 ? '0' + h2 : h2; };
+      return '#' + hex2(r) + hex2(g) + hex2(b);
+    }
+
+    function clamp(v, lo, hi) { return Math.min(Math.max(v, lo), hi); }
+
+    // WCAG 2.1 relative luminance — returns '#FFFFFF' or '#111827' for ≥ 4.5:1 contrast
+    function getContrastText(hex) {
+      let r = parseInt(hex.slice(1, 3), 16) / 255;
+      let g = parseInt(hex.slice(3, 5), 16) / 255;
+      let b = parseInt(hex.slice(5, 7), 16) / 255;
+      r = r <= 0.04045 ? r / 12.92 : Math.pow((r + 0.055) / 1.055, 2.4);
+      g = g <= 0.04045 ? g / 12.92 : Math.pow((g + 0.055) / 1.055, 2.4);
+      b = b <= 0.04045 ? b / 12.92 : Math.pow((b + 0.055) / 1.055, 2.4);
+      const L = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+      return L > 0.179 ? '#111827' : '#FFFFFF';
+    }
+
+    if (bc.primary) {
+      const { h, s, l } = hexToHSL(bc.primary);
+      root.style.setProperty('--primary',       bc.primary);
+      root.style.setProperty('--primary-dark',  hslToHex(h, clamp(s + 5, 0, 100), clamp(l - 15, 8, 90)));
+      root.style.setProperty('--primary-light', hslToHex(h, clamp(s - 30, 10, 100), clamp(l + 40, 50, 96)));
+      root.style.setProperty('--primary-muted', hslToHex(h, clamp(s - 15, 10, 100), clamp(l + 20, 30, 80)));
+      // Sidebar surface: dark, rich shade of primary — stays sophisticated regardless of secondary choice
+      root.style.setProperty('--sidebar-bg',    hslToHex(h, clamp(s + 9, 40, 100), clamp(l - 17, 8, 35)));
+      // Sidebar text: light primary tint — always readable on the dark sidebar surface
+      root.style.setProperty('--sidebar-text',  hslToHex(h, clamp(s - 25, 10, 80), clamp(l + 42, 60, 90)));
+      root.style.setProperty('--sidebar-border', 'rgba(255,255,255,0.08)');
+    }
+    if (bc.secondary) {
+      // Secondary drives small accent surfaces only: active nav item + subtle hover glow
+      const [rr, gg, bb] = [
+        parseInt(bc.secondary.slice(1, 3), 16),
+        parseInt(bc.secondary.slice(3, 5), 16),
+        parseInt(bc.secondary.slice(5, 7), 16),
+      ];
+      root.style.setProperty('--sidebar-active-bg',   bc.secondary);
+      root.style.setProperty('--sidebar-active-text', getContrastText(bc.secondary));
+      root.style.setProperty('--sidebar-hover-bg',    `rgba(${rr},${gg},${bb},0.12)`);
+    }
   }, [settings?.brandColors]);
 
   // ── CORE STATE ─────────────────────────────────────────────────────────

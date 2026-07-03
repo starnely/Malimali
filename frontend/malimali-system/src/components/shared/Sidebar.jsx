@@ -11,6 +11,7 @@ import {
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
 import { API_BASE_URL as backendUrl } from '@/config/api'
+import styles from '@/styles/Sidebar.module.css'
 
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
@@ -106,7 +107,7 @@ function NavGroup({ group, onMobileClose }) {
         onClick={() => setOpen(o => !o)}
         className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150"
         style={{ color: 'var(--sidebar-text)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}
-        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'rgba(255,255,255,0.05)' }}
+        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--sidebar-hover-bg)' }}
         onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'transparent' }}
       >
         <span className="text-[17px] flex-shrink-0">{group.icon}</span>
@@ -125,11 +126,11 @@ function NavGroup({ group, onMobileClose }) {
               end
               onClick={() => isMobile && onMobileClose?.()}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150
-                ${isActive ? 'text-white' : 'hover:bg-white/5'}`
+                `flex items-center gap-3 px-3 py-2 rounded-lg text-[12px] font-medium transition-all duration-150 ${styles.navItem}
+                ${isActive ? 'shadow-sm' : ''}`
               }
               style={({ isActive }) => isActive
-                ? { background: 'var(--primary)', color: '#fff' }
+                ? { background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-text)' }
                 : { color: 'var(--sidebar-text)' }
               }
             >
@@ -137,7 +138,7 @@ function NavGroup({ group, onMobileClose }) {
                 <>
                   <span className={`text-[15px] flex-shrink-0 ${isActive ? 'scale-110' : ''}`}>{child.icon}</span>
                   <span className="truncate">{child.label}</span>
-                  {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />}
+                  {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--sidebar-active-text)', opacity: 0.6 }} />}
                 </>
               )}
             </NavLink>
@@ -223,11 +224,11 @@ export default function Sidebar() {
               end
               onClick={() => isMobile && setSidebarOpen(false)}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group
-                ${isActive ? 'text-white shadow-md' : 'hover:bg-white/5'}`
+                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group ${styles.navItem}
+                ${isActive ? 'shadow-md' : ''}`
               }
               style={({ isActive }) => isActive
-                ? { background: 'var(--primary)', color: '#fff' }
+                ? { background: 'var(--sidebar-active-bg)', color: 'var(--sidebar-active-text)' }
                 : { color: 'var(--sidebar-text)' }
               }
             >
@@ -237,7 +238,7 @@ export default function Sidebar() {
                     {link.icon}
                   </span>
                   <span className="truncate">{link.label}</span>
-                  {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-white/70 flex-shrink-0" />}
+                  {isActive && <span className="ml-auto w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: 'var(--sidebar-active-text)', opacity: 0.6 }} />}
                 </>
               )}
             </NavLink>

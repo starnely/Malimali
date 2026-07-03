@@ -103,7 +103,7 @@
 /* Primary — Total Stock */
 .card-primary {
   border-left: 4px solid var(--primary);
-  background: linear-gradient(135deg, var(--primary-light) 0%, #fff 100%);
+  background: linear-gradient(135deg, var(--primary-light) 0%, var(--bg-card) 100%);
 }
 .icon-primary {
   background: var(--primary-light);
@@ -113,7 +113,7 @@
 /* Success — Revenue & Profit */
 .card-success {
   border-left: 4px solid var(--success);
-  background: linear-gradient(135deg, var(--success-light) 0%, #fff 100%);
+  background: linear-gradient(135deg, var(--success-light) 0%, var(--bg-card) 100%);
 }
 .icon-success {
   background: var(--success-light);
@@ -123,7 +123,7 @@
 /* Warning — Today Revenue */
 .card-warning {
   border-left: 4px solid var(--warning);
-  background: linear-gradient(135deg, var(--warning-light) 0%, #fff 100%);
+  background: linear-gradient(135deg, var(--warning-light) 0%, var(--bg-card) 100%);
 }
 .icon-warning {
   background: var(--warning-light);
@@ -133,7 +133,7 @@
 /* Danger — Low Stock */
 .card-danger {
   border-left: 4px solid var(--danger);
-  background: linear-gradient(135deg, var(--danger-light) 0%, #fff 100%);
+  background: linear-gradient(135deg, var(--danger-light) 0%, var(--bg-card) 100%);
 }
 .icon-danger {
   background: var(--danger-light);
@@ -143,7 +143,7 @@
 /* Info — Pending Returns */
 .card-info {
   border-left: 4px solid var(--info);
-  background: linear-gradient(135deg, var(--info-light) 0%, #fff 100%);
+  background: linear-gradient(135deg, var(--info-light) 0%, var(--bg-card) 100%);
 }
 .icon-info {
   background: var(--info-light);

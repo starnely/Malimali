@@ -65,10 +65,10 @@
   flex-shrink: 0;
 }
 
-.summaryCard.blue   { background: #eff6ff; border-color: #bfdbfe; }
-.summaryCard.red    { background: #fef2f2; border-color: #fecaca; }
-.summaryCard.green  { background: #f0fdf4; border-color: #bbf7d0; }
-.summaryCard.orange { background: #fff7ed; border-color: #fed7aa; }
+.summaryCard.blue   { background: var(--primary-light); border-color: var(--primary); }
+.summaryCard.red    { background: var(--danger-light);  border-color: var(--danger); }
+.summaryCard.green  { background: var(--success-light); border-color: var(--success); }
+.summaryCard.orange { background: var(--warning-light); border-color: var(--warning); }
 
 .summaryLabel {
   font-size: 11px;
@@ -79,9 +79,9 @@
 }
 
 .summaryCard.blue   .summaryLabel { color: var(--primary); }
-.summaryCard.red    .summaryLabel { color: #dc2626; }
+.summaryCard.red    .summaryLabel { color: var(--danger); }
 .summaryCard.green  .summaryLabel { color: var(--success-dark); }
-.summaryCard.orange .summaryLabel { color: #ea580c; }
+.summaryCard.orange .summaryLabel { color: var(--orange); }
 
 .summaryValue {
   font-size: 18px;
@@ -90,9 +90,9 @@
 }
 
 .summaryCard.blue   .summaryValue { color: var(--primary); }
-.summaryCard.red    .summaryValue { color: #dc2626; }
+.summaryCard.red    .summaryValue { color: var(--danger); }
 .summaryCard.green  .summaryValue { color: var(--success-dark); }
-.summaryCard.orange .summaryValue { color: #ea580c; }
+.summaryCard.orange .summaryValue { color: var(--orange); }
 
 .summarySubtext {
   font-size: 11px;
@@ -214,14 +214,14 @@
 }
 
 .filterOverduePulse {
-  border-color: #fecaca;
-  color: #dc2626;
+  border-color: var(--danger);
+  color: var(--danger);
 }
 
 @media (hover: hover) {
   .filterOverduePulse:not(.filterActive):hover {
-    background: #fef2f2;
-    border-color: #dc2626;
+    background: var(--danger-light);
+    border-color: var(--danger);
   }
 }
 
@@ -306,7 +306,7 @@
   }
 }
 
-.cardOverdue  { border-top-color: #dc2626; background: #fffafa; }
+.cardOverdue  { border-top-color: var(--danger); background: var(--danger-light); }
 .cardSettled  { border-top-color: var(--success); opacity: 0.85; }
 .cardActive   { border-top-color: var(--primary); }
 
@@ -341,12 +341,12 @@
 }
 
 .cardOverdue .customerAvatar {
-  background: #fee2e2;
-  color: #dc2626;
+  background: var(--danger-light);
+  color: var(--danger);
 }
 
 .cardSettled .customerAvatar {
-  background: #dcfce7;
+  background: var(--success-light);
   color: var(--success-dark);
 }
 
@@ -374,9 +374,9 @@
   gap: 5px;
   margin-top: 6px;
   font-size: 11px;
-  color: #dc2626;
+  color: var(--danger);
   font-weight: 600;
-  background: #fef2f2;
+  background: var(--danger-light);
   padding: 4px 8px;
   border-radius: var(--radius-sm);
 }
@@ -393,11 +393,11 @@
   white-space: nowrap;
 }
 
-.promiseBadge.settled  { background: #f0fdf4; color: var(--success-dark); border: 1px solid #bbf7d0; }
-.promiseBadge.overdue  { background: #fef2f2; color: #dc2626;             border: 1px solid #fecaca; }
-.promiseBadge.dueToday { background: #fff7ed; color: #ea580c;             border: 1px solid #fed7aa; }
-.promiseBadge.soon     { background: #fffbeb; color: #d97706;             border: 1px solid #fde68a; }
-.promiseBadge.ok       { background: #f0fdf4; color: var(--success-dark); border: 1px solid #bbf7d0; }
+.promiseBadge.settled  { background: var(--success-light); color: var(--success-dark); border: 1px solid var(--success); }
+.promiseBadge.overdue  { background: var(--danger-light);  color: var(--danger);        border: 1px solid var(--danger); }
+.promiseBadge.dueToday { background: var(--orange-light);  color: var(--orange);        border: 1px solid var(--orange); }
+.promiseBadge.soon     { background: var(--warning-light); color: var(--warning-dark);  border: 1px solid var(--warning); }
+.promiseBadge.ok       { background: var(--success-light); color: var(--success-dark);  border: 1px solid var(--success); }
 
 /* ── Sale Right (amounts) ────────────────────────────────────────────── */
 .saleRight {
@@ -431,15 +431,15 @@
   font-size: 16px;
 }
 
-.owesValue.overdue { color: #dc2626; }
-.owesValue.warning { color: #ea580c; }
+.owesValue.overdue { color: var(--danger); }
+.owesValue.warning { color: var(--orange); }
 
 .settledAmtBadge {
   margin-top: 6px;
   font-size: 11px;
   font-weight: 700;
   color: var(--success-dark);
-  background: #dcfce7;
+  background: var(--success-light);
   padding: 3px 8px;
   border-radius: var(--radius-sm);
 }
@@ -471,7 +471,7 @@
   min-width: 3px;
 }
 
-.progressOverdue { background: #dc2626; }
+.progressOverdue { background: var(--danger); }
 
 /* ── Meta Row (dates + items) ────────────────────────────────────────── */
 .metaRow {
@@ -539,13 +539,13 @@
 
 .recordBtn:active { background: var(--primary-dark); }
 
-.recordBtnOverdue { background: #dc2626; }
+.recordBtnOverdue { background: var(--danger); }
 
 @media (hover: hover) {
-  .recordBtnOverdue:hover { background: #b91c1c; }
+  .recordBtnOverdue:hover { background: var(--danger-dark); }
 }
 
-.recordBtnOverdue:active { background: #b91c1c; }
+.recordBtnOverdue:active { background: var(--danger-dark); }
 
 .settledTag {
   display: flex;
@@ -596,7 +596,7 @@
   border-radius: var(--radius-md);
   margin-bottom: 14px;
   background: var(--warning-light);
-  border: 1px solid #fde68a;
+  border: 1px solid var(--warning);
 }
 
 .warningText {

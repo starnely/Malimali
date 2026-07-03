@@ -1,3 +1,8 @@
+/* ── Nav item hover — inline active styles have higher specificity so active items are unaffected ── */
+.navItem:hover {
+  background: var(--sidebar-hover-bg);
+}
+
 /* Status styles */
 .success {
   background: var(--success-light);
