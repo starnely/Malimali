@@ -149,7 +149,6 @@ export default function ScanPanel({
           name: product.name,
           category: product.category,
           sellPrice: pricePerKg,
-          buyPrice: product.buyPrice || 0,
           stock: product.stock,
           qty: weightKg,
           total: totalPrice,

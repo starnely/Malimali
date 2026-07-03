@@ -53,6 +53,10 @@ export function SocketProvider({ children }) {
         newSocket.emit("join-room", "owner");
         const ownerId = currentUser._id || currentUser.id;
         if (ownerId) newSocket.emit("join-room", String(ownerId));
+      } else if (currentUser.role === "manager") {
+        newSocket.emit("join-manager-room");
+        const roomId = currentUser._id || currentUser.id;
+        if (roomId) newSocket.emit("join-room", String(roomId));
       } else {
         const roomId = currentUser._id || currentUser.id;
         if (roomId) newSocket.emit("join-room", String(roomId));

@@ -98,6 +98,11 @@ io.on("connection", (socket) => {
     socket.join("owner");
     console.log(`👑 Socket ${socket.id} joined owner room`);
   });
+  socket.on("join-manager-room", () => {
+    if (socket.user?.role !== "manager") return;
+    socket.join("manager");
+    console.log(`👔 Socket ${socket.id} joined manager room`);
+  });
   socket.on("join", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
   socket.on("shift-closed", (data) => {
     // Use the server-verified identity; never trust the client-supplied name.
@@ -321,6 +326,151 @@ async function runExpiryCheck(processedBy, note) {
   }
 }
 
+// ── 9b. AUTO-PO SUGGESTION JOB ──────────────────────────────────────
+async function runAutoPoSuggestions(io) {
+  const Product       = require("./models/Product");
+  const Sale          = require("./models/Sale");
+  const Supplier      = require("./models/Supplier");
+  const PurchaseOrder = require("./models/PurchaseOrder");
+
+  const flagged = await Product.find({ needsReorder: true }).lean();
+  if (flagged.length === 0) {
+    console.log("✅ Auto-PO: no products flagged for reorder.");
+    return;
+  }
+
+  const eat30DaysAgo = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  eat30DaysAgo.setDate(eat30DaysAgo.getDate() - 30);
+  const thirtyDaysAgoStr = eat30DaysAgo.toISOString().split("T")[0];
+
+  // Group flagged products by store
+  const byStore = {};
+  for (const p of flagged) {
+    (byStore[p.store] = byStore[p.store] || []).push(p);
+  }
+
+  let newPOCount = 0;
+
+  for (const [store, storeProducts] of Object.entries(byStore)) {
+    // Velocity aggregate for this store over the last 30 days
+    const velocities = await Sale.aggregate([
+      { $match: { store, status: "confirmed", voided: { $ne: true }, date: { $gte: thirtyDaysAgoStr } } },
+      { $unwind: "$items" },
+      { $match: { "items.voidStatus": { $ne: "voided" } } },
+      { $group: {
+        _id: "$items.productId",
+        totalQty: { $sum: { $subtract: ["$items.qty", { $ifNull: ["$items.voidedQty", 0] }] } },
+        saleDays: { $addToSet: "$date" },
+      }},
+    ]);
+    const velMap = {};
+    for (const v of velocities) velMap[String(v._id)] = v;
+
+    // Calculate suggested quantities and update Product fields
+    const bulkOps = [];
+    for (const p of storeProducts) {
+      const vel = velMap[String(p._id)];
+      const reorderLevel = p.reorderLevel ?? 5;
+      let suggestedQty, dailyVelocity, tier;
+
+      if (vel && vel.saleDays.length >= 3) {
+        dailyVelocity = vel.totalQty / 30;
+        suggestedQty  = Math.ceil(Math.max(dailyVelocity * 14, reorderLevel * 2, 10));
+        tier          = "velocity";
+      } else {
+        dailyVelocity = 0;
+        suggestedQty  = Math.max(reorderLevel * 3, 20);
+        tier          = "fallback";
+      }
+
+      p._suggestedQty = suggestedQty;
+      p._tier         = tier;
+
+      bulkOps.push({
+        updateOne: {
+          filter: { _id: p._id },
+          update: { $set: { suggestedQty, dailyVelocity, velocityCalcAt: new Date(), velocityTier: tier } },
+        },
+      });
+    }
+    if (bulkOps.length > 0) await Product.bulkWrite(bulkOps);
+
+    // Group products by supplier (supplierId → string name → unlinked bucket)
+    const supplierGroups = {};
+    for (const p of storeProducts) {
+      let key;
+      if (p.supplierId) {
+        key = String(p.supplierId);
+      } else if (p.supplier) {
+        const sup = await Supplier.findOne({ name: p.supplier, isActive: { $ne: false } }).lean();
+        key = sup ? String(sup._id) : `__name__${p.supplier}`;
+      } else {
+        key = "__unlinked__";
+      }
+      (supplierGroups[key] = supplierGroups[key] || []).push(p);
+    }
+
+    for (const [key, groupProducts] of Object.entries(supplierGroups)) {
+      let supplierId = null, supplierName = "Unlinked Supplier", supplierPhone = "";
+
+      if (!key.startsWith("__")) {
+        const sup = await Supplier.findById(key).lean();
+        if (sup) { supplierId = sup._id; supplierName = sup.name; supplierPhone = sup.phone || ""; }
+      } else if (key.startsWith("__name__")) {
+        supplierName = key.slice("__name__".length);
+      }
+
+      const items = groupProducts.map(p => ({
+        productId:   p._id,
+        productName: p.name,
+        unit:        p.unit || "pcs",
+        qtyOrdered:  p._suggestedQty,
+        unitCost:    p.buyPrice || 0,
+      }));
+
+      const noteLines = groupProducts.map(p =>
+        `${p.name}: ${p._tier === "velocity" ? "14-day velocity" : "Estimated (no sales history)"} → ${p._suggestedQty} ${p.unit || "pcs"}`
+      ).join("\n");
+      const notes = `[Auto-suggested ${new Date(Date.now() + 3*60*60*1000).toLocaleDateString("en-KE")}]\n${noteLines}`;
+
+      // Deduplication: one active suggested draft per store+supplier
+      const existing = await PurchaseOrder.findOne({
+        store,
+        status: "draft",
+        source: "suggested",
+        ...(supplierId ? { supplierId } : { supplierId: null, supplierName }),
+      });
+
+      if (existing) {
+        existing.items         = items;
+        existing.notes         = notes;
+        existing.supplierPhone = supplierPhone;
+        await existing.save();
+        console.log(`🔄 Auto-PO: updated draft ${existing.poNumber} for ${store} / ${supplierName}`);
+      } else {
+        const po = new PurchaseOrder({
+          supplierId, supplierName, supplierPhone, store, items, notes,
+          source: "suggested",
+          createdBy: "System (Auto-PO)",
+        });
+        await po.save();
+        newPOCount++;
+        console.log(`✨ Auto-PO: created ${po.poNumber} for ${store} / ${supplierName}`);
+      }
+    }
+  }
+
+  if (io && newPOCount > 0) {
+    io.to("owner").to("manager").emit("autoPOSuggested", { count: newPOCount });
+  }
+  console.log(`✅ Auto-PO: job complete — ${newPOCount} new PO(s) created.`);
+}
+
+// Expose on app so routes can trigger it on-demand (owner-only API + test button).
+// Safe to leave in production — the endpoint is owner-gated and doubles as a
+// manual "force-refresh suggestions" action that real owners may actually want.
+app.set("runAutoPoSuggestions", runAutoPoSuggestions);
+
 // ── 10. MIDNIGHT SCHEDULER ───────────────────────────────────────────
 // Runs at 23:59 EAT every day:
 //   a) Auto-expire products
@@ -445,6 +595,14 @@ function scheduleAutoExpiryCheck() {
       }
     } catch (err) {
       console.error("❌ Midnight overdue check failed:", err.message);
+    }
+
+    // ── d) AUTO-PO SUGGESTIONS ────────────────────────────────────────
+    try {
+      console.log("⏰ Midnight: running auto-PO suggestion job...");
+      await runAutoPoSuggestions(io);
+    } catch (err) {
+      console.error("❌ Auto-PO suggestion job failed:", err.message);
     }
 
     // Schedule again for tomorrow

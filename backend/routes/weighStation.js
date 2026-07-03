@@ -5,6 +5,8 @@ const Product        = require("../models/Product")
 const WeighBarcodeLog = require("../models/WeighBarcodeLog")
 const { authMiddleware } = require("../middleware/authMiddleware")
 
+const REORDER_EXCL = "-needsReorder -suggestedQty -dailyVelocity -velocityCalcAt -velocityTier -buyPrice"
+
 router.use(authMiddleware)
 
 // ══════════════════════════════════════════════════════════════════════
@@ -77,7 +79,9 @@ router.get("/products", async (req, res) => {
       filter.store = req.user.store
     }
 
-    const products = await Product.find(filter).sort({ name: 1 })
+    let q = Product.find(filter)
+    if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
+    const products = await q.sort({ name: 1 })
     res.json({ success: true, products })
   } catch (err) {
     console.error("Weigh station products error:", err.message)
@@ -174,7 +178,6 @@ router.post("/decode", async (req, res) => {
         pluNumber:  product.pluNumber,
         pricePerKg,
         sellPrice:  pricePerKg,  // alias so cart works normally
-        buyPrice:   product.buyPrice,
         stock:      product.stock,
         store:      product.store,
         barcode:    barcode,     // keep the scanned barcode as cart identifier

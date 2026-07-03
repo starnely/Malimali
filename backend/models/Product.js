@@ -115,6 +115,13 @@ const productSchema = new mongoose.Schema(
       // No default — field must be absent (not null) for sparse unique index
       // to skip non-weighed products. Use $unset when clearing.
     },
+
+    // ── Auto-PO suggestion fields ──────────────────────────────────────
+    needsReorder:   { type: Boolean, default: false },
+    suggestedQty:   { type: Number,  default: 0 },
+    dailyVelocity:  { type: Number,  default: 0 },
+    velocityCalcAt: { type: Date,    default: null },
+    velocityTier:   { type: String,  enum: ["velocity", "fallback"], default: null },
   },
   { timestamps: true }
 )

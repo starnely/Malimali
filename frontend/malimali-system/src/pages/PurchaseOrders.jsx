@@ -52,6 +52,7 @@ export default function PurchaseOrders() {
   const [filterSupplier, setFilterSupplier] = useState('')
   const [filterPayment, setFilterPayment] = useState('')
   const [filterStore, setFilterStore] = useState('')
+  const [filterSource, setFilterSource] = useState('')
   const [searchText, setSearchText] = useState('')
   const [currentPage, setCurrentPage] = useState(1)
   const [showCreate, openCreatePO, closeCreatePO] = useHistoryModal('po-create')
@@ -82,9 +83,31 @@ export default function PurchaseOrders() {
 
   const defaultStore = currentUser?.store || 'Main Store'
 
+  const [runningAutoSuggest, setRunningAutoSuggest] = useState(false)
+
   const showToast = (msg, type = 'success') => {
     setToast({ msg, type })
     setTimeout(() => setToast(null), type === 'warning' ? 6000 : 3500)
+  }
+
+  const handleRunAutoSuggest = async () => {
+    setRunningAutoSuggest(true)
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/purchase-orders/run-auto-suggest`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${currentUser?.token}` },
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        showToast('Auto-suggest job ran — refresh to see new draft POs')
+        load()
+      } else {
+        showToast(data.message || 'Job failed', 'error')
+      }
+    } catch {
+      showToast('Network error', 'error')
+    }
+    setRunningAutoSuggest(false)
   }
 
   const load = useCallback(async () => {
@@ -99,10 +122,11 @@ export default function PurchaseOrders() {
     if (filterStatus) filters.status = filterStatus
     if (filterSupplier) filters.supplierId = filterSupplier
     if (filterPayment) filters.paymentStatus = filterPayment
+    if (filterSource) filters.source = filterSource
     const data = await fetchPurchaseOrders(filters)
     setOrders(data)
     setLoading(false)
-  }, [fetchPurchaseOrders, defaultStore, isOwner, filterStore, filterStatus, filterSupplier, filterPayment])
+  }, [fetchPurchaseOrders, defaultStore, isOwner, filterStore, filterStatus, filterSupplier, filterPayment, filterSource])
 
   useEffect(() => { load() }, [load])
   useEffect(() => { fetchSuppliers() }, [fetchSuppliers])
@@ -182,6 +206,17 @@ export default function PurchaseOrders() {
           <p>Create, manage and pay supplier orders</p>
         </div>
         <div className={styles.headerActions}>
+          {isOwner && (
+            <button
+              className={styles.btnSecondary}
+              onClick={handleRunAutoSuggest}
+              disabled={runningAutoSuggest}
+              title="Manually trigger the auto-PO suggestion job (owner only)"
+              style={{ fontSize: 12, opacity: runningAutoSuggest ? 0.6 : 1 }}
+            >
+              🤖 {runningAutoSuggest ? 'Running…' : 'Run Auto-Suggest'}
+            </button>
+          )}
           <button className={styles.btnSecondary} onClick={load}><MdRefresh /> Refresh</button>
           <button className={styles.btnPrimary} onClick={() => openCreatePO()}><MdAdd /> New PO</button>
         </div>
@@ -244,6 +279,21 @@ export default function PurchaseOrders() {
           <option value='partial'>⏳ Partial</option>
           <option value='paid'>✅ Paid</option>
         </select>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[
+            { label: 'All', value: '' },
+            { label: 'Manual', value: 'manual' },
+            { label: '🤖 Auto-Suggested', value: 'suggested' },
+          ].map(opt => (
+            <button key={opt.value} onClick={() => setFilterSource(opt.value)} style={{
+              padding: '6px 12px', borderRadius: 'var(--radius-md)', fontSize: 12,
+              fontWeight: 600, border: '1px solid var(--border-medium)', cursor: 'pointer',
+              background: filterSource === opt.value ? 'var(--primary)' : 'var(--bg-card)',
+              color: filterSource === opt.value ? '#fff' : 'var(--text-secondary)',
+              fontFamily: 'inherit', whiteSpace: 'nowrap',
+            }}>{opt.label}</button>
+          ))}
+        </div>
         <input
           className={styles.filterInput}
           type='search'
@@ -291,6 +341,11 @@ export default function PurchaseOrders() {
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 12 }}>{po.poNumber}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{po.date}</div>
+                        {po.source === 'suggested' && (
+                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--info-light)', color: 'var(--info-dark)', whiteSpace: 'nowrap' }}>
+                            🤖 Auto-Suggested
+                          </div>
+                        )}
                       </td>
                       <td>
                         <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{po.supplierName}</div>
@@ -361,6 +416,11 @@ export default function PurchaseOrders() {
                       <div>
                         <div className={styles.poCardPoNumber}>{po.poNumber}</div>
                         <div className={styles.poCardDate}>{po.date}</div>
+                        {po.source === 'suggested' && (
+                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--info-light)', color: 'var(--info-dark)', whiteSpace: 'nowrap' }}>
+                            🤖 Auto-Suggested
+                          </div>
+                        )}
                       </div>
                       <span className={`${styles.badge} ${styles[po.status]}`}>
                         {STATUS_LABELS[po.status]?.icon} {STATUS_LABELS[po.status]?.label}

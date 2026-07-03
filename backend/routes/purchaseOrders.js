@@ -199,6 +199,7 @@ router.get("/", async (req, res) => {
     if (req.query.status) filter.status = req.query.status
     if (req.query.supplierId) filter.supplierId = req.query.supplierId
     if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus
+    if (req.query.source) filter.source = req.query.source
     if (req.query.from || req.query.to) {
       filter.date = {}
       if (req.query.from) filter.date.$gte = req.query.from
@@ -260,6 +261,23 @@ router.get("/supplier-payments", async (req, res) => {
     res.json({ success: true, payments, total })
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch supplier payments." })
+  }
+})
+
+// ── ON-DEMAND AUTO-PO TRIGGER (owner only) ───────────────────────────
+// Calls the same function the midnight scheduler runs. Owner-gated so
+// cashiers/managers can never trigger it accidentally. Safe to keep in
+// production — doubles as a useful "force-refresh suggestions" action.
+router.post("/run-auto-suggest", ownerOnly, async (req, res) => {
+  try {
+    const fn = req.app.get("runAutoPoSuggestions")
+    if (!fn) return res.status(503).json({ success: false, message: "Job function not registered on app — check server startup." })
+    const io = req.app.get("io")
+    await fn(io)
+    res.json({ success: true, message: "Auto-PO suggestion job completed." })
+  } catch (err) {
+    console.error("Manual auto-suggest trigger failed:", err.message)
+    res.status(500).json({ success: false, message: err.message })
   }
 })
 

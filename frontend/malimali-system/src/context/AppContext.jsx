@@ -395,6 +395,7 @@ export function AppProvider({ children }) {
       if (filters.status) params.set('status', filters.status);
       if (filters.supplierId) params.set('supplierId', filters.supplierId);
       if (filters.paymentStatus) params.set('paymentStatus', filters.paymentStatus);
+      if (filters.source) params.set('source', filters.source);
       if (filters.from) params.set('from', filters.from);
       if (filters.to) params.set('to', filters.to);
       const res = await authFetchRef.current(`${API_BASE_URL}/api/purchase-orders?${params}`)

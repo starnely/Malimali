@@ -3,6 +3,9 @@ const router = express.Router()
 const Product = require("../models/Product")
 const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/authMiddleware")
 
+// Fields that reveal purchasing/restocking intent — stripped from cashier responses.
+const REORDER_EXCL = "-needsReorder -suggestedQty -dailyVelocity -velocityCalcAt -velocityTier -buyPrice"
+
 router.use(authMiddleware)
 
 // ══════════════════════════════════════════════════════════════════════
@@ -39,9 +42,9 @@ router.get("/", async (req, res) => {
     } else if (req.user.role !== "owner") {
       filter.store = req.user.store
     }
-    const products = await Product.find(filter)
-      .populate("supplierId", "name company phone")
-      .sort({ name: 1 })
+    let q = Product.find(filter).populate("supplierId", "name company phone")
+    if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
+    const products = await q.sort({ name: 1 })
     res.json({ success: true, products })
   } catch (err) {
     console.error("Products GET error:", err.message)
@@ -58,12 +61,10 @@ router.get("/low-stock", async (req, res) => {
     const stockExpr = rawThreshold !== null && !isNaN(rawThreshold)
       ? { $lte: ["$stock", rawThreshold] }
       : { $lte: ["$stock", { $ifNull: ["$reorderLevel", 5] }] }
-    const products = await Product.find({
-      ...filter,
-      $expr: stockExpr,
-    })
+    let q = Product.find({ ...filter, $expr: stockExpr })
       .populate("supplierId", "name company phone")
-      .sort({ stock: 1 })
+    if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
+    const products = await q.sort({ stock: 1 })
     res.json({ success: true, products, count: products.length })
   } catch (err) {
     console.error("Low-stock GET error:", err.message)
@@ -78,9 +79,10 @@ router.get("/low-stock", async (req, res) => {
 // the frontend can decide between auto-fill-for-edit vs. blocking error.
 router.get("/lookup/:barcode", async (req, res) => {
   try {
-    const product = await Product.findOne({ barcode: req.params.barcode })
+    let q = Product.findOne({ barcode: req.params.barcode })
       .populate("supplierId", "name company phone")
-      .lean()
+    if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
+    const product = await q.lean()
     if (!product) return res.status(404).json({ success: false })
     const isSameStore = product.store === req.user.store
     res.json({ success: true, product, isSameStore })
@@ -92,8 +94,9 @@ router.get("/lookup/:barcode", async (req, res) => {
 // ── GET SINGLE PRODUCT ────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
-    const product = await Product.findById(req.params.id)
-      .populate("supplierId", "name company phone")
+    let q = Product.findById(req.params.id).populate("supplierId", "name company phone")
+    if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
+    const product = await q
     if (!product) return res.status(404).json({ success: false, message: "Product not found." })
     res.json({ success: true, product })
   } catch (err) {
@@ -208,14 +211,19 @@ router.put("/:id", managerOrOwner, async (req, res) => {
     if (!updated) return res.status(404).json({ success: false, message: "Product not found." })
 
     const io = req.app.get("io")
-    if (io && updated.stock <= (updated.reorderLevel ?? 5)) {
-      io.to("owner").emit("lowStockAlert", {
-        productId: updated._id,
-        productName: updated.name,
-        stock: updated.stock,
-        reorderLevel: updated.reorderLevel,
-        store: updated.store,
-      })
+    if (updated.stock > (updated.reorderLevel ?? 5)) {
+      Product.findByIdAndUpdate(updated._id, { $set: { needsReorder: false } }).catch(() => {})
+    } else {
+      Product.findByIdAndUpdate(updated._id, { $set: { needsReorder: true } }).catch(() => {})
+      if (io) {
+        io.to("owner").to("manager").emit("lowStockAlert", {
+          productId: updated._id,
+          productName: updated.name,
+          stock: updated.stock,
+          reorderLevel: updated.reorderLevel,
+          store: updated.store,
+        })
+      }
     }
 
     res.json({ success: true, product: updated })

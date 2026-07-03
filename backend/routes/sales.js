@@ -53,6 +53,7 @@ router.post("/", async (req, res) => {
     }
 
     const resolvedItems = []
+    const lowStockProducts = []
 
     for (const item of items) {
       const parsedQty = Number(item.qty)
@@ -72,6 +73,10 @@ router.post("/", async (req, res) => {
       if (updated && updated.stock < 0) {
         await Product.findByIdAndUpdate(updated._id, { $set: { stock: 0 } }, { session })
         updated.stock = 0
+      }
+
+      if (updated && updated.stock <= (updated.reorderLevel ?? 5)) {
+        lowStockProducts.push(updated)
       }
 
       if (!updated) {
@@ -136,6 +141,20 @@ router.post("/", async (req, res) => {
     if (io) {
       io.emit("productsUpdated")
       io.emit("sync_system_data")
+    }
+
+    if (lowStockProducts.length > 0) {
+      const ids = lowStockProducts.map(p => p._id)
+      Product.updateMany({ _id: { $in: ids } }, { $set: { needsReorder: true } })
+        .catch(err => console.error("needsReorder flag error:", err.message))
+      if (io) {
+        for (const p of lowStockProducts) {
+          io.to("owner").to("manager").emit("lowStockAlert", {
+            productId: p._id, productName: p.name,
+            stock: p.stock, reorderLevel: p.reorderLevel ?? 5, store: p.store,
+          })
+        }
+      }
     }
 
     res.status(201).json({ success: true, sale })

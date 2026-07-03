@@ -71,6 +71,8 @@ const purchaseOrderSchema = new mongoose.Schema(
     cancelledBy:  { type: String, default: "" },
     cancelReason: { type: String, default: "" },
 
+    source: { type: String, enum: ["manual", "suggested"], default: "manual" },
+
     date: { type: String, default: dateEAT },
 
     // ── Invoice (supplier's document when delivering) ─────────────────
