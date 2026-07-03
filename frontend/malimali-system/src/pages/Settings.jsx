@@ -7,6 +7,7 @@ import {
   MdCloudUpload, MdCheckCircle, MdPhone, MdEmail,
   MdLocationOn, MdReceipt, MdPercent, MdPrint,
   MdSecurity, MdBadge, MdMarkEmailRead, MdLanguage,
+  MdPalette,
 } from 'react-icons/md'
 
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
@@ -33,6 +34,8 @@ export default function Settings() {
     businessAddress: '', businessWebsite: '',
     smtpHost: '', smtpPort: 587, smtpUser: '',
     smtpPassword: '', smtpFromName: '', smtpSecure: false,
+    // Appearance
+    brandColors: { primary: '', secondary: '', accent: '' },
   }
 
   const mergeWithDefaults = (s) => s ? {
@@ -46,6 +49,11 @@ export default function Settings() {
     smtpSecure:      s.smtp?.secure   || false,
     businessAddress: s.businessAddress || '',
     businessWebsite: s.businessWebsite || '',
+    brandColors: {
+      primary:   s.brandColors?.primary   || '',
+      secondary: s.brandColors?.secondary || '',
+      accent:    s.brandColors?.accent    || '',
+    },
   } : defaultForm
 
   const [form,     setForm]    = useState(() => mergeWithDefaults(settings))
@@ -86,6 +94,7 @@ export default function Settings() {
       ...form,
       paymentMethods: JSON.stringify(form.paymentMethods || []),
       smtpSecure: String(form.smtpSecure),
+      brandColors: JSON.stringify(form.brandColors || {}),
       logoFile,
     }
     const result = await updateSettings(payload)
@@ -106,6 +115,7 @@ export default function Settings() {
       ...form,
       paymentMethods: JSON.stringify(form.paymentMethods || []),
       smtpSecure: String(form.smtpSecure),
+      brandColors: JSON.stringify(form.brandColors || {}),
       logoFile,
     })
     if (!saveResult.success) { setError('Save failed before test. Check your settings.'); return }
@@ -481,6 +491,44 @@ export default function Settings() {
               {testStatus.type === 'success' ? '✅ ' : '❌ '}{testStatus.msg}
             </div>
           )}
+        </div>
+
+        {/* ── 8. Appearance ─────────────────────────────────── */}
+        <div style={section}>
+          <div style={sectionTitle}>
+            <span style={titleIcon}><MdPalette /></span>
+            Appearance &amp; Brand Colors
+          </div>
+          <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', marginTop: '-8px' }}>
+            Customize the brand colors used across all terminals. Leave blank to use the default theme.
+          </p>
+          <div className={styles.grid3} style={{ marginBottom: '1.25rem' }}>
+            {[
+              { key: 'primary',   label: 'Primary Color',  fallback: '#1E5FA5', hint: 'Buttons, links, active states'      },
+              { key: 'secondary', label: 'Sidebar Color',  fallback: '#0C3660', hint: 'Navigation sidebar background'      },
+              { key: 'accent',    label: 'Accent Color',   fallback: '#7C3AED', hint: 'VAT tags, highlights, badges'       },
+            ].map(({ key, label: lbl, fallback, hint }) => {
+              const currentVal = form.brandColors?.[key] || fallback
+              return (
+                <div key={key}>
+                  <span style={label}>{lbl}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                    <input
+                      type="color"
+                      value={currentVal}
+                      onChange={e => handleChange('brandColors', { ...form.brandColors, [key]: e.target.value })}
+                      style={{ width: 44, height: 36, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', cursor: 'pointer', padding: '2px', background: 'var(--bg-card)' }}
+                    />
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>{currentVal}</span>
+                  </div>
+                  <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'block' }}>{hint}</span>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', fontSize: '12px', color: 'var(--info-dark)' }}>
+            Color changes take effect after saving and refreshing all open terminals.
+          </div>
         </div>
 
         {/* Bottom save button */}

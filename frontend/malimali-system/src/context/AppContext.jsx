@@ -27,6 +27,16 @@ export function AppProvider({ children }) {
     }
   }, [settings]);
 
+  // Apply saved brand colors onto CSS variables whenever settings load/change
+  useEffect(() => {
+    const bc = settings?.brandColors;
+    if (!bc) return;
+    const root = document.documentElement;
+    if (bc.primary)   root.style.setProperty('--primary',    bc.primary);
+    if (bc.secondary) root.style.setProperty('--sidebar-bg', bc.secondary);
+    if (bc.accent)    root.style.setProperty('--accent',     bc.accent);
+  }, [settings?.brandColors]);
+
   // ── CORE STATE ─────────────────────────────────────────────────────────
   const [isSetupComplete, setIsSetupComplete] = useState(null)
   const [connectionError, setConnectionError] = useState(false)

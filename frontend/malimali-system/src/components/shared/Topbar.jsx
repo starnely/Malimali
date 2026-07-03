@@ -3,6 +3,7 @@ import {
   MdNotifications, MdPerson, MdWarning, MdClose, MdLocationOn,
   MdAccessTime, MdLogout, MdAccountCircle, MdLockClock, MdChat,
   MdSettings, MdDocumentScanner, MdArchive, MdMenu,
+  MdLightMode, MdDarkMode,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useSocket } from '@/context/SocketContext'
@@ -80,8 +81,8 @@ function NotificationPanel({ onClose }) {
   }
 
   return (
-    <div className="fixed top-0 right-0 h-screen w-[340px] bg-white z-[2000] flex flex-col animate-slideInRight"
-      style={{ boxShadow: '-4px 0 32px rgba(0,0,0,0.12)' }}>
+    <div className="fixed top-0 right-0 h-screen w-[340px] z-[2000] flex flex-col animate-slideInRight"
+      style={{ background: 'var(--bg-card)', boxShadow: '-4px 0 32px rgba(0,0,0,0.12)' }}>
       <div className="px-5 py-4 flex justify-between items-center flex-shrink-0"
         style={{ background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}>
         <div className="flex items-center gap-2">
@@ -159,6 +160,14 @@ export default function TopBar() {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [showProfileMenu, setShowProfileMenu] = useState(false)
   const [showNotifications, setShowNotifications] = useState(false)
+  const [theme, setTheme] = useState(() => document.documentElement.getAttribute('data-theme') || 'light')
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark'
+    document.documentElement.setAttribute('data-theme', next)
+    localStorage.setItem('malimali_theme', next)
+    setTheme(next)
+  }
   const [showDailySummary, openDailySummary, closeDailySummary] = useHistoryModal('daily-summary')
   const [showChat, openChat, closeChat] = useHistoryModal('chat', 'chatModal')
 
@@ -388,6 +397,16 @@ export default function TopBar() {
         {/* RIGHT */}
         <div className="flex items-center gap-2">
 
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+            className={`p-2 rounded-lg transition ${tb.iconBtn}`}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}
+          >
+            {theme === 'dark' ? <MdLightMode className="text-xl" /> : <MdDarkMode className="text-xl" />}
+          </button>
+
           {/* Clock */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-sm"
             style={{ background: 'var(--clock-bg)', color: 'var(--clock-text)', border: '1px solid var(--clock-border)' }}>
@@ -483,8 +502,8 @@ export default function TopBar() {
             {showProfileMenu && (
               <>
                 <div className="fixed inset-0 z-[60]" onClick={() => setShowProfileMenu(false)} />
-                <div className="absolute right-0 mt-2 w-64 bg-white rounded-xl overflow-hidden z-[70] animate-fadeIn"
-                  style={{ boxShadow: 'var(--shadow-dropdown)', border: '1px solid var(--border-soft)' }}>
+                <div className="absolute right-0 mt-2 w-64 rounded-xl overflow-hidden z-[70] animate-fadeIn"
+                  style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)', border: '1px solid var(--border-soft)' }}>
                   <div className="p-4" style={{ background: 'var(--primary-light)', borderBottom: '1px solid var(--border-soft)' }}>
                     <div className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full flex items-center justify-center text-white font-black text-base flex-shrink-0"

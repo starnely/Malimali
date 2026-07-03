@@ -20,8 +20,8 @@
 .card-blue   { border-left: 4px solid var(--primary);      }
 .card-green  { border-left: 4px solid var(--success);      }
 .card-yellow { border-left: 4px solid var(--warning);      }
-.card-purple { border-left: 4px solid #7C3AED;             }
-.card-indigo { border-left: 4px solid #4F46E5;             }
+.card-purple { border-left: 4px solid var(--accent);        }
+.card-indigo { border-left: 4px solid var(--indigo);        }
 .card-red    { border-left: 4px solid var(--danger);       }
 
 .icon {
@@ -37,8 +37,8 @@
 .icon-blue   { background: var(--primary-light);  color: var(--primary);      }
 .icon-green  { background: var(--success-light);  color: var(--success-dark); }
 .icon-yellow { background: var(--warning-light);  color: var(--warning-dark); }
-.icon-purple { background: #EDE9FE;               color: #6D28D9;             }
-.icon-indigo { background: #EEF2FF;               color: #4338CA;             }
+.icon-purple { background: var(--accent-light);   color: var(--accent-dark);  }
+.icon-indigo { background: var(--indigo-light);   color: var(--indigo-dark);  }
 .icon-red    { background: var(--danger-light);   color: var(--danger-dark);  }
 
 .td {

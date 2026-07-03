@@ -182,6 +182,8 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
       // Phase 6 additions
       businessAddress, businessWebsite,
       smtpHost, smtpPort, smtpSecure, smtpUser, smtpPassword, smtpFromName,
+      // Appearance
+      brandColors: brandColorsRaw,
     } = req.body;
 
     const existing = await Setting.findOne();
@@ -271,6 +273,18 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
     // ── Document info ─────────────────────────────────────────────────
     if (businessAddress !== undefined) existing.businessAddress = businessAddress.trim();
     if (businessWebsite !== undefined) existing.businessWebsite = businessWebsite.trim();
+
+    // ── Brand colors ──────────────────────────────────────────────────
+    if (brandColorsRaw !== undefined) {
+      try {
+        const bc = typeof brandColorsRaw === 'object' ? brandColorsRaw : JSON.parse(brandColorsRaw);
+        if (!existing.brandColors) existing.brandColors = {};
+        if (bc.primary   !== undefined) existing.brandColors.primary   = String(bc.primary).trim();
+        if (bc.secondary !== undefined) existing.brandColors.secondary = String(bc.secondary).trim();
+        if (bc.accent    !== undefined) existing.brandColors.accent    = String(bc.accent).trim();
+        existing.markModified('brandColors');
+      } catch { /* ignore malformed JSON */ }
+    }
 
     // ── Logo update ───────────────────────────────────────────────────
     if (req.file) {

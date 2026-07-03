@@ -188,7 +188,7 @@
 
 .avatarOwner    { background: var(--primary); }
 .avatarCashier  { background: var(--success); }
-.avatarManager  { background: #7C3AED; }
+.avatarManager  { background: var(--accent); }
 .avatarBroadcast{ background: var(--warning); font-size: 1.1rem; }
 
 .onlineDot {

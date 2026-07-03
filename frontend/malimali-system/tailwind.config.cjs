@@ -18,6 +18,14 @@ module.exports = {
         'sidebar-text':'var(--sidebar-text)',
         'sidebar-active':'var(--sidebar-active-bg)',
 
+        // ── Accent / indigo ────────────────────────────────────
+        accent:        'var(--accent)',
+        'accent-light':'var(--accent-light)',
+        'accent-dark': 'var(--accent-dark)',
+        indigo:        'var(--indigo)',
+        'indigo-light':'var(--indigo-light)',
+        'indigo-dark': 'var(--indigo-dark)',
+
         // ── Semantic ───────────────────────────────────────────
         success:       'var(--success)',
         'success-light':'var(--success-light)',

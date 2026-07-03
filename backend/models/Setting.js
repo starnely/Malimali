@@ -70,6 +70,13 @@ const SettingSchema = new mongoose.Schema({
     fromName: { type: String, default: "" },
   },
 
+  // ── Brand Colors (client-customizable, applied via CSS variables) ───
+  brandColors: {
+    primary:   { type: String, default: '' },  // maps to --primary
+    secondary: { type: String, default: '' },  // maps to --sidebar-bg
+    accent:    { type: String, default: '' },  // maps to --accent
+  },
+
   // ── Schema version for future migrations ────────────────────────────
   schemaVersion: { type: Number, default: 1 },
 

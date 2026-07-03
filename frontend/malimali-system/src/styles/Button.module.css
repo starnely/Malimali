@@ -44,12 +44,33 @@
 }
 
 .danger {
-  @apply bg-red-600 text-white border-red-600 hover:bg-red-700;
+  background-color: var(--danger);
+  color: #ffffff;
+  border-color: var(--danger);
+}
+@media (hover: hover) {
+  .danger:hover {
+    background-color: var(--danger-dark);
+    border-color: var(--danger-dark);
+  }
+}
+.danger:active {
+  background-color: var(--danger-dark);
+  border-color: var(--danger-dark);
 }
 
 .secondary {
-  @apply bg-white border-gray-300 hover:bg-gray-100;
+  background-color: var(--bg-card);
+  border-color: var(--border-medium);
   color: var(--text-secondary);
+}
+@media (hover: hover) {
+  .secondary:hover {
+    background-color: var(--bg-muted);
+  }
+}
+.secondary:active {
+  background-color: var(--bg-muted);
 }
 
 .disabled {

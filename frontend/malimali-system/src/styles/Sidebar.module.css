@@ -1,28 +1,26 @@
 /* Status styles */
 .success {
-  background: #EAF3DE;
-  border: 0.5px solid #3B6D11;
-  color: #27500A;
+  background: var(--success-light);
+  border: 0.5px solid var(--success);
+  color: var(--success-dark);
 }
 
 .error {
-  background: #FCEBEB;
-  border: 0.5px solid #E24B4A;
-  color: #791F1F;
+  background: var(--danger-light);
+  border: 0.5px solid var(--danger);
+  color: var(--danger-dark);
 }
 
 .warning {
-  background: #FFF4E5;
-  border: 0.5px solid #F5A623;
-  color: #7A4D00;
+  background: var(--warning-light);
+  border: 0.5px solid var(--warning);
+  color: var(--warning-dark);
 }
 
 .info {
-  background: #E6F1FB;
-  border: 0.5px solid #185FA5;
-  color: #0C447C;
-  background-color: #e0f2fe; /* Light blue */
-  border-left: 4px solid #0369a1;
+  background: var(--info-light);
+  border: 0.5px solid var(--info);
+  color: var(--info-dark);
 }
 
 /* Shift close button states */
