@@ -397,16 +397,6 @@ export default function TopBar() {
         {/* RIGHT */}
         <div className="flex items-center gap-2">
 
-          {/* Theme toggle */}
-          <button
-            onClick={toggleTheme}
-            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
-            className={`p-2 rounded-lg transition ${tb.iconBtn}`}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', flexShrink: 0 }}
-          >
-            {theme === 'dark' ? <MdLightMode className="text-xl" /> : <MdDarkMode className="text-xl" />}
-          </button>
-
           {/* Clock */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-mono text-sm"
             style={{ background: 'var(--clock-bg)', color: 'var(--clock-text)', border: '1px solid var(--clock-border)' }}>
@@ -439,8 +429,8 @@ export default function TopBar() {
               onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = lowStockCount > 0 ? 'var(--warning-light)' : 'transparent' }}>
               <MdWarning className="text-xl" style={{ color: lowStockCount > 0 ? 'var(--warning-dark)' : 'var(--text-muted)' }} />
               {lowStockCount > 0 && (
-                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
-                  style={{ background: 'var(--danger)' }}>
+                <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2"
+                  style={{ background: 'var(--danger)', borderColor: 'var(--topbar-bg)' }}>
                   {lowStockCount}
                 </span>
               )}
@@ -454,8 +444,8 @@ export default function TopBar() {
             onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = unreadMsgCount > 0 ? 'var(--primary-light)' : 'transparent' }}>
             <MdChat className="text-xl" style={{ color: unreadMsgCount > 0 ? 'var(--primary)' : 'var(--text-muted)' }} />
             {unreadMsgCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
-                style={{ background: 'var(--primary)' }}>
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2"
+                style={{ background: 'var(--primary)', borderColor: 'var(--topbar-bg)' }}>
                 {unreadMsgCount > 9 ? '9+' : unreadMsgCount}
               </span>
             )}
@@ -463,11 +453,13 @@ export default function TopBar() {
 
           {/* Notifications bell */}
           <button onClick={handleOpenNotifications} className={`relative p-2 rounded-lg transition ${tb.iconBtn}`}
-            style={{ border: 'none', cursor: 'pointer' }}>
-            <MdNotifications className="text-xl" style={{ color: 'var(--text-primary)' }} />
+            style={{ background: unreadCount > 0 ? 'var(--danger-light)' : 'transparent', border: 'none', cursor: 'pointer' }}
+            onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--primary-light)' }}
+            onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = unreadCount > 0 ? 'var(--danger-light)' : 'transparent' }}>
+            <MdNotifications className="text-xl" style={{ color: unreadCount > 0 ? 'var(--danger)' : 'var(--text-primary)' }} />
             {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2 border-white"
-                style={{ background: 'var(--danger)' }}>
+              <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-white text-[10px] font-black flex items-center justify-center border-2"
+                style={{ background: 'var(--danger)', borderColor: 'var(--topbar-bg)' }}>
                 {unreadCount > 9 ? '9+' : unreadCount}
               </span>
             )}
@@ -543,6 +535,15 @@ export default function TopBar() {
                         Settings
                       </button>
                     )}
+                    <button onClick={() => { toggleTheme(); setShowProfileMenu(false) }}
+                      className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${tb.menuBtn}`}
+                      style={{ color: 'var(--text-primary)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      {theme === 'dark'
+                        ? <MdLightMode className="text-xl flex-shrink-0" style={{ color: 'var(--primary)' }} />
+                        : <MdDarkMode className="text-xl flex-shrink-0" style={{ color: 'var(--primary)' }} />
+                      }
+                      {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </button>
                     <div className="my-1.5 mx-2" style={{ height: 1, background: 'var(--border-soft)' }} />
                     <button onClick={() => { logout(); setShowProfileMenu(false) }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${tb.menuBtnDanger}`}

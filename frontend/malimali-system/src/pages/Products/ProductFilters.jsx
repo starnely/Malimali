@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
-import { MdSearch, MdExpandMore, MdStorefront } from 'react-icons/md'
+import { MdSearch, MdStorefront } from 'react-icons/md'
 import styles from '@/styles/Products.module.css'
 
 export default function ProductFilters({
@@ -7,7 +6,6 @@ export default function ProductFilters({
   categoryFilter, setCategoryFilter, categories,
   storeFilter, setStoreFilter, stores
 }) {
-  // Sort alphabetically; "All" always first
   const sortedCats = [
     'All',
     ...Array.from(new Set(categories)).filter(c => c !== 'All').sort(),
@@ -16,31 +14,6 @@ export default function ProductFilters({
     new Set((stores || []).map(s => s.name || s).filter(Boolean))
   ).sort()
   const allStores = ['All', ...sortedStoreNames]
-
-  const CAT_MAX   = 3
-  const STORE_MAX = 3
-
-  const visibleCats    = sortedCats.slice(0, CAT_MAX)
-  const overflowCats   = sortedCats.slice(CAT_MAX)
-  const catInDropdown  = overflowCats.includes(categoryFilter)
-
-  const visibleStores   = allStores.slice(0, STORE_MAX)
-  const overflowStores  = allStores.slice(STORE_MAX)
-  const storeInDropdown = overflowStores.includes(storeFilter)
-
-  const [isCatDdOpen,   setIsCatDdOpen]   = useState(false)
-  const [isStoreDdOpen, setIsStoreDdOpen] = useState(false)
-  const catDdRef   = useRef(null)
-  const storeDdRef = useRef(null)
-
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (catDdRef.current   && !catDdRef.current.contains(event.target))   setIsCatDdOpen(false)
-      if (storeDdRef.current && !storeDdRef.current.contains(event.target)) setIsStoreDdOpen(false)
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [])
 
   const chipBase = {
     padding: '6px 14px',
@@ -55,10 +28,8 @@ export default function ProductFilters({
     touchAction: 'manipulation',
     userSelect: 'none',
     flexShrink: 0,
-    maxWidth: '120px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
     whiteSpace: 'nowrap',
+    fontFamily: 'inherit',
   }
 
   const chipActive = {
@@ -106,9 +77,9 @@ export default function ProductFilters({
         />
       </div>
 
-      {/* ── Row 1: Category chips ───────────────────────────── */}
-      <div className="flex items-center gap-1.5">
-        {visibleCats.map(cat => (
+      {/* ── Category chips — horizontally scrollable ─────────── */}
+      <div className={styles.filterScrollRow}>
+        {sortedCats.map(cat => (
           <button
             key={cat}
             onClick={() => setCategoryFilter(cat)}
@@ -117,64 +88,19 @@ export default function ProductFilters({
             {cat}
           </button>
         ))}
-
-        {overflowCats.length > 0 && (
-          <div className="relative" ref={catDdRef} style={{ flexShrink: 0 }}>
-            <button
-              onClick={() => setIsCatDdOpen(o => !o)}
-              className="flex items-center gap-1"
-              style={catInDropdown ? chipActive : chipBase}
-            >
-              <span>More</span>
-              <MdExpandMore
-                className={`transition-transform duration-200 ${isCatDdOpen ? 'rotate-180' : ''}`}
-                size={16}
-              />
-            </button>
-
-            {isCatDdOpen && (
-              <div
-                className="absolute left-0 mt-2 w-52 max-h-60 overflow-y-auto rounded-xl z-30 py-1"
-                style={{
-                  background: 'var(--bg-card)',
-                  border: '1px solid var(--border-soft)',
-                  boxShadow: 'var(--shadow-dropdown)',
-                }}
-              >
-                {overflowCats.map(cat => (
-                  <button
-                    key={cat}
-                    onClick={() => { setCategoryFilter(cat); setIsCatDdOpen(false) }}
-                    className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                      categoryFilter === cat
-                        ? styles.filterDropdownItemActive
-                        : styles.filterDropdownItemInactive
-                    }`}
-                    style={{
-                      color: categoryFilter === cat ? 'var(--primary)' : 'var(--text-secondary)',
-                      fontWeight: categoryFilter === cat ? 700 : 400,
-                    }}
-                  >
-                    {cat}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
-      {/* ── Row 2: Store chips ─────────────────────────────── */}
+      {/* ── Store chips — horizontally scrollable ─────────── */}
       {allStores.length > 2 && setStoreFilter && (
-        <div className="flex items-center gap-1.5">
+        <div className={styles.filterScrollRow}>
           <span
             className="flex items-center gap-1 text-[10px] font-black uppercase tracking-widest"
-            style={{ color: 'var(--text-muted)', flexShrink: 0 }}
+            style={{ color: 'var(--text-muted)', flexShrink: 0, alignSelf: 'center' }}
           >
             <MdStorefront style={{ color: 'var(--primary)' }} /> Store:
           </span>
 
-          {visibleStores.map(store => (
+          {allStores.map(store => (
             <button
               key={store}
               onClick={() => setStoreFilter(store)}
@@ -183,51 +109,6 @@ export default function ProductFilters({
               {store}
             </button>
           ))}
-
-          {overflowStores.length > 0 && (
-            <div className="relative" ref={storeDdRef} style={{ flexShrink: 0 }}>
-              <button
-                onClick={() => setIsStoreDdOpen(o => !o)}
-                className="flex items-center gap-1"
-                style={storeInDropdown ? chipActive : chipBase}
-              >
-                <span>More</span>
-                <MdExpandMore
-                  className={`transition-transform duration-200 ${isStoreDdOpen ? 'rotate-180' : ''}`}
-                  size={16}
-                />
-              </button>
-
-              {isStoreDdOpen && (
-                <div
-                  className="absolute left-0 mt-2 w-52 max-h-60 overflow-y-auto rounded-xl z-30 py-1"
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-soft)',
-                    boxShadow: 'var(--shadow-dropdown)',
-                  }}
-                >
-                  {overflowStores.map(store => (
-                    <button
-                      key={store}
-                      onClick={() => { setStoreFilter(store); setIsStoreDdOpen(false) }}
-                      className={`w-full text-left px-4 py-2 text-sm transition-colors ${
-                        storeFilter === store
-                          ? styles.filterDropdownItemActive
-                          : styles.filterDropdownItemInactive
-                      }`}
-                      style={{
-                        color: storeFilter === store ? 'var(--primary)' : 'var(--text-secondary)',
-                        fontWeight: storeFilter === store ? 700 : 400,
-                      }}
-                    >
-                      {store}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </div>

@@ -355,7 +355,7 @@ export default function Products() {
 
       {/* ── Main Content ─────────────────────────────────── */}
       <div
-        className={`flex flex-col md:flex-1 md:min-w-0 md:min-h-0 md:overflow-hidden transition-all duration-300
+        className={`flex flex-col flex-1 min-w-0 md:min-h-0 md:overflow-hidden transition-all duration-300
           ${showModal && !isOverlay ? 'mr-[480px]' : ''}`}
       >
         {/* Header — title + button (scrolls away on mobile) */}

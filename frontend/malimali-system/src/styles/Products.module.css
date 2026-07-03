@@ -61,6 +61,17 @@
   opacity: 0.85;
 }
 
+/* ── Filter scroll row — mirrors POS posCatBar ──────────── */
+.filterScrollRow {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+}
+.filterScrollRow::-webkit-scrollbar { display: none; }
+
 /* ── Add Product Button (Products.jsx) ──────────────────── */
 .addBtn {
   background: var(--primary);
