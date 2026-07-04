@@ -30,8 +30,12 @@ const userSchema = new mongoose.Schema(
     shiftStatus: {
       type: String,
       enum: ["open", "closed"],
-      default: "closed" 
-    }
+      default: "closed"
+    },
+
+    // Bcrypt-hashed 4-6 digit numeric PIN used for approval workflows.
+    // null = PIN not configured; user cannot be used as approver until set.
+    approvalPin: { type: String, default: null }
   },
   { timestamps: true }
 );

@@ -1,11 +1,13 @@
-const express = require("express");
-const router = express.Router();
-const Return = require("../models/Return");
-const Sale = require("../models/Sale");
-const Product = require("../models/Product");
-const User = require("../models/User");
-const Archive = require("../models/Archive");
-const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware");
+const express     = require("express");
+const router      = express.Router();
+const bcrypt      = require("bcryptjs");
+const Return      = require("../models/Return");
+const Sale        = require("../models/Sale");
+const Product     = require("../models/Product");
+const User        = require("../models/User");
+const Archive     = require("../models/Archive");
+const ApprovalLog = require("../models/ApprovalLog");
+const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/authMiddleware");
 
 router.use(authMiddleware);
 
@@ -65,7 +67,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const existingPending = await Return.findOne({ saleId, status: "pending" });
+    const existingPending = await Return.findOne({ saleId, status: { $in: ["pending_manager", "pending_owner"] } });
     if (existingPending) {
       return res.status(400).json({
         success: false,
@@ -110,6 +112,12 @@ router.post("/", async (req, res) => {
 
     const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
 
+    // Cashier/employee → stage 1 (manager approval) required first.
+    // Manager → skip stage 1, go straight to owner.
+    const initialStatus = (req.user.role === "cashier" || req.user.role === "employee")
+      ? "pending_manager"
+      : "pending_owner";
+
     const returnRecord = new Return({
       saleId,
       items: resolvedItems,
@@ -117,7 +125,7 @@ router.post("/", async (req, res) => {
       customerName,
       requestedBy:  req.user.id,
       refundAmount,
-      status: "pending",
+      status: initialStatus,
       date:   now.toISOString().split("T")[0],
       time:   now.toISOString().slice(11, 19) + " EAT"
     });
@@ -133,19 +141,34 @@ router.post("/", async (req, res) => {
     sale.returnId     = returnRecord._id;
     await sale.save();
 
-    // Notify owner via socket
     const requester = await User.findById(req.user.id).select("fullname username");
     const io = req.app.get("io");
     if (io) {
-      io.to("owner").emit("newReturnRequest", {
-        returnId:      returnRecord._id,
-        saleId,
-        requesterName: requester?.fullname || requester?.username || "Employee",
-        message:       `${requester?.fullname || "An employee"} submitted a return request`,
-        reason,
-        refundAmount,
-        items:         returnRecord.items
-      });
+      if (initialStatus === "pending_manager") {
+        // Needs manager stage-1 approval first — notify managers (and owner so panel stays in sync)
+        io.to(`manager-${sale.store || ""}`).to("owner").emit("newReturnRequest", {
+          returnId:      returnRecord._id,
+          saleId,
+          stage:         "pending_manager",
+          requesterName: requester?.fullname || requester?.username || "Employee",
+          message:       `${requester?.fullname || "An employee"} submitted a return request`,
+          reason,
+          refundAmount,
+          items:         returnRecord.items,
+        });
+      } else {
+        // Manager-submitted — skip stage 1, notify owner directly
+        io.to("owner").emit("returnNeedsOwnerApproval", {
+          returnId:      returnRecord._id,
+          saleId,
+          stage:         "pending_owner",
+          requesterName: requester?.fullname || requester?.username || "Manager",
+          message:       `${requester?.fullname || "A manager"} submitted a return for your approval`,
+          reason,
+          refundAmount,
+          items:         returnRecord.items,
+        });
+      }
     }
 
     res.status(201).json({ success: true, return: returnRecord });
@@ -160,9 +183,86 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ── 3. APPROVE RETURN ────────────────────────────────────────────────
-router.patch("/:id/approve", ownerOnly, async (req, res) => {
+// ── 3. STAGE-1 APPROVE (cashier-submitted return → manager PIN) ──────────────
+// Any authenticated user may call this; the PIN itself enforces who the approver is.
+router.patch("/:id/approve-stage1", async (req, res) => {
   try {
+    const { approverPin } = req.body;
+    if (!approverPin) {
+      return res.status(400).json({ success: false, message: "Manager PIN is required for stage-1 approval." });
+    }
+
+    const returnRecord = await Return.findById(req.params.id);
+    if (!returnRecord) return res.status(404).json({ success: false, message: "Return record not found." });
+
+    if (returnRecord.status !== "pending_manager") {
+      return res.status(400).json({ success: false, message: "This return is not awaiting manager approval." });
+    }
+
+    // Find the sale to determine store
+    const sale = await Sale.findById(returnRecord.saleId).select("store").lean();
+    if (!sale) return res.status(404).json({ success: false, message: "Sale not found." });
+
+    // Scan managers in that store for a PIN match
+    const managers = await User.find({ role: "manager", store: sale.store });
+    let approver = null;
+    for (const mgr of managers) {
+      if (mgr.approvalPin && await bcrypt.compare(approverPin, mgr.approvalPin)) {
+        approver = mgr; break;
+      }
+    }
+    if (!approver) {
+      return res.status(401).json({ success: false, message: "PIN did not match any manager for this store." });
+    }
+
+    returnRecord.status          = "pending_owner";
+    returnRecord.stage1ApprovedBy = approver._id;
+    returnRecord.stage1ApprovedAt = new Date().toISOString();
+    await returnRecord.save();
+
+    await ApprovalLog.create({
+      pinOwnerId: approver._id,
+      actionType: "return_stage1",
+      targetId:   returnRecord._id,
+      targetType: "return",
+      store:      sale.store,
+    });
+
+    const io = req.app.get("io");
+    if (io) {
+      io.to(String(approver._id)).emit("pinUsed", {
+        actionType: "return_stage1",
+        usedBy:     req.user.name || "Staff",
+        target:     `Return #${returnRecord._id}`,
+        store:      sale.store,
+        time:       new Date().toISOString(),
+      });
+      io.to("owner").emit("returnNeedsOwnerApproval", {
+        returnId:          returnRecord._id,
+        saleId:            returnRecord.saleId,
+        refundAmount:      returnRecord.refundAmount,
+        reason:            returnRecord.reason,
+        stage1ApprovedBy:  approver.fullname || approver.username,
+        message:           "Return approved by manager — awaiting owner final approval",
+      });
+      io.emit("sync_system_data");
+    }
+
+    res.json({ success: true, return: returnRecord });
+
+  } catch (err) {
+    console.error("Error approving return stage 1:", err);
+    res.status(500).json({ success: false, message: "Failed to approve return stage 1.", error: err.message });
+  }
+});
+
+// ── 4. FINAL APPROVE (owner PIN on-site, or owner JWT remote) ────────────────
+// Two paths:
+//   a) body.approverPin present → any authenticated user; PIN must match the owner
+//   b) no approverPin           → req.user must be owner (remote panel approval)
+router.patch("/:id/approve", async (req, res) => {
+  try {
+    const { approverPin } = req.body;
     const returnRecord = await Return.findById(req.params.id).populate("items.productId");
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: "Return record not found." });
@@ -172,10 +272,35 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "This return has already been approved." });
     }
     if (returnRecord.status === "rejected") {
-      return res.status(400).json({ success: false, message: "This return has already been rejected and cannot be approved." });
+      return res.status(400).json({ success: false, message: "This return has already been rejected." });
+    }
+    if (returnRecord.status !== "pending_owner") {
+      return res.status(400).json({ success: false, message: "This return has not yet received manager approval." });
     }
 
-    // ── 1. Restore stock for each returned item ──
+    // ── Resolve approver ───────────────────────────────────────────────
+    let approver = null;
+    let usedPin  = false;
+
+    if (approverPin) {
+      usedPin = true;
+      const owners = await User.find({ role: "owner" });
+      for (const own of owners) {
+        if (own.approvalPin && await bcrypt.compare(approverPin, own.approvalPin)) {
+          approver = own; break;
+        }
+      }
+      if (!approver) {
+        return res.status(401).json({ success: false, message: "PIN did not match the owner." });
+      }
+    } else {
+      if (req.user.role !== "owner") {
+        return res.status(403).json({ success: false, message: "Only the owner can approve without a PIN." });
+      }
+      approver = await User.findById(req.user.id);
+    }
+
+    // ── 1. Restore stock ───────────────────────────────────────────────
     for (const item of returnRecord.items) {
       await Product.findByIdAndUpdate(
         item.productId._id || item.productId,
@@ -183,26 +308,20 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
       );
     }
 
-    // ── 2. Update sale items and totals ──
+    // ── 2. Update sale items and totals ───────────────────────────────
     const sale = await Sale.findById(returnRecord.saleId).populate("items.productId");
     if (sale) {
       for (const returnItem of returnRecord.items) {
         const saleItem = sale.items.id(returnItem.saleItemId);
         if (saleItem) {
-          // Accumulate returnedQty — do NOT mutate qty so original qty is preserved
-          saleItem.returnedQty  = (saleItem.returnedQty || 0) + returnItem.qty
-          saleItem.returnStatus = "approved"
-
-          // Mark fully returned if nothing active remains
-          const remaining = (saleItem.qty || 0) - (saleItem.voidedQty || 0) - saleItem.returnedQty
-          if (remaining <= 0) {
-            saleItem.isFullyReturned = true
-          }
+          saleItem.returnedQty  = (saleItem.returnedQty || 0) + returnItem.qty;
+          saleItem.returnStatus = "approved";
+          const remaining = (saleItem.qty || 0) - (saleItem.voidedQty || 0) - saleItem.returnedQty;
+          if (remaining <= 0) saleItem.isFullyReturned = true;
         }
       }
 
       sale.total = Math.max(0, sale.total - returnRecord.refundAmount);
-
       if (sale.paymentInfo) {
         sale.paymentInfo.finalTotal = Math.max(
           0,
@@ -210,59 +329,50 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
         );
       }
 
-      // Only mark sale as fully returned if every item is fully returned
       const allReturned = sale.items.every(si => si.isFullyReturned === true);
       if (allReturned) sale.returned = true;
-
       sale.returnStatus = "approved";
       await sale.save();
     }
 
-    // ── 3. Mark return as approved ──
-    returnRecord.status     = "approved";
-    returnRecord.approvedAt = new Date().toISOString();
+    // ── 3. Mark return as approved ────────────────────────────────────
+    returnRecord.status      = "approved";
+    returnRecord.approvedBy  = approver._id;
+    returnRecord.approvedAt  = new Date().toISOString();
     await returnRecord.save();
 
-    // ── 4. Recalculate archive for affected cashier and date ──
+    // ── 4. Audit log (PIN path only) ──────────────────────────────────
+    if (usedPin) {
+      await ApprovalLog.create({
+        pinOwnerId: approver._id,
+        actionType: "return_stage2",
+        targetId:   returnRecord._id,
+        targetType: "return",
+        store:      sale?.store,
+      });
+    }
+
+    // ── 5. Recalculate archive ────────────────────────────────────────
     const saleDate    = sale?.date;
     const cashierName = sale?.cashier;
 
     if (saleDate && cashierName) {
-      const daySales = await Sale.find({
-        date:     saleDate,
-        cashier:  cashierName,
-        returned: false
-      });
+      const daySales = await Sale.find({ date: saleDate, cashier: cashierName, returned: false });
 
-      const revenue = daySales.reduce((sum, s) =>
-        sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-
+      const revenue      = daySales.reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
       const transactions = daySales.length;
-
-      // itemsSold uses active qty — subtracts voided and returned units
-      const itemsSold = daySales.reduce((sum, s) =>
+      const itemsSold    = daySales.reduce((sum, s) =>
         sum + s.items.reduce((inner, i) => {
-          if (i.voidStatus === "voided") return inner
-          return inner + Math.max(0, (i.qty || 0) - (i.voidedQty || 0) - (i.returnedQty || 0))
+          if (i.voidStatus === "voided") return inner;
+          return inner + Math.max(0, (i.qty || 0) - (i.voidedQty || 0) - (i.returnedQty || 0));
         }, 0), 0);
 
-      const pureCash = daySales
-        .filter(s => s.paymentInfo?.paymentMethod === "cash")
-        .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-      const pureMpesa = daySales
-        .filter(s => s.paymentInfo?.paymentMethod === "mpesa")
-        .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-      const splitCash = daySales
-        .filter(s => s.paymentInfo?.paymentMethod === "split")
-        .reduce((sum, s) => sum + (s.paymentInfo?.cashPart || 0), 0);
-      const splitMpesa = daySales
-        .filter(s => s.paymentInfo?.paymentMethod === "split")
-        .reduce((sum, s) => sum + (s.paymentInfo?.mpesaPart || 0), 0);
-      const credit = daySales
-        .filter(s => s.paymentInfo?.paymentMethod === "credit")
-        .reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+      const pureCash   = daySales.filter(s => s.paymentInfo?.paymentMethod === "cash").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+      const pureMpesa  = daySales.filter(s => s.paymentInfo?.paymentMethod === "mpesa").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+      const splitCash  = daySales.filter(s => s.paymentInfo?.paymentMethod === "split").reduce((sum, s) => sum + (s.paymentInfo?.cashPart || 0), 0);
+      const splitMpesa = daySales.filter(s => s.paymentInfo?.paymentMethod === "split").reduce((sum, s) => sum + (s.paymentInfo?.mpesaPart || 0), 0);
+      const credit     = daySales.filter(s => s.paymentInfo?.paymentMethod === "credit").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
 
-      // Deduct refund from the correct payment method bucket
       const originalMethod = sale?.paymentInfo?.paymentMethod || "cash";
       let adjustedCash  = pureCash  + splitCash;
       let adjustedMpesa = pureMpesa + splitMpesa;
@@ -280,28 +390,27 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
 
       await Archive.findOneAndUpdate(
         { employeeName: cashierName, date: saleDate },
-        {
-          revenue,
-          transactions,
-          itemsSold,
-          paymentBreakdown: {
-            cash:       adjustedCash,
-            mpesa:      adjustedMpesa,
-            splitCash,
-            splitMpesa,
-            credit
-          }
-        },
+        { revenue, transactions, itemsSold,
+          paymentBreakdown: { cash: adjustedCash, mpesa: adjustedMpesa, splitCash, splitMpesa, credit } },
         { upsert: true, new: true }
       );
     }
 
-    // ── 5. Notify requester and broadcast sync ──
+    // ── 6. Notify ─────────────────────────────────────────────────────
     const io = req.app.get("io");
     if (io) {
+      if (usedPin) {
+        io.to(String(approver._id)).emit("pinUsed", {
+          actionType: "return_stage2",
+          usedBy:     req.user.name || "Staff",
+          target:     `Return #${returnRecord._id}`,
+          store:      sale?.store,
+          time:       new Date().toISOString(),
+        });
+      }
       io.to(returnRecord.requestedBy.toString()).emit("returnUpdated", {
         status:  "approved",
-        message: `✅ Return approved — refund KSh ${returnRecord.refundAmount?.toLocaleString()} to customer`
+        message: `✅ Return approved — refund KSh ${returnRecord.refundAmount?.toLocaleString()} to customer`,
       });
       io.emit("sync_system_data");
     }
@@ -314,8 +423,10 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
   }
 });
 
-// ── 4. REJECT RETURN ─────────────────────────────────────────────────
-router.patch("/:id/reject", ownerOnly, async (req, res) => {
+// ── 5. REJECT RETURN ─────────────────────────────────────────────────────────
+// Stage pending_manager → manager or owner may reject.
+// Stage pending_owner   → owner only.
+router.patch("/:id/reject", managerOrOwner, async (req, res) => {
   try {
     const returnRecord = await Return.findById(req.params.id);
     if (!returnRecord) {
@@ -329,8 +440,23 @@ router.patch("/:id/reject", ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "This return has already been rejected." });
     }
 
-    returnRecord.status     = "rejected";
-    returnRecord.rejectedAt = new Date().toISOString();
+    // Stage-based access control
+    if (returnRecord.status === "pending_owner" && req.user.role === "manager") {
+      return res.status(403).json({ success: false, message: "Only the owner can reject at this stage." });
+    }
+
+    // Store scoping for managers
+    if (req.user.role === "manager") {
+      const saleCheck = await Sale.findById(returnRecord.saleId).select("store").lean();
+      if (!saleCheck || saleCheck.store !== req.user.store) {
+        return res.status(403).json({ success: false, message: "Access denied: This return belongs to a different store." });
+      }
+    }
+
+    returnRecord.status        = "rejected";
+    returnRecord.rejectedBy    = req.user.id;
+    returnRecord.rejectedByRole = req.user.role;
+    returnRecord.rejectedAt    = new Date().toISOString();
     await returnRecord.save();
 
     // Reset sale items returnStatus
@@ -344,14 +470,13 @@ router.patch("/:id/reject", ownerOnly, async (req, res) => {
       await sale.save();
     }
 
-    // Notify requester
     const io = req.app.get("io");
     if (io) {
       io.to(returnRecord.requestedBy.toString()).emit("returnUpdated", {
         saleId:   returnRecord.saleId,
         returnId: returnRecord._id,
         status:   "rejected",
-        message:  "❌ Your return request was rejected by the owner."
+        message:  `❌ Your return request was rejected by the ${req.user.role}.`,
       });
       io.emit("sync_system_data");
     }

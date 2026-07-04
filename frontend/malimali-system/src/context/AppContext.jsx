@@ -128,6 +128,7 @@ export function AppProvider({ children }) {
   const [unreadMsgCount, setUnreadMsgCount] = useState(0)
   const [shiftCloseNotifs, setShiftCloseNotifs] = useState(() => load('pos_shift_close_notifs', []))
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [voidRequests, setVoidRequests] = useState([])
 
   useEffect(() => {
     localStorage.setItem('pos_shift_close_notifs', JSON.stringify(shiftCloseNotifs));
@@ -206,9 +207,16 @@ export function AppProvider({ children }) {
       setConnectionError(false)
       setIsSetupComplete(data.isSetup && data.hasOwner)
       if (data.isSetup) {
-        const settingsRes = await fetch(`${API_BASE_URL}/api/setup/details`)
-        const settingsData = await settingsRes.json()
-        setSettings(settingsData.settings || settingsData)
+        // Public branding endpoint — safe pre-login, returns only logo/companyName/brandColors.
+        // Full settings (/details) are fetched after login via refreshSettings().
+        const brandingRes = await fetch(`${API_BASE_URL}/api/setup/branding`)
+        if (brandingRes.ok) {
+          const brandingData = await brandingRes.json()
+          if (brandingData.success && brandingData.branding) {
+            // Merge branding into existing settings without nuking fields already loaded
+            setSettings(prev => ({ ...(prev || {}), ...brandingData.branding }))
+          }
+        }
       }
     } catch (err) {
       console.error('Setup check failed:', err)
@@ -251,6 +259,17 @@ export function AppProvider({ children }) {
       const data = await res.json()
       setReturns(data.success && Array.isArray(data.returns) ? data.returns : [])
     } catch (err) { console.error('Error fetching returns:', err); setReturns([]) }
+  }, [])
+
+  const fetchVoidRequests = useCallback(async () => {
+    try {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
+      if (role !== 'owner' && role !== 'manager') return
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/void-requests`)
+      if (!res || !res.ok) return
+      const data = await res.json()
+      setVoidRequests(data.success && Array.isArray(data.requests) ? data.requests : [])
+    } catch (err) { console.error('fetchVoidRequests error:', err) }
   }, [])
 
   const fetchUsers = useCallback(async () => {
@@ -666,6 +685,7 @@ export function AppProvider({ children }) {
       () => fetchConversations(),
       () => fetchUnreadMsgCount(),
       () => (role === 'owner' || role === 'manager') && fetchUsers(),
+      () => (role === 'owner' || role === 'manager') && fetchVoidRequests(),
     ];
     const timers = fetches.map((fn, i) => setTimeout(fn, i * 200));
     return () => timers.forEach(clearTimeout);
@@ -673,7 +693,7 @@ export function AppProvider({ children }) {
     currentUser?.token, currentUser?.role,
     fetchUsers, fetchProducts, fetchSales, fetchReturns,
     fetchArchives, fetchStores, fetchCategories,
-    fetchSuppliers, fetchConversations, fetchUnreadMsgCount,
+    fetchSuppliers, fetchConversations, fetchUnreadMsgCount, fetchVoidRequests,
   ]);
 
   // ── LOGIN ──────────────────────────────────────────────────────────────
@@ -701,6 +721,19 @@ export function AppProvider({ children }) {
         localStorage.setItem('pos_system_user', JSON.stringify(userData))
         tokenRef.current = data.token
         refreshSocketRef.current?.();
+        // Fetch full settings now that we have a valid token — populates logo, tax, SMTP, etc.
+        try {
+          const settingsRes = await fetch(`${API_BASE_URL}/api/setup/details`, {
+            headers: { Authorization: `Bearer ${data.token}` }
+          })
+          if (settingsRes.ok) {
+            const settingsData = await settingsRes.json()
+            if (settingsData.success && settingsData.settings) {
+              setSettings(settingsData.settings)
+              localStorage.setItem('pos_system_settings', JSON.stringify(settingsData.settings))
+            }
+          }
+        } catch { /* non-fatal — branding already loaded from /branding */ }
         return { success: true, role: data.role }
       }
       return { success: false, message: data.message || 'Login failed' }
@@ -985,12 +1018,63 @@ export function AppProvider({ children }) {
 
     const onNewReturnRequest = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
-      if (role !== 'owner') return
+      if (role !== 'owner' && role !== 'manager') return
+      const target = role === 'owner' ? 'owner' : (currentUserRef.current?.fullname || 'manager')
       addNotification(
         `🔄 ${data.requesterName} submitted a return request — KSh ${(data.refundAmount || 0).toLocaleString()}. Reason: ${data.reason || '—'}`,
+        'warning', target
+      )
+      fetchReturns()
+    };
+
+    const onReturnNeedsOwnerApproval = (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
+      if (role !== 'owner') return
+      addNotification(
+        `🔄 ${data.requesterName || 'A return'} advanced to owner approval — KSh ${(data.refundAmount || 0).toLocaleString()}`,
         'warning', 'owner'
       )
       fetchReturns()
+    };
+
+    const onPinUsed = (data) => {
+      const actionLabel = {
+        void_cashier: 'void authorization',
+        void_manager_onsite: 'void authorization',
+        void_items_cashier: 'item void authorization',
+        void_items_manager_onsite: 'item void authorization',
+        return_stage1: 'return stage-1 approval',
+        return_stage2: 'return final approval',
+      }[data.actionType] || 'approval'
+      addNotification(
+        `Your PIN was used for ${actionLabel} by ${data.usedBy || 'someone'} — ${data.store || ''}`,
+        'info', currentUserRef.current?.fullname || 'owner'
+      )
+    };
+
+    const onNewVoidRequest = (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
+      if (role !== 'owner') return
+      addNotification(
+        `${data.requestedBy} requested remote void for Sale #${data.receiptId || ''} — KSh ${(data.total || 0).toLocaleString()}. Reason: ${data.reason || '—'}`,
+        'warning', 'owner'
+      )
+      fetchVoidRequests()
+    };
+
+    const onVoidApproved = (data) => {
+      addNotification(
+        data.message || 'Your void request was approved.',
+        'success', currentUserRef.current?.fullname || 'manager'
+      )
+      fetchSales(); fetchProducts()
+    };
+
+    const onVoidRejected = (data) => {
+      addNotification(
+        data.message || 'Your void request was rejected.',
+        'error', currentUserRef.current?.fullname || 'manager'
+      )
     };
 
     const onReturnUpdated = (data) => {
@@ -1093,8 +1177,13 @@ export function AppProvider({ children }) {
     socket.on('adminShiftNotification', onAdminShiftNotification);
     socket.on('sync_system_data', onSyncSystemData);
     socket.on('newReturnRequest', onNewReturnRequest);
+    socket.on('returnNeedsOwnerApproval', onReturnNeedsOwnerApproval);
     socket.on('returnUpdated', onReturnUpdated);
     socket.on('saleVoided', onSaleVoided);
+    socket.on('pinUsed', onPinUsed);
+    socket.on('newVoidRequest', onNewVoidRequest);
+    socket.on('voidApproved', onVoidApproved);
+    socket.on('voidRejected', onVoidRejected);
     socket.on('autoExpiredCheck', onAutoExpiredCheck);
     socket.on('overdueCustomers', onOverdueCustomers);
     socket.on('lowStockAlert', onLowStockAlert);
@@ -1107,8 +1196,13 @@ export function AppProvider({ children }) {
       socket.off('adminShiftNotification', onAdminShiftNotification);
       socket.off('sync_system_data', onSyncSystemData);
       socket.off('newReturnRequest', onNewReturnRequest);
+      socket.off('returnNeedsOwnerApproval', onReturnNeedsOwnerApproval);
       socket.off('returnUpdated', onReturnUpdated);
       socket.off('saleVoided', onSaleVoided);
+      socket.off('pinUsed', onPinUsed);
+      socket.off('newVoidRequest', onNewVoidRequest);
+      socket.off('voidApproved', onVoidApproved);
+      socket.off('voidRejected', onVoidRejected);
       socket.off('autoExpiredCheck', onAutoExpiredCheck);
       socket.off('overdueCustomers', onOverdueCustomers);
       socket.off('lowStockAlert', onLowStockAlert);
@@ -1118,20 +1212,83 @@ export function AppProvider({ children }) {
       socket.off('new_message', onNewMessage);
     };
   }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns,
-    fetchProducts, addShiftCloseNotif, fetchConversations]);
+    fetchProducts, addShiftCloseNotif, fetchConversations, fetchVoidRequests]);
 
   // ── VOID SALE ──────────────────────────────────────────────────────────
-  const voidSale = async (saleId, managerUsername, managerPassword, reason, voidType = 'whole', items = []) => {
+  const voidSale = async (saleId, approverPin, reason, voidType = 'whole', items = []) => {
     try {
-      const res = await authFetchRef.current(`${API_BASE_URL}/api/sales/${saleId}/void`, {
+      const endpoint = voidType === 'items'
+        ? `${API_BASE_URL}/api/sales/${saleId}/void-items`
+        : `${API_BASE_URL}/api/sales/${saleId}/void`
+      const body = { reason }
+      if (approverPin) body.approverPin = approverPin
+      if (voidType === 'items') body.items = items
+      const res = await authFetchRef.current(endpoint, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ managerUsername, managerPassword, reason, voidType, items })
+        body: JSON.stringify(body)
       })
       const data = await res.json()
-      if (data.success) { fetchSales(); fetchProducts(); return { success: true } }
+      if (data.success) { fetchSales(); fetchProducts(); return { success: true, ...data } }
       return { success: false, message: data.message || 'Failed to void sale.' }
     } catch (err) { console.error('Void sale error:', err); return { success: false, message: 'Network error. Please try again.' } }
+  }
+
+  const submitRemoteVoid = async (saleId, reason, voidType = 'whole', items = []) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/void-requests`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ saleId, reason, voidType, items })
+      })
+      const data = await res.json()
+      if (data.success) { fetchVoidRequests(); return { success: true } }
+      return { success: false, message: data.message || 'Failed to submit void request.' }
+    } catch (err) { console.error('submitRemoteVoid error:', err); return { success: false, message: 'Network error.' } }
+  }
+
+  const approveVoidRequest = async (id) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/void-requests/${id}/approve`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.success) { fetchVoidRequests(); fetchSales(); fetchProducts(); return { success: true } }
+      return { success: false, message: data.message }
+    } catch (err) { console.error('approveVoidRequest error:', err); return { success: false, message: 'Network error.' } }
+  }
+
+  const rejectVoidRequest = async (id) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/void-requests/${id}/reject`, { method: 'PATCH' })
+      const data = await res.json()
+      if (data.success) { fetchVoidRequests(); return { success: true } }
+      return { success: false, message: data.message }
+    } catch (err) { console.error('rejectVoidRequest error:', err); return { success: false, message: 'Network error.' } }
+  }
+
+  const approveReturnStage1 = async (returnId, approverPin) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/approve-stage1`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approverPin })
+      })
+      const data = await res.json()
+      if (data.success) { fetchReturns(); return { success: true } }
+      return { success: false, message: data.message || 'Failed to approve.' }
+    } catch (err) { console.error('approveReturnStage1 error:', err); return { success: false, message: 'Network error.' } }
+  }
+
+  const approveReturnWithPin = async (returnId, approverPin) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approverPin })
+      })
+      const data = await res.json()
+      if (data.success) { fetchReturns(); fetchSales(); fetchProducts(); return { success: true } }
+      return { success: false, message: data.message || 'Failed to approve.' }
+    } catch (err) { console.error('approveReturnWithPin error:', err); return { success: false, message: 'Network error.' } }
   }
 
   // ── SHIFT CLOSE ────────────────────────────────────────────────────────
@@ -1236,7 +1393,8 @@ export function AppProvider({ children }) {
   }, 0)
 
   const lowStockProducts = products.filter(p => p.stock <= (settings?.lowStockThreshold || 5))
-  const pendingReturns = returns.filter(r => r.status === 'pending')
+  const pendingReturns = returns.filter(r => r.status === 'pending_manager' || r.status === 'pending_owner')
+  const pendingVoidRequests = voidRequests.filter(r => r.status === 'pending_owner')
   const todayShiftCloses = dailyArchives.filter(s => s.date === today);
 
   const myNotifications = notifications.filter(n =>
@@ -1274,6 +1432,9 @@ export function AppProvider({ children }) {
       todaySales, totalRevenue,
       returns, pendingReturns, fetchReturns,
       processReturn, approveReturn, rejectReturn,
+      approveReturnStage1, approveReturnWithPin,
+      voidRequests, pendingVoidRequests, fetchVoidRequests,
+      submitRemoteVoid, approveVoidRequest, rejectVoidRequest,
       notifications, myNotifications, unreadCount,
       addNotification, markNotificationRead,
       markAllNotificationsRead, clearNotifications,

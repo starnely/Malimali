@@ -6,6 +6,7 @@ const Sale = require("../models/Sale")
 const Product = require("../models/Product")
 const User = require("../models/User")
 const Setting = require("../models/Setting")
+const ApprovalLog = require("../models/ApprovalLog")
 const { authMiddleware } = require("../middleware/authMiddleware")
 
 router.use(authMiddleware)
@@ -14,7 +15,7 @@ function getEATDate() {
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split("T")[0]
 }
 
-// â”€â”€ 1. RECORD SALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ 1. RECORD SALE â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 router.post("/", async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
@@ -149,7 +150,7 @@ router.post("/", async (req, res) => {
         .catch(err => console.error("needsReorder flag error:", err.message))
       if (io) {
         for (const p of lowStockProducts) {
-          io.to("owner").to("manager").emit("lowStockAlert", {
+          io.to("owner").to(`manager-${p.store}`).emit("lowStockAlert", {
             productId: p._id, productName: p.name,
             stock: p.stock, reorderLevel: p.reorderLevel ?? 5, store: p.store,
           })
@@ -171,7 +172,7 @@ router.post("/", async (req, res) => {
   }
 })
 
-// â”€â”€ 2. GET SALES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// â"€â"€ 2. GET SALES â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 router.get("/", async (req, res) => {
   try {
     const user = await User.findById(req.user.id)
@@ -201,7 +202,7 @@ router.get("/", async (req, res) => {
       const saleObj = sale.toObject()
 
       // finalTotal is already decremented at return-approval time (returns.js PATCH approve).
-      // Do not subtract returnedAmount a second time â€” that would double-count the deduction.
+      // Do not subtract returnedAmount a second time â€" that would double-count the deduction.
       saleObj.netTotal = sale.paymentInfo?.finalTotal ?? sale.total
       saleObj.isPartiallyReturned = sale.items.some(i => i.returnStatus === "approved")
 
@@ -216,44 +217,68 @@ router.get("/", async (req, res) => {
   }
 })
 
-// â”€â”€ 3. VOID ENTIRE SALE â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// Helper: scan a list of users until one whose approvalPin matches the given PIN
+async function findPinMatch(candidates, pin) {
+  for (const user of candidates) {
+    if (user.approvalPin && await bcrypt.compare(pin, user.approvalPin)) return user
+  }
+  return null
+}
+
+// ── 3. VOID ENTIRE SALE ──────────────────────────────────────────────────────
+// Escalation rules:
+//   owner role       → self-approved, no PIN required
+//   cashier/employee → approverPin must match a manager in the same store
+//   manager role     → approverPin must match the owner
+//                      (for remote owner approval use POST /api/void-requests instead)
 router.patch("/:id/void", async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
 
   try {
-    const { managerUsername, managerPassword, reason } = req.body
+    const { approverPin, reason } = req.body
+    const requesterRole = req.user.role
 
-    if (!managerUsername || !managerPassword) {
-      await session.abortTransaction(); session.endSession()
-      return res.status(400).json({ success: false, message: "Manager credentials are required to void a sale." })
-    }
-    if (!reason || !reason.trim()) {
+    if (!reason?.trim()) {
       await session.abortTransaction(); session.endSession()
       return res.status(400).json({ success: false, message: "A void reason is required." })
     }
 
-    // Verify manager/owner credentials
-    const sanitized = managerUsername.trim()
-    const manager = await User.findOne({
-      username: { $regex: new RegExp(`^${sanitized}$`, "i") }
-    }).session(session)
+    // ── Resolve approver + action type ──────────────────────────────────
+    let approver = null
+    let actionType = null   // null = owner self-approve (no audit log entry needed)
 
-    if (!manager) {
-      await session.abortTransaction(); session.endSession()
-      return res.status(401).json({ success: false, message: "Invalid manager credentials." })
-    }
-    if (manager.role !== "owner" && manager.role !== "manager") {
-      await session.abortTransaction(); session.endSession()
-      return res.status(403).json({ success: false, message: "Only a manager or owner can authorize a void." })
+    if (requesterRole === "owner") {
+      approver = await User.findById(req.user.id).session(session)
+    } else {
+      if (!approverPin) {
+        await session.abortTransaction(); session.endSession()
+        return res.status(400).json({ success: false, message: "An approval PIN is required." })
+      }
+
+      if (requesterRole === "cashier" || requesterRole === "employee") {
+        actionType = "void_cashier"
+        const managers = await User.find({ role: "manager", store: req.user.store }).session(session)
+        approver = await findPinMatch(managers, approverPin)
+        if (!approver) {
+          await session.abortTransaction(); session.endSession()
+          return res.status(401).json({ success: false, message: "PIN did not match any manager for this store." })
+        }
+      } else if (requesterRole === "manager") {
+        actionType = "void_manager_onsite"
+        const owners = await User.find({ role: "owner" }).session(session)
+        approver = await findPinMatch(owners, approverPin)
+        if (!approver) {
+          await session.abortTransaction(); session.endSession()
+          return res.status(401).json({ success: false, message: "PIN did not match the owner." })
+        }
+      } else {
+        await session.abortTransaction(); session.endSession()
+        return res.status(403).json({ success: false, message: "Your role cannot authorise voids." })
+      }
     }
 
-    const passwordMatch = await bcrypt.compare(managerPassword, manager.password)
-    if (!passwordMatch) {
-      await session.abortTransaction(); session.endSession()
-      return res.status(401).json({ success: false, message: "Invalid manager credentials." })
-    }
-
+    // ── Load and validate sale ───────────────────────────────────────────
     const sale = await Sale.findById(req.params.id).session(session)
     if (!sale) {
       await session.abortTransaction(); session.endSession()
@@ -268,45 +293,59 @@ router.patch("/:id/void", async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot void a sale that has been returned." })
     }
 
-    // Restock all items
+    const approverName = approver.fullname || approver.username
+
+    // ── Restock and mark items ───────────────────────────────────────────
     for (const item of sale.items) {
       const alreadyVoided = item.voidedQty || 0
       const restockQty = item.qty - alreadyVoided
       if (restockQty > 0) {
-        await Product.findByIdAndUpdate(
-          item.productId,
-          { $inc: { stock: restockQty } },
-          { session }
-        )
+        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: restockQty } }, { session })
       }
       item.voidStatus = "voided"
-      item.voidedQty = item.qty
-      item.voidedAt = new Date()
-      item.voidedBy = manager.fullname || manager.username
+      item.voidedQty  = item.qty
+      item.voidedAt   = new Date()
+      item.voidedBy   = approverName
       item.voidReason = reason.trim()
     }
 
-    sale.voided = true
-    sale.voidedAt = new Date()
-    sale.voidedBy = manager.fullname || manager.username
+    sale.voided    = true
+    sale.voidedAt  = new Date()
+    sale.voidedBy  = approverName
     sale.voidReason = reason.trim()
     await sale.save({ session })
+
+    // ── Audit log (not for owner self-approval) ──────────────────────────
+    if (actionType) {
+      await ApprovalLog.create([{
+        pinOwnerId: approver._id,
+        actionType,
+        targetId:   sale._id,
+        targetType: "sale",
+        store:      sale.store,
+      }], { session })
+    }
 
     await session.commitTransaction()
     session.endSession()
 
     const io = req.app.get("io")
     if (io) {
-      io.to("owner").emit("saleVoided", {
-        saleId: sale._id,
-        receiptId: sale.receiptId,
-        cashier: sale.cashier,
-        voidedBy: sale.voidedBy,
-        voidReason: sale.voidReason,
-        total: sale.total,
-        isPartialVoid: false,
+      io.to("owner").to(`manager-${sale.store || ""}`).emit("saleVoided", {
+        saleId: sale._id, receiptId: sale.receiptId, cashier: sale.cashier,
+        voidedBy: approverName, voidReason: sale.voidReason,
+        total: sale.total, isPartialVoid: false,
         time: new Date().toLocaleTimeString(),
       })
+      if (actionType) {
+        io.to(String(approver._id)).emit("pinUsed", {
+          actionType,
+          usedBy: req.user.name || "Staff",
+          target: `Sale #${sale.receiptId || sale._id}`,
+          store:  sale.store,
+          time:   new Date().toISOString(),
+        })
+      }
       io.emit("productsUpdated")
       io.emit("sync_system_data")
     }
@@ -321,18 +360,16 @@ router.patch("/:id/void", async (req, res) => {
   }
 })
 
-// â”€â”€ 4. VOID SPECIFIC ITEMS / PARTIAL QUANTITIES â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ── 4. VOID SPECIFIC ITEMS / PARTIAL QUANTITIES ──────────────────────────────
+// Same escalation rules as Route 3.
 router.patch("/:id/void-items", async (req, res) => {
   const session = await mongoose.startSession()
   session.startTransaction()
 
   try {
-    const { managerUsername, managerPassword, reason, items: voidItems } = req.body
+    const { approverPin, reason, items: voidItems } = req.body
+    const requesterRole = req.user.role
 
-    if (!managerUsername || !managerPassword) {
-      await session.abortTransaction(); session.endSession()
-      return res.status(400).json({ success: false, message: "Manager credentials are required." })
-    }
     if (!reason?.trim()) {
       await session.abortTransaction(); session.endSession()
       return res.status(400).json({ success: false, message: "A void reason is required." })
@@ -342,22 +379,41 @@ router.patch("/:id/void-items", async (req, res) => {
       return res.status(400).json({ success: false, message: "Select at least one item to void." })
     }
 
-    // Verify manager/owner credentials
-    const manager = await User.findOne({
-      username: { $regex: new RegExp(`^${managerUsername.trim()}$`, "i") }
-    }).session(session)
+    // ── Resolve approver ────────────────────────────────────────────────
+    let approver = null
+    let actionType = null
 
-    if (!manager || (manager.role !== "owner" && manager.role !== "manager")) {
-      await session.abortTransaction(); session.endSession()
-      return res.status(401).json({ success: false, message: "Invalid manager credentials." })
+    if (requesterRole === "owner") {
+      approver = await User.findById(req.user.id).session(session)
+    } else {
+      if (!approverPin) {
+        await session.abortTransaction(); session.endSession()
+        return res.status(400).json({ success: false, message: "An approval PIN is required." })
+      }
+
+      if (requesterRole === "cashier" || requesterRole === "employee") {
+        actionType = "void_cashier"
+        const managers = await User.find({ role: "manager", store: req.user.store }).session(session)
+        approver = await findPinMatch(managers, approverPin)
+        if (!approver) {
+          await session.abortTransaction(); session.endSession()
+          return res.status(401).json({ success: false, message: "PIN did not match any manager for this store." })
+        }
+      } else if (requesterRole === "manager") {
+        actionType = "void_manager_onsite"
+        const owners = await User.find({ role: "owner" }).session(session)
+        approver = await findPinMatch(owners, approverPin)
+        if (!approver) {
+          await session.abortTransaction(); session.endSession()
+          return res.status(401).json({ success: false, message: "PIN did not match the owner." })
+        }
+      } else {
+        await session.abortTransaction(); session.endSession()
+        return res.status(403).json({ success: false, message: "Your role cannot authorise voids." })
+      }
     }
 
-    const passwordMatch = await bcrypt.compare(managerPassword, manager.password)
-    if (!passwordMatch) {
-      await session.abortTransaction(); session.endSession()
-      return res.status(401).json({ success: false, message: "Invalid manager credentials." })
-    }
-
+    // ── Load and validate sale ───────────────────────────────────────────
     const sale = await Sale.findById(req.params.id).session(session)
     if (!sale) {
       await session.abortTransaction(); session.endSession()
@@ -372,9 +428,9 @@ router.patch("/:id/void-items", async (req, res) => {
       return res.status(400).json({ success: false, message: "Cannot void a returned sale." })
     }
 
+    const now      = new Date()
+    const approverName = approver.fullname || approver.username
     let totalVoidedAmount = 0
-    const now = new Date()
-    const voidedBy = manager.fullname || manager.username
 
     for (const voidReq of voidItems) {
       const { itemId, voidQty } = voidReq
@@ -382,59 +438,64 @@ router.patch("/:id/void-items", async (req, res) => {
       if (!itemId || !parsedQty || parsedQty <= 0) continue
 
       const item = sale.items.id(itemId)
-      if (!item) continue
-      if (item.voidStatus === "voided") continue
+      if (!item || item.voidStatus === "voided") continue
 
       const alreadyVoided = item.voidedQty || 0
-      const remainingQty = item.qty - alreadyVoided
+      const remainingQty  = item.qty - alreadyVoided
       const actualVoidQty = Math.min(parsedQty, remainingQty)
       if (actualVoidQty <= 0) continue
 
-      // Restock the voided quantity
-      await Product.findByIdAndUpdate(
-        item.productId,
-        { $inc: { stock: actualVoidQty } },
-        { session }
-      )
+      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: actualVoidQty } }, { session })
 
-      item.voidedQty = alreadyVoided + actualVoidQty
-      item.voidedAt = now
-      item.voidedBy = voidedBy
+      item.voidedQty  = alreadyVoided + actualVoidQty
+      item.voidedAt   = now
+      item.voidedBy   = approverName
       item.voidReason = reason.trim()
-
-      if (item.voidedQty >= item.qty) {
-        item.voidStatus = "voided"
-      }
+      if (item.voidedQty >= item.qty) item.voidStatus = "voided"
 
       totalVoidedAmount += actualVoidQty * item.price
     }
 
-    // If all items are now voided, mark whole sale as voided
     const allVoided = sale.items.every(i => i.voidStatus === "voided" || i.voidedQty >= i.qty)
     if (allVoided) {
-      sale.voided = true
-      sale.voidedAt = now
-      sale.voidedBy = voidedBy
+      sale.voided    = true
+      sale.voidedAt  = now
+      sale.voidedBy  = approverName
       sale.voidReason = reason.trim()
     }
 
     await sale.save({ session })
+
+    if (actionType) {
+      await ApprovalLog.create([{
+        pinOwnerId: approver._id,
+        actionType,
+        targetId:   sale._id,
+        targetType: "sale",
+        store:      sale.store,
+      }], { session })
+    }
+
     await session.commitTransaction()
     session.endSession()
 
     const io = req.app.get("io")
     if (io) {
-      io.to("owner").emit("saleVoided", {
-        saleId: sale._id,
-        receiptId: sale.receiptId,
-        cashier: sale.cashier,
-        voidedBy,
-        voidReason: reason.trim(),
-        total: totalVoidedAmount,
-        isPartialVoid: !allVoided,
-        itemsVoided: voidItems.length,
-        time: now.toLocaleTimeString(),
+      io.to("owner").to(`manager-${sale.store || ""}`).emit("saleVoided", {
+        saleId: sale._id, receiptId: sale.receiptId, cashier: sale.cashier,
+        voidedBy: approverName, voidReason: reason.trim(),
+        total: totalVoidedAmount, isPartialVoid: !allVoided,
+        itemsVoided: voidItems.length, time: now.toLocaleTimeString(),
       })
+      if (actionType) {
+        io.to(String(approver._id)).emit("pinUsed", {
+          actionType,
+          usedBy: req.user.name || "Staff",
+          target: `Sale #${sale.receiptId || sale._id}`,
+          store:  sale.store,
+          time:   now.toISOString(),
+        })
+      }
       io.emit("productsUpdated")
       io.emit("sync_system_data")
     }
@@ -442,9 +503,7 @@ router.patch("/:id/void-items", async (req, res) => {
     res.json({
       success: true,
       message: allVoided ? "Sale fully voided." : `${voidItems.length} item(s) voided successfully.`,
-      sale,
-      totalVoidedAmount,
-      isPartialVoid: !allVoided,
+      sale, totalVoidedAmount, isPartialVoid: !allVoided,
     })
 
   } catch (err) {

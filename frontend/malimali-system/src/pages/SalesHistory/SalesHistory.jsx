@@ -1,8 +1,9 @@
 ﻿import { useState, useEffect, useMemo } from 'react'
-import { MdCheckCircle } from 'react-icons/md'
+import { MdCheckCircle, MdFilterList } from 'react-icons/md'
 import ReturnModal from '@/components/modals/ReturnModal'
 import VoidModal from '@/components/modals/VoidModal'
 import PendingReturnsPanel from '@/components/panels/PendingReturnsPanel'
+import PendingVoidRequestsPanel from '@/components/panels/PendingVoidRequestsPanel'
 import { useSocket } from '@/context/SocketContext'
 import { useApp } from '@/context/AppContext'
 import { useHistoryModal } from '@/hooks/useHistoryModal'
@@ -35,14 +36,15 @@ export default function SalesHistory() {
 
   useEffect(() => { if (!showReturn) setReturnSale(null) }, [showReturn])
   useEffect(() => { if (!showVoid) setVoidSaleData(null) }, [showVoid])
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [expandedEmployee, setExpandedEmployee] = useState(null)
   const [employeeDateFilter, setEmployeeDateFilter] = useState({})
 
   const socket = useSocket()
   const {
-    isOwner, currentUser, sales, stores, settings,
+    isOwner, isManager, currentUser, sales, stores, settings,
     fetchSales, fetchReturns, fetchArchives, fetchStores,
-    pendingReturns, products, voidSale
+    pendingReturns, pendingVoidRequests, products, voidSale, submitRemoteVoid,
   } = useApp()
   const currency = settings?.currency || 'KSh'
 
@@ -73,12 +75,12 @@ export default function SalesHistory() {
     }
   }, [socket, isOwner, fetchSales, fetchReturns, fetchArchives, fetchStores])
 
-  const mySales = isOwner
+  const mySales = (isOwner || isManager)
     ? sales
     : sales.filter(s => s.cashier === (currentUser?.fullname || currentUser?.name || currentUser?.username))
 
   const cutoff = getLast30DaysCutoff()
-  const visibleSales = isOwner ? mySales : mySales.filter(s => new Date(s.date) >= cutoff)
+  const visibleSales = (isOwner || isManager) ? mySales : mySales.filter(s => new Date(s.date) >= cutoff)
 
   const filtered = visibleSales.filter(s => {
     const matchSearch = !search || s.items?.some(i =>
@@ -110,45 +112,29 @@ export default function SalesHistory() {
   const sortedDates = Object.keys(groupedByDate).sort((a, b) => b.localeCompare(a))
 
   // ── Handle void ────────────────────────────────────────────────────
-  const handleVoidSubmit = async ({ saleId, managerUsername, managerPassword, reason, voidType, items }) => {
-    if (voidType === 'items') {
-      // Per-item void — new endpoint
-      try {
-        const res = await fetch(`${API_BASE_URL}/api/sales/${saleId}/void-items`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${currentUser?.token}`,
-          },
-          body: JSON.stringify({ managerUsername, managerPassword, reason, items }),
-        })
-        const data = await res.json()
-        if (data.success) {
-          closeVoid()
-          setVoidSuccess(
-            data.isPartialVoid
-              ? `${data.message} Receipt #${voidSaleData?.receiptId || ''}`
-              : `Sale #${voidSaleData?.receiptId || ''} fully voided.`
-          )
-          fetchSales()
-          setTimeout(() => setVoidSuccess(''), 6000)
-          return { success: true }
-        }
-        return { success: false, message: data.message }
-      } catch {
-        return { success: false, message: 'Network error' }
-      }
-    } else {
-      // Whole-sale void — existing voidSale from AppContext
-      const result = await voidSale(saleId, managerUsername, managerPassword, reason)
-      if (result.success) {
-        closeVoid()
-        setVoidSuccess(`Sale #${voidSaleData?.receiptId || ''} voided successfully.`)
-        fetchSales()
-        setTimeout(() => setVoidSuccess(''), 6000)
-      }
-      return result
+  const handleVoidSubmit = async ({ saleId, approverPin, reason, voidType, items }) => {
+    const result = await voidSale(saleId, approverPin, reason, voidType, items)
+    if (result.success) {
+      closeVoid()
+      setVoidSuccess(
+        result.isPartialVoid
+          ? `${result.message} Receipt #${voidSaleData?.receiptId || ''}`
+          : `Sale #${voidSaleData?.receiptId || ''} voided successfully.`
+      )
+      fetchSales()
+      setTimeout(() => setVoidSuccess(''), 6000)
     }
+    return result
+  }
+
+  const handleRemoteVoidSubmit = async ({ saleId, reason, voidType, items }) => {
+    const result = await submitRemoteVoid(saleId, reason, voidType, items)
+    if (result.success) {
+      closeVoid()
+      setVoidSuccess(`Void request for Sale #${voidSaleData?.receiptId || ''} sent to owner for approval.`)
+      setTimeout(() => setVoidSuccess(''), 8000)
+    }
+    return result
   }
 
 
@@ -157,16 +143,31 @@ export default function SalesHistory() {
 
       {/* ── Fixed header ───────────────────────────────── */}
       <div className="flex-shrink-0 px-6 pt-6 pb-3">
-        <div className="mb-4">
-          <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
-            Sales History
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
-            {isOwner
-              ? 'All employee sales — click an employee to expand'
-              : `Your sales (last 30 days) — ${currentUser?.fullname || currentUser?.name || currentUser?.username}`
-            }
-          </p>
+        <div className="flex justify-between items-start mb-4">
+          <div>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>
+              Sales History
+            </h1>
+            <p className="text-sm mt-0.5" style={{ color: 'var(--text-muted)' }}>
+              {isOwner
+                ? 'All employee sales — click an employee to expand'
+                : isManager
+                  ? `Store sales — ${currentUser?.store}`
+                  : `Your sales (last 30 days) — ${currentUser?.fullname || currentUser?.name || currentUser?.username}`
+              }
+            </p>
+          </div>
+          <button
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0"
+            style={{
+              background: filtersOpen ? 'var(--primary)' : 'var(--bg-card)',
+              color: filtersOpen ? '#fff' : 'var(--text-secondary)',
+              border: '1px solid var(--border-medium)',
+            }}
+            onClick={() => setFiltersOpen(o => !o)}
+          >
+            <MdFilterList /> {filtersOpen ? 'Hide Filters' : 'Filters'}
+          </button>
         </div>
 
         {/* Success toasts */}
@@ -183,33 +184,38 @@ export default function SalesHistory() {
           </div>
         )}
 
-        {isOwner && pendingReturns.length > 0 && (
+        {(isOwner || isManager) && pendingReturns.length > 0 && (
           <PendingReturnsPanel pendingReturns={pendingReturns} refreshReturns={fetchReturns} />
+        )}
+        {isOwner && pendingVoidRequests.length > 0 && (
+          <PendingVoidRequestsPanel />
         )}
 
         <SalesStats isOwner={isOwner} filtered={filtered} category={category} currency={currency} />
 
-        <SalesFilters
-          search={search} setSearch={setSearch}
-          dateFrom={dateFrom} setDateFrom={setDateFrom}
-          dateTo={dateTo} setDateTo={setDateTo}
-          category={category} setCategory={setCategory}
-          categories={categories}
-          storeFilter={storeFilter} setStoreFilter={setStoreFilter}
-          storeList={isOwner ? storeList : null}
-        />
+        <div className={filtersOpen ? '' : 'md:hidden'}>
+          <SalesFilters
+            search={search} setSearch={setSearch}
+            dateFrom={dateFrom} setDateFrom={setDateFrom}
+            dateTo={dateTo} setDateTo={setDateTo}
+            category={category} setCategory={setCategory}
+            categories={categories}
+            storeFilter={storeFilter} setStoreFilter={setStoreFilter}
+            storeList={isOwner ? storeList : null}
+          />
+        </div>
       </div>
 
       {/* ── Scrollable content ──────────────────────────── */}
       <div className="md:flex-1 md:overflow-y-auto px-6 pb-6">
-        {isOwner ? (
+        {(isOwner || isManager) ? (
           <OwnerView
             groupedByCashier={groupedByCashier}
             expandedEmployee={expandedEmployee}
             setExpandedEmployee={setExpandedEmployee}
             employeeDateFilter={employeeDateFilter}
             setEmployeeDateFilter={setEmployeeDateFilter}
-            isOwner={isOwner}
+            isOwner={isOwner || isManager}
             setReturnModal={(sale) => { setReturnSale(sale); openReturn() }}
             setVoidModal={(sale) => { setVoidSaleData(sale); openVoid() }}
             category={category}
@@ -246,6 +252,7 @@ export default function SalesHistory() {
           sale={voidSaleData}
           onClose={closeVoid}
           onVoid={handleVoidSubmit}
+          onRemoteVoid={handleRemoteVoidSubmit}
         />
       )}
     </div>

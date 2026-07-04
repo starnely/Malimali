@@ -101,18 +101,20 @@ io.on("connection", (socket) => {
   socket.on("join-manager-room", () => {
     if (socket.user?.role !== "manager") return;
     socket.join("manager");
-    console.log(`👔 Socket ${socket.id} joined manager room`);
+    if (socket.user.store) socket.join(`manager-${socket.user.store}`);
+    console.log(`👔 Socket ${socket.id} joined manager room (store: ${socket.user.store || "none"})`);
   });
   socket.on("join", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
   socket.on("shift-closed", (data) => {
     // Use the server-verified identity; never trust the client-supplied name.
     const employeeName = socket.user.name || socket.user.username || "Unknown";
     console.log(`📢 Shift closed: ${employeeName}`);
-    io.to("owner").emit("adminShiftNotification", {
+    const shiftStore = typeof data.store === "string" ? data.store : "";
+    io.to("owner").to(`manager-${shiftStore}`).emit("adminShiftNotification", {
       employeeName,
       time: data.time || new Date().toLocaleTimeString(),
       revenue: typeof data.revenue === "number" ? data.revenue : 0,
-      store: typeof data.store === "string" ? data.store : "",
+      store: shiftStore,
     });
   });
   socket.on("disconnect", () => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
@@ -124,6 +126,7 @@ app.use("/api/auth", require("./routes/auth"));
 app.use("/api/products", require("./routes/products"));
 app.use("/api/sales", require("./routes/sales"));
 app.use("/api/returns", require("./routes/returns"));
+app.use("/api/void-requests", require("./routes/voidRequests"));
 app.use("/api/archives", require("./routes/archives"));
 app.use("/api/categories", require("./routes/categories"));
 app.use("/api/suppliers", require("./routes/suppliers"));
@@ -420,7 +423,35 @@ async function runAutoPoSuggestions(io) {
         supplierName = key.slice("__name__".length);
       }
 
-      const items = groupProducts.map(p => ({
+      // Supplier-match clause reused in all PO queries for this group.
+      // Matches by ObjectId when available, falls back to name so a key
+      // change between runs (supplier archived/reactivated) doesn't cause misses.
+      const supplierFilter = supplierId
+        ? { $or: [{ supplierId }, { supplierName }] }
+        : { supplierName };
+
+      // ── Step 1: per-product coverage check ───────────────────────────
+      // Only committed orders (sent / partial) count as "real" coverage.
+      // Unsent drafts are not yet firm orders — we manage those below.
+      const sentOrPartialPOs = await PurchaseOrder.find({
+        store,
+        status: { $in: ["sent", "partial"] },
+        ...supplierFilter,
+      }).select("items").lean();
+
+      const coveredIds = new Set(
+        sentOrPartialPOs.flatMap(po => (po.items || []).map(i => String(i.productId)))
+      );
+
+      // ── Step 2: filter to products not already on a committed order ───
+      const uncovered = groupProducts.filter(p => !coveredIds.has(String(p._id)));
+
+      if (uncovered.length === 0) {
+        console.log(`⏭️  Auto-PO: all products for ${store} / ${supplierName} already on committed orders — skipping`);
+        continue;
+      }
+
+      const items = uncovered.map(p => ({
         productId:   p._id,
         productName: p.name,
         unit:        p.unit || "pcs",
@@ -428,25 +459,26 @@ async function runAutoPoSuggestions(io) {
         unitCost:    p.buyPrice || 0,
       }));
 
-      const noteLines = groupProducts.map(p =>
+      const noteLines = uncovered.map(p =>
         `${p.name}: ${p._tier === "velocity" ? "14-day velocity" : "Estimated (no sales history)"} → ${p._suggestedQty} ${p.unit || "pcs"}`
       ).join("\n");
       const notes = `[Auto-suggested ${new Date(Date.now() + 3*60*60*1000).toLocaleDateString("en-KE")}]\n${noteLines}`;
 
-      // Deduplication: one active suggested draft per store+supplier
-      const existing = await PurchaseOrder.findOne({
+      // ── Step 3: upsert into the existing suggested draft, or create one ─
+      // Targets only source:"suggested" drafts — never touches manual drafts.
+      const existingDraft = await PurchaseOrder.findOne({
         store,
         status: "draft",
         source: "suggested",
-        ...(supplierId ? { supplierId } : { supplierId: null, supplierName }),
+        ...supplierFilter,
       });
 
-      if (existing) {
-        existing.items         = items;
-        existing.notes         = notes;
-        existing.supplierPhone = supplierPhone;
-        await existing.save();
-        console.log(`🔄 Auto-PO: updated draft ${existing.poNumber} for ${store} / ${supplierName}`);
+      if (existingDraft) {
+        existingDraft.items         = items;
+        existingDraft.notes         = notes;
+        existingDraft.supplierPhone = supplierPhone;
+        await existingDraft.save();
+        console.log(`🔄 Auto-PO: updated draft ${existingDraft.poNumber} for ${store} / ${supplierName} (${uncovered.length} item(s))`);
       } else {
         const po = new PurchaseOrder({
           supplierId, supplierName, supplierPhone, store, items, notes,
@@ -455,14 +487,15 @@ async function runAutoPoSuggestions(io) {
         });
         await po.save();
         newPOCount++;
-        console.log(`✨ Auto-PO: created ${po.poNumber} for ${store} / ${supplierName}`);
+        console.log(`✨ Auto-PO: created ${po.poNumber} for ${store} / ${supplierName} (${uncovered.length} item(s))`);
       }
+    }
+
+    if (io && storeProducts.some(p => p._suggestedQty)) {
+      io.to("owner").to(`manager-${store}`).emit("autoPOSuggested", { count: 1, store });
     }
   }
 
-  if (io && newPOCount > 0) {
-    io.to("owner").to("manager").emit("autoPOSuggested", { count: newPOCount });
-  }
   console.log(`✅ Auto-PO: job complete — ${newPOCount} new PO(s) created.`);
 }
 

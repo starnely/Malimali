@@ -7,7 +7,7 @@ import {
   MdCloudUpload, MdCheckCircle, MdPhone, MdEmail,
   MdLocationOn, MdReceipt, MdPercent, MdPrint,
   MdSecurity, MdBadge, MdMarkEmailRead, MdLanguage,
-  MdPalette,
+  MdPalette, MdLock, MdVisibility, MdVisibilityOff,
 } from 'react-icons/md'
 
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
@@ -64,6 +64,13 @@ export default function Settings() {
   const [loadedId, setLoadedId] = useState(settings?._id || null)
   const [testStatus, setTestStatus] = useState(null) // { type: 'success'|'error', msg }
 
+  // PIN setup state (owner only)
+  const [pinForm,        setPinForm]        = useState({ currentPassword: '', newPin: '' })
+  const [pinSaved,       setPinSaved]       = useState(false)
+  const [pinSaving,      setPinSaving]      = useState(false)
+  const [pinError,       setPinError]       = useState('')
+  const [showCurrentPwd, setShowCurrentPwd] = useState(false)
+
   if (settings?._id && settings._id !== loadedId) {
     setForm(mergeWithDefaults(settings))
     setPreview(settings.logo || '')
@@ -104,6 +111,38 @@ export default function Settings() {
     } else {
       setError(result.message || 'Failed to save settings. Please try again.')
     }
+  }
+
+  const handleSetPin = async () => {
+    setPinError('')
+    const pin = pinForm.newPin.trim()
+    if (!/^\d{4,6}$/.test(pin)) {
+      setPinError('PIN must be 4–6 digits (numbers only).')
+      return
+    }
+    if (!pinForm.currentPassword) {
+      setPinError('Current password is required to authorise the PIN change.')
+      return
+    }
+    setPinSaving(true)
+    try {
+      const res  = await fetch(`${backendUrl}/api/auth/set-my-pin`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+        body:    JSON.stringify({ currentPassword: pinForm.currentPassword, pin }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setPinSaved(true)
+        setPinForm({ currentPassword: '', newPin: '' })
+        setTimeout(() => setPinSaved(false), 3000)
+      } else {
+        setPinError(data.message || 'Failed to update PIN.')
+      }
+    } catch {
+      setPinError('Network error. Please try again.')
+    }
+    setPinSaving(false)
   }
 
   const handleTestEmail = async () => {
@@ -356,7 +395,80 @@ export default function Settings() {
           </div>
         </div>
 
-        {/* ── 6. Printer Configuration ──────────────────────────── */}
+        {/* ── 6. Approval PIN (owner only) ──────────────────────── */}
+        {currentUser?.role === 'owner' && (
+          <div style={section}>
+            <div style={sectionTitle}>
+              <span style={titleIcon}><MdLock /></span>
+              Approval PIN
+            </div>
+            <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px', marginTop: '-8px' }}>
+              Your approval PIN is required to authorise void and return requests. Keep it private — it is separate from your login password.
+            </p>
+
+            {pinSaved && (
+              <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium"
+                style={{ background: 'var(--success-light)', color: 'var(--success-dark)', border: '1px solid var(--success)' }}>
+                <MdCheckCircle /> Approval PIN updated successfully
+              </div>
+            )}
+            {pinError && (
+              <div className="px-4 py-3 rounded-xl mb-4 text-sm font-medium"
+                style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)', border: '1px solid var(--danger)' }}>
+                {pinError}
+              </div>
+            )}
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', maxWidth: '520px' }}>
+              <div>
+                <span style={label}>Current Password</span>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showCurrentPwd ? 'text' : 'password'}
+                    value={pinForm.currentPassword}
+                    onChange={e => setPinForm(p => ({ ...p, currentPassword: e.target.value }))}
+                    placeholder="Your login password"
+                    style={{ ...inputBase, paddingRight: '38px' }}
+                    onFocus={onFocus} onBlur={onBlur}
+                    autoComplete="current-password"
+                  />
+                  <button type="button" onClick={() => setShowCurrentPwd(v => !v)}
+                    style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}>
+                    {showCurrentPwd ? <MdVisibilityOff size={16} /> : <MdVisibility size={16} />}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <span style={label}>New PIN (4–6 digits)</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={pinForm.newPin}
+                  onChange={e => setPinForm(p => ({ ...p, newPin: e.target.value.replace(/\D/g, '') }))}
+                  placeholder="e.g. 1234"
+                  style={inputBase}
+                  onFocus={onFocus} onBlur={onBlur}
+                  autoComplete="off"
+                />
+                <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '4px', display: 'block' }}>Numeric digits only</span>
+              </div>
+            </div>
+
+            <button
+              onClick={handleSetPin}
+              disabled={pinSaving}
+              style={{ marginTop: '1rem', display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 20px', background: pinSaving ? 'var(--primary-muted)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontWeight: '700', fontSize: '13px', cursor: pinSaving ? 'not-allowed' : 'pointer', transition: 'background 0.15s', fontFamily: 'inherit' }}
+              onMouseEnter={e => { if (!pinSaving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary-dark)' }}
+              onMouseLeave={e => { if (!pinSaving && !isTouchDevice()) e.currentTarget.style.background = 'var(--primary)' }}
+            >
+              <MdLock size={15} />
+              {pinSaving ? 'Saving…' : 'Set Approval PIN'}
+            </button>
+          </div>
+        )}
+
+        {/* ── 7. Printer Configuration ──────────────────────────── */}
         <div style={section}>
           <div style={sectionTitle}>
             <span style={titleIcon}><MdPrint /></span>
@@ -395,7 +507,7 @@ export default function Settings() {
           )}
         </div>
 
-        {/* ── 7. Email & Document Settings ──────────────────────── */}
+        {/* ── 8. Email & Document Settings ──────────────────────── */}
         <div style={section}>
           <div style={sectionTitle}>
             <span style={titleIcon}><MdMarkEmailRead /></span>
@@ -492,7 +604,7 @@ export default function Settings() {
           )}
         </div>
 
-        {/* ── 8. Appearance ─────────────────────────────────── */}
+        {/* ── 9. Appearance ─────────────────────────────────── */}
         <div style={section}>
           <div style={sectionTitle}>
             <span style={titleIcon}><MdPalette /></span>

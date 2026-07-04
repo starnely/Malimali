@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react'
 import { useApp } from '@/context/AppContext'
 import {
   MdDelete, MdToggleOn, MdToggleOff, MdEdit, MdAdd,
-  MdVisibility, MdVisibilityOff, MdRefresh, MdClose, MdPeople
+  MdVisibility, MdVisibilityOff, MdRefresh, MdClose, MdPeople, MdLock,
 } from 'react-icons/md'
 import FormInputDropdown from './Products/FormInputDropdown'
 import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/Employees.module.css'
+import { API_BASE_URL as backendUrl } from '@/config/api'
 
 const initialForm = {
   fullname: '', username: '', email: '',
@@ -14,7 +15,7 @@ const initialForm = {
 }
 
 export default function Employees() {
-  const { users, addUser, deleteUser, toggleUserStatus, updateUser, stores, fetchStores } = useApp()
+  const { users, addUser, deleteUser, toggleUserStatus, updateUser, stores, fetchStores, currentUser } = useApp()
 
   const [form,          setForm]          = useState(initialForm)
   const [editUser,      setEditUser]      = useState(null)
@@ -23,9 +24,44 @@ export default function Employees() {
   const [searchTerm,    setSearchTerm]    = useState('')
   const [confirmDelete, setConfirmDelete] = useState(null)
   const [formErrors,    setFormErrors]    = useState({})
+  const [managerPin,    setManagerPin]    = useState('')
+  const [pinSaving,     setPinSaving]     = useState(false)
+  const [pinResult,     setPinResult]     = useState(null) // { type: 'success'|'error', msg }
 
   useEffect(() => { fetchStores() }, [fetchStores])
-  useEffect(() => { if (!showModal) { setEditUser(null); setForm(initialForm); setFormErrors({}) } }, [showModal])
+  useEffect(() => {
+    if (!showModal) {
+      setEditUser(null); setForm(initialForm); setFormErrors({})
+      setManagerPin(''); setPinResult(null)
+    }
+  }, [showModal])
+
+  const handleSetManagerPin = async () => {
+    setPinResult(null)
+    const pin = managerPin.trim()
+    if (!/^\d{4,6}$/.test(pin)) {
+      setPinResult({ type: 'error', msg: 'PIN must be 4–6 digits (numbers only).' })
+      return
+    }
+    setPinSaving(true)
+    try {
+      const res  = await fetch(`${backendUrl}/api/auth/${editUser._id}/set-pin`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${currentUser?.token}` },
+        body:    JSON.stringify({ pin }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setPinResult({ type: 'success', msg: data.message || 'PIN set successfully.' })
+        setManagerPin('')
+      } else {
+        setPinResult({ type: 'error', msg: data.message || 'Failed to set PIN.' })
+      }
+    } catch {
+      setPinResult({ type: 'error', msg: 'Network error. Please try again.' })
+    }
+    setPinSaving(false)
+  }
 
   const validate = () => {
     const e = {}
@@ -265,6 +301,54 @@ export default function Employees() {
                 <FormInputDropdown label="Role" value={form.role} options={['manager', 'cashier']} onChange={val => setForm({ ...form, role: val })} />
                 <FormInputDropdown label="Assigned Store" value={form.store} options={stores.map(s => s.name)} onChange={val => setForm({ ...form, store: val })} />
               </div>
+
+              {/* PIN section — only when editing a manager as owner */}
+              {editUser?.role === 'manager' && currentUser?.role === 'owner' && (
+                <div className="mt-4 pt-4" style={{ borderTop: '1px solid var(--border-soft)' }}>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                      <MdLock size={13} /> Approval PIN
+                    </label>
+                    <span className="text-[10px] px-2 py-0.5 rounded font-bold"
+                      style={editUser.hasPinSet
+                        ? { background: 'var(--success-light)', color: 'var(--success-dark)' }
+                        : { background: 'var(--warning-light)', color: 'var(--warning-dark)' }
+                      }
+                    >
+                      {editUser.hasPinSet ? 'PIN Set' : 'Not Configured'}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={managerPin}
+                      onChange={e => { setManagerPin(e.target.value.replace(/\D/g, '')); setPinResult(null) }}
+                      placeholder="4–6 digit PIN"
+                      style={{ flex: 1, padding: '9px 12px', marginTop: '4px', border: '1px solid var(--border-medium)', borderRadius: 'var(--radius-md)', fontSize: '13px', outline: 'none', background: 'var(--bg-muted)', color: 'var(--text-primary)', boxSizing: 'border-box', fontFamily: 'inherit', letterSpacing: '0.1em' }}
+                      onFocus={onFocus}
+                      onBlur={e => { e.target.style.borderColor = 'var(--border-medium)'; e.target.style.boxShadow = 'none'; e.target.style.background = 'var(--bg-muted)' }}
+                    />
+                    <button
+                      onClick={handleSetManagerPin}
+                      disabled={pinSaving || !managerPin}
+                      style={{ marginTop: '4px', padding: '9px 16px', background: pinSaving || !managerPin ? 'var(--primary-muted)' : 'var(--primary)', color: '#fff', border: 'none', borderRadius: 'var(--radius-md)', fontSize: '13px', fontWeight: '700', cursor: pinSaving || !managerPin ? 'not-allowed' : 'pointer', flexShrink: 0, fontFamily: 'inherit', transition: 'background 0.15s' }}
+                    >
+                      {pinSaving ? 'Saving…' : editUser.hasPinSet ? 'Reset PIN' : 'Set PIN'}
+                    </button>
+                  </div>
+                  {pinResult && (
+                    <p className="text-xs mt-1.5 font-medium"
+                      style={{ color: pinResult.type === 'success' ? 'var(--success-dark)' : 'var(--danger)' }}>
+                      {pinResult.msg}
+                    </p>
+                  )}
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {editUser.hasPinSet ? 'Enter a new PIN to replace the existing one.' : 'Set a PIN so this manager can approve voids and returns.'}
+                  </p>
+                </div>
+              )}
 
               <div className="flex gap-3 pt-4" style={{ borderTop: '1px solid var(--border-soft)' }}>
                 <button onClick={closeModal}

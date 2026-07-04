@@ -33,11 +33,26 @@ const returnSchema = new mongoose.Schema(
       required: true
     },
 
+    // Two-stage approval chain:
+    //   pending_manager → cashier/employee submitted; manager must approve first
+    //   pending_owner   → manager approved (or manager submitted directly); owner gives final approval
+    //   approved        → owner gave final approval; stock restored
+    //   rejected        → rejected at either stage
     status: {
       type: String,
-      enum: ["pending", "approved", "rejected"],
-      default: "pending"
+      enum: ["pending", "pending_manager", "pending_owner", "approved", "rejected"],
+      default: "pending_manager"
     },
+
+    // Stage 1 — manager approval
+    stage1ApprovedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    stage1ApprovedAt: { type: String, default: null },
+
+    // Final — owner approval / rejection
+    approvedBy:    { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    rejectedBy:    { type: mongoose.Schema.Types.ObjectId, ref: "User", default: null },
+    rejectedByRole: { type: String, default: null },  // "manager" | "owner" — visible to requester
+
     date: { type: String },   // stored as YYYY-MM-DD
     time: { type: String },   // stored as HH:MM:SS
     approvedAt: { type: String },
