@@ -11,6 +11,51 @@ const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/aut
 
 router.use(authMiddleware);
 
+// Shared archive recalculation — called after any return approval
+async function recalcArchive(sale, refundAmount) {
+  const saleDate    = sale?.date;
+  const cashierName = sale?.cashier;
+  if (!saleDate || !cashierName) return;
+
+  const daySales = await Sale.find({ date: saleDate, cashier: cashierName, returned: false });
+
+  const revenue      = daySales.reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+  const transactions = daySales.length;
+  const itemsSold    = daySales.reduce((sum, s) =>
+    sum + s.items.reduce((inner, i) => {
+      if (i.voidStatus === "voided") return inner;
+      return inner + Math.max(0, (i.qty || 0) - (i.voidedQty || 0) - (i.returnedQty || 0));
+    }, 0), 0);
+
+  const pureCash   = daySales.filter(s => s.paymentInfo?.paymentMethod === "cash").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+  const pureMpesa  = daySales.filter(s => s.paymentInfo?.paymentMethod === "mpesa").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+  const splitCash  = daySales.filter(s => s.paymentInfo?.paymentMethod === "split").reduce((sum, s) => sum + (s.paymentInfo?.cashPart || 0), 0);
+  const splitMpesa = daySales.filter(s => s.paymentInfo?.paymentMethod === "split").reduce((sum, s) => sum + (s.paymentInfo?.mpesaPart || 0), 0);
+  const credit     = daySales.filter(s => s.paymentInfo?.paymentMethod === "credit").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
+
+  const originalMethod = sale?.paymentInfo?.paymentMethod || "cash";
+  let adjustedCash  = pureCash  + splitCash;
+  let adjustedMpesa = pureMpesa + splitMpesa;
+
+  if (originalMethod === "cash") {
+    adjustedCash = Math.max(0, adjustedCash - refundAmount);
+  } else if (originalMethod === "mpesa") {
+    adjustedMpesa = Math.max(0, adjustedMpesa - refundAmount);
+  } else if (originalMethod === "split") {
+    const cashRatio  = sale.paymentInfo.cashPart  / (sale.paymentInfo.finalTotal || 1);
+    const mpesaRatio = sale.paymentInfo.mpesaPart / (sale.paymentInfo.finalTotal || 1);
+    adjustedCash  = Math.max(0, adjustedCash  - refundAmount * cashRatio);
+    adjustedMpesa = Math.max(0, adjustedMpesa - refundAmount * mpesaRatio);
+  }
+
+  await Archive.findOneAndUpdate(
+    { employeeName: cashierName, date: saleDate },
+    { revenue, transactions, itemsSold,
+      paymentBreakdown: { cash: adjustedCash, mpesa: adjustedMpesa, splitCash, splitMpesa, credit } },
+    { upsert: true, new: true }
+  );
+}
+
 // ── 1. GET RETURNS ───────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
@@ -111,6 +156,54 @@ router.post("/", async (req, res) => {
     }
 
     const now = new Date(Date.now() + 3 * 60 * 60 * 1000);
+
+    // A3: Owner-submitted returns are auto-approved immediately — no pending state needed
+    if (req.user.role === "owner") {
+      const returnRecord = new Return({
+        saleId,
+        items: resolvedItems,
+        reason,
+        customerName,
+        requestedBy:  req.user.id,
+        refundAmount,
+        status:       "approved",
+        approvedBy:   req.user.id,
+        approvedAt:   now.toISOString(),
+        date:         now.toISOString().split("T")[0],
+        time:         now.toISOString().slice(11, 19) + " EAT",
+      });
+      await returnRecord.save();
+
+      for (const returnItem of resolvedItems) {
+        await Product.findByIdAndUpdate(returnItem.productId, { $inc: { stock: returnItem.qty } });
+      }
+
+      for (const returnItem of resolvedItems) {
+        const saleItem = sale.items.id(returnItem.saleItemId);
+        if (saleItem) {
+          saleItem.returnedQty  = (saleItem.returnedQty || 0) + returnItem.qty;
+          saleItem.returnStatus = "approved";
+          const remaining = (saleItem.qty || 0) - (saleItem.voidedQty || 0) - saleItem.returnedQty;
+          if (remaining <= 0) saleItem.isFullyReturned = true;
+        }
+      }
+      sale.total = Math.max(0, sale.total - refundAmount);
+      if (sale.paymentInfo) {
+        sale.paymentInfo.finalTotal = Math.max(0, (sale.paymentInfo.finalTotal ?? sale.total) - refundAmount);
+      }
+      const allReturned = sale.items.every(si => si.isFullyReturned === true);
+      if (allReturned) sale.returned = true;
+      sale.returnStatus = "approved";
+      sale.returnId     = returnRecord._id;
+      await sale.save();
+
+      await recalcArchive(sale, refundAmount).catch(err => console.error("recalcArchive error:", err));
+
+      const io = req.app.get("io");
+      if (io) io.emit("sync_system_data");
+
+      return res.status(201).json({ success: true, return: returnRecord });
+    }
 
     // Cashier/employee → stage 1 (manager approval) required first.
     // Manager → skip stage 1, go straight to owner.
@@ -262,7 +355,7 @@ router.patch("/:id/approve-stage1", async (req, res) => {
 //   b) no approverPin           → req.user must be owner (remote panel approval)
 router.patch("/:id/approve", async (req, res) => {
   try {
-    const { approverPin } = req.body;
+    const { approverPin } = req.body || {};
     const returnRecord = await Return.findById(req.params.id).populate("items.productId");
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: "Return record not found." });
@@ -353,48 +446,7 @@ router.patch("/:id/approve", async (req, res) => {
     }
 
     // ── 5. Recalculate archive ────────────────────────────────────────
-    const saleDate    = sale?.date;
-    const cashierName = sale?.cashier;
-
-    if (saleDate && cashierName) {
-      const daySales = await Sale.find({ date: saleDate, cashier: cashierName, returned: false });
-
-      const revenue      = daySales.reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-      const transactions = daySales.length;
-      const itemsSold    = daySales.reduce((sum, s) =>
-        sum + s.items.reduce((inner, i) => {
-          if (i.voidStatus === "voided") return inner;
-          return inner + Math.max(0, (i.qty || 0) - (i.voidedQty || 0) - (i.returnedQty || 0));
-        }, 0), 0);
-
-      const pureCash   = daySales.filter(s => s.paymentInfo?.paymentMethod === "cash").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-      const pureMpesa  = daySales.filter(s => s.paymentInfo?.paymentMethod === "mpesa").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-      const splitCash  = daySales.filter(s => s.paymentInfo?.paymentMethod === "split").reduce((sum, s) => sum + (s.paymentInfo?.cashPart || 0), 0);
-      const splitMpesa = daySales.filter(s => s.paymentInfo?.paymentMethod === "split").reduce((sum, s) => sum + (s.paymentInfo?.mpesaPart || 0), 0);
-      const credit     = daySales.filter(s => s.paymentInfo?.paymentMethod === "credit").reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
-
-      const originalMethod = sale?.paymentInfo?.paymentMethod || "cash";
-      let adjustedCash  = pureCash  + splitCash;
-      let adjustedMpesa = pureMpesa + splitMpesa;
-
-      if (originalMethod === "cash") {
-        adjustedCash = Math.max(0, adjustedCash - returnRecord.refundAmount);
-      } else if (originalMethod === "mpesa") {
-        adjustedMpesa = Math.max(0, adjustedMpesa - returnRecord.refundAmount);
-      } else if (originalMethod === "split") {
-        const cashRatio  = sale.paymentInfo.cashPart  / (sale.paymentInfo.finalTotal || 1);
-        const mpesaRatio = sale.paymentInfo.mpesaPart / (sale.paymentInfo.finalTotal || 1);
-        adjustedCash  = Math.max(0, adjustedCash  - returnRecord.refundAmount * cashRatio);
-        adjustedMpesa = Math.max(0, adjustedMpesa - returnRecord.refundAmount * mpesaRatio);
-      }
-
-      await Archive.findOneAndUpdate(
-        { employeeName: cashierName, date: saleDate },
-        { revenue, transactions, itemsSold,
-          paymentBreakdown: { cash: adjustedCash, mpesa: adjustedMpesa, splitCash, splitMpesa, credit } },
-        { upsert: true, new: true }
-      );
-    }
+    await recalcArchive(sale, returnRecord.refundAmount).catch(err => console.error("recalcArchive error:", err));
 
     // ── 6. Notify ─────────────────────────────────────────────────────
     const io = req.app.get("io");

@@ -1,7 +1,9 @@
 import { MdUndo, MdBlock } from 'react-icons/md'
 import styles from '@/styles/SalesHistory.module.css'
+import { useApp } from '@/context/AppContext'
 
 export default function SaleCard({ sale, onReturn, onVoid, category }) {
+  const { pendingVoidRequests, pendingReturns } = useApp()
   const pm = sale.paymentInfo?.paymentMethod || 'cash'
 
   const paymentConfig = {
@@ -26,6 +28,10 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
     (i.returnedQty || 0) > 0 && i.returnStatus === 'approved' && !i.isFullyReturned
   )
   const allItemsVoidable = !isVoided && !sale.returned
+
+  const saleIdStr = String(sale._id)
+  const pendingVoid   = pendingVoidRequests?.find(vr => String(vr.saleId?._id || vr.saleId) === saleIdStr)
+  const pendingReturn = pendingReturns?.find(r  => String(r.saleId?._id  || r.saleId)  === saleIdStr)
 
   const itemStatusConfig = {
     approved: { cls: styles.itemApproved, label: '✅ Returned'  },
@@ -67,6 +73,22 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
       {hasPartialReturns && (
         <div style={{ background: 'var(--success-light)', color: 'var(--success-dark)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--success)' }}>
           ↩️ Partial return — some items have been returned
+        </div>
+      )}
+
+      {/* Pending void-approval banner */}
+      {!isVoided && pendingVoid && (
+        <div style={{ background: '#fff7ed', color: '#92400e', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #fcd34d' }}>
+          <span>⏳ Void pending owner approval</span>
+          <span style={{ opacity: 0.7, fontWeight: 600 }}>by {pendingVoid.requestedBy?.fullname || pendingVoid.requestedBy?.username || 'Manager'}</span>
+        </div>
+      )}
+
+      {/* Pending return-approval banner */}
+      {pendingReturn && (
+        <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #86efac' }}>
+          <span>⏳ Return pending {pendingReturn.status === 'pending_manager' ? 'manager' : 'owner'} approval</span>
+          <span style={{ opacity: 0.7, fontWeight: 600 }}>KSh {(pendingReturn.refundAmount || 0).toLocaleString()}</span>
         </div>
       )}
 

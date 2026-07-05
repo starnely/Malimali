@@ -908,10 +908,18 @@ export function AppProvider({ children }) {
 
   const approveReturn = async (returnId) => {
     try {
-      await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/approve`, { method: 'PATCH' })
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      if (!res || !res.ok) {
+        const data = await res?.json().catch(() => ({}))
+        return { success: false, message: data?.message || 'Failed to approve return.' }
+      }
       fetchReturns(); fetchProducts(); fetchSales()
-      return true
-    } catch (err) { console.error('Operation failed:', err); return false }
+      return { success: true }
+    } catch (err) { console.error('approveReturn error:', err); return { success: false, message: 'Network error.' } }
   }
 
   const rejectReturn = async (returnId) => {
@@ -1039,16 +1047,21 @@ export function AppProvider({ children }) {
 
     const onPinUsed = (data) => {
       const actionLabel = {
-        void_cashier: 'void authorization',
-        void_manager_onsite: 'void authorization',
-        void_items_cashier: 'item void authorization',
+        void_cashier:              'void authorization',
+        void_manager_onsite:       'void authorization',
+        void_owner_pin:            'void request PIN approval',
+        void_items_cashier:        'item void authorization',
         void_items_manager_onsite: 'item void authorization',
-        return_stage1: 'return stage-1 approval',
-        return_stage2: 'return final approval',
+        return_stage1:             'return stage-1 approval',
+        return_stage2:             'return final approval',
       }[data.actionType] || 'approval'
+      // A1: use role-appropriate target so managers with/without fullname both receive the notification
+      const user = currentUserRef.current
+      const role = user?.role || JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role
+      const target = role === 'owner' ? 'owner' : (user?.fullname || user?.username || 'all')
       addNotification(
         `Your PIN was used for ${actionLabel} by ${data.usedBy || 'someone'} — ${data.store || ''}`,
-        'info', currentUserRef.current?.fullname || 'owner'
+        'info', target
       )
     };
 
@@ -1063,18 +1076,16 @@ export function AppProvider({ children }) {
     };
 
     const onVoidApproved = (data) => {
-      addNotification(
-        data.message || 'Your void request was approved.',
-        'success', currentUserRef.current?.fullname || 'manager'
-      )
+      const user = currentUserRef.current
+      const target = user?.fullname || user?.username || 'all'
+      addNotification(data.message || 'Your void request was approved.', 'success', target)
       fetchSales(); fetchProducts()
     };
 
     const onVoidRejected = (data) => {
-      addNotification(
-        data.message || 'Your void request was rejected.',
-        'error', currentUserRef.current?.fullname || 'manager'
-      )
+      const user = currentUserRef.current
+      const target = user?.fullname || user?.username || 'all'
+      addNotification(data.message || 'Your void request was rejected.', 'error', target)
     };
 
     const onReturnUpdated = (data) => {
@@ -1265,6 +1276,19 @@ export function AppProvider({ children }) {
     } catch (err) { console.error('rejectVoidRequest error:', err); return { success: false, message: 'Network error.' } }
   }
 
+  const approveVoidRequestWithPin = async (id, approverPin) => {
+    try {
+      const res = await authFetchRef.current(`${API_BASE_URL}/api/void-requests/${id}/approve-pin`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approverPin }),
+      })
+      const data = await res.json()
+      if (data.success) { fetchVoidRequests(); fetchSales(); fetchProducts(); return { success: true } }
+      return { success: false, message: data.message }
+    } catch (err) { console.error('approveVoidRequestWithPin error:', err); return { success: false, message: 'Network error.' } }
+  }
+
   const approveReturnStage1 = async (returnId, approverPin) => {
     try {
       const res = await authFetchRef.current(`${API_BASE_URL}/api/returns/${returnId}/approve-stage1`, {
@@ -1434,7 +1458,7 @@ export function AppProvider({ children }) {
       processReturn, approveReturn, rejectReturn,
       approveReturnStage1, approveReturnWithPin,
       voidRequests, pendingVoidRequests, fetchVoidRequests,
-      submitRemoteVoid, approveVoidRequest, rejectVoidRequest,
+      submitRemoteVoid, approveVoidRequest, rejectVoidRequest, approveVoidRequestWithPin,
       notifications, myNotifications, unreadCount,
       addNotification, markNotificationRead,
       markAllNotificationsRead, clearNotifications,

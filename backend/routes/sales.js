@@ -329,14 +329,27 @@ router.patch("/:id/void", async (req, res) => {
     await session.commitTransaction()
     session.endSession()
 
+    // A2: resolve cashier name from stored field or DB lookup (covers older sales with empty cashier field)
+    let cashierName = sale.cashier
+    if (!cashierName && sale.cashierId) {
+      const cashierUser = await User.findById(sale.cashierId).select("fullname username").lean()
+      cashierName = cashierUser?.fullname || cashierUser?.username || "Staff"
+    }
+
     const io = req.app.get("io")
     if (io) {
-      io.to("owner").to(`manager-${sale.store || ""}`).emit("saleVoided", {
-        saleId: sale._id, receiptId: sale.receiptId, cashier: sale.cashier,
+      const voidedPayload = {
+        saleId: sale._id, receiptId: sale.receiptId, cashier: cashierName,
         voidedBy: approverName, voidReason: sale.voidReason,
         total: sale.total, isPartialVoid: false,
         time: new Date().toLocaleTimeString(),
-      })
+      }
+      // A3: owner self-void — notify managers only, not the owner themselves
+      if (requesterRole === "owner") {
+        io.to(`manager-${sale.store || ""}`).emit("saleVoided", voidedPayload)
+      } else {
+        io.to("owner").to(`manager-${sale.store || ""}`).emit("saleVoided", voidedPayload)
+      }
       if (actionType) {
         io.to(String(approver._id)).emit("pinUsed", {
           actionType,
@@ -479,14 +492,27 @@ router.patch("/:id/void-items", async (req, res) => {
     await session.commitTransaction()
     session.endSession()
 
+    // A2: resolve cashier name
+    let cashierName = sale.cashier
+    if (!cashierName && sale.cashierId) {
+      const cashierUser = await User.findById(sale.cashierId).select("fullname username").lean()
+      cashierName = cashierUser?.fullname || cashierUser?.username || "Staff"
+    }
+
     const io = req.app.get("io")
     if (io) {
-      io.to("owner").to(`manager-${sale.store || ""}`).emit("saleVoided", {
-        saleId: sale._id, receiptId: sale.receiptId, cashier: sale.cashier,
+      const voidedPayload = {
+        saleId: sale._id, receiptId: sale.receiptId, cashier: cashierName,
         voidedBy: approverName, voidReason: reason.trim(),
         total: totalVoidedAmount, isPartialVoid: !allVoided,
         itemsVoided: voidItems.length, time: now.toLocaleTimeString(),
-      })
+      }
+      // A3: owner self-void — notify managers only, not the owner themselves
+      if (requesterRole === "owner") {
+        io.to(`manager-${sale.store || ""}`).emit("saleVoided", voidedPayload)
+      } else {
+        io.to("owner").to(`manager-${sale.store || ""}`).emit("saleVoided", voidedPayload)
+      }
       if (actionType) {
         io.to(String(approver._id)).emit("pinUsed", {
           actionType,

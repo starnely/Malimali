@@ -1,10 +1,12 @@
-const express    = require("express")
-const router     = express.Router()
-const mongoose   = require("mongoose")
+const express     = require("express")
+const router      = express.Router()
+const mongoose    = require("mongoose")
+const bcrypt      = require("bcryptjs")
 const VoidRequest = require("../models/VoidRequest")
-const Sale       = require("../models/Sale")
-const Product    = require("../models/Product")
-const User       = require("../models/User")
+const Sale        = require("../models/Sale")
+const Product     = require("../models/Product")
+const User        = require("../models/User")
+const ApprovalLog = require("../models/ApprovalLog")
 const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware")
 
 router.use(authMiddleware)
@@ -238,6 +240,148 @@ router.patch("/:id/reject", ownerOnly, async (req, res) => {
   } catch (err) {
     console.error("VoidRequest reject error:", err)
     res.status(500).json({ success: false, message: "Failed to reject void request.", error: err.message })
+  }
+})
+
+// ── 5. APPROVE VOID REQUEST VIA OWNER PIN ────────────────────────────────────
+// Phase B: any authenticated user can present the owner's PIN on-site to execute a pending void.
+// The PIN itself proves authorization; atomically claims the request to prevent double-execution.
+router.patch("/:id/approve-pin", async (req, res) => {
+  const { approverPin } = req.body || {}
+  if (!approverPin) {
+    return res.status(400).json({ success: false, message: "Owner PIN is required." })
+  }
+
+  const session = await mongoose.startSession()
+  session.startTransaction()
+
+  try {
+    // Atomically claim the request — abortTransaction on PIN failure rolls this back
+    const voidReq = await VoidRequest.findOneAndUpdate(
+      { _id: req.params.id, status: "pending_owner" },
+      { $set: { status: "processing" } },
+      { new: true, session }
+    )
+    if (!voidReq) {
+      await session.abortTransaction(); session.endSession()
+      return res.status(400).json({ success: false, message: "This void request is no longer pending." })
+    }
+
+    // Verify owner PIN
+    const owners = await User.find({ role: "owner" })
+    let approver = null
+    for (const own of owners) {
+      if (own.approvalPin && await bcrypt.compare(approverPin, own.approvalPin)) {
+        approver = own; break
+      }
+    }
+    if (!approver) {
+      await session.abortTransaction(); session.endSession()
+      return res.status(401).json({ success: false, message: "PIN did not match the owner." })
+    }
+
+    const sale = await Sale.findById(voidReq.saleId).session(session)
+    if (!sale || sale.voided) {
+      await session.abortTransaction(); session.endSession()
+      return res.status(400).json({ success: false, message: sale ? "This sale has already been voided." : "Sale not found." })
+    }
+
+    const approverName = approver.fullname || approver.username || "Owner"
+
+    if (voidReq.voidType === "whole") {
+      for (const item of sale.items) {
+        const alreadyVoided = item.voidedQty || 0
+        const restockQty    = item.qty - alreadyVoided
+        if (restockQty > 0) {
+          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: restockQty } }, { session })
+        }
+        item.voidStatus = "voided"
+        item.voidedQty  = item.qty
+        item.voidedAt   = new Date()
+        item.voidedBy   = approverName
+        item.voidReason = voidReq.reason
+      }
+      sale.voided     = true
+      sale.voidedAt   = new Date()
+      sale.voidedBy   = approverName
+      sale.voidReason = voidReq.reason
+    } else {
+      for (const voidItem of voidReq.items) {
+        const saleItem = sale.items.id(voidItem.itemId)
+        if (!saleItem || saleItem.voidStatus === "voided") continue
+        const alreadyVoided = saleItem.voidedQty || 0
+        const remainingQty  = saleItem.qty - alreadyVoided
+        const actualQty     = Math.min(Number(voidItem.voidQty), remainingQty)
+        if (actualQty <= 0) continue
+        await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: actualQty } }, { session })
+        saleItem.voidedQty  = alreadyVoided + actualQty
+        saleItem.voidedAt   = new Date()
+        saleItem.voidedBy   = approverName
+        saleItem.voidReason = voidReq.reason
+        if (saleItem.voidedQty >= saleItem.qty) saleItem.voidStatus = "voided"
+      }
+      const allVoided = sale.items.every(i => i.voidStatus === "voided" || i.voidedQty >= i.qty)
+      if (allVoided) {
+        sale.voided     = true
+        sale.voidedAt   = new Date()
+        sale.voidedBy   = approverName
+        sale.voidReason = voidReq.reason
+      }
+    }
+
+    await sale.save({ session })
+
+    voidReq.status     = "approved"
+    voidReq.approvedBy  = approver._id
+    voidReq.approvedAt  = new Date().toISOString()
+    await voidReq.save({ session })
+
+    await ApprovalLog.create([{
+      pinOwnerId: approver._id,
+      actionType: "void_owner_pin",
+      targetId:   sale._id,
+      targetType: "sale",
+      store:      voidReq.store,
+    }], { session })
+
+    await session.commitTransaction()
+    session.endSession()
+
+    const io = req.app.get("io")
+    if (io) {
+      io.to(String(approver._id)).emit("pinUsed", {
+        actionType: "void_owner_pin",
+        usedBy:     req.user.name || "Staff",
+        target:     `Sale #${sale.receiptId || sale._id}`,
+        store:      voidReq.store,
+        time:       new Date().toISOString(),
+      })
+      io.to(`manager-${voidReq.store || ""}`).emit("saleVoided", {
+        saleId:        sale._id,
+        receiptId:     sale.receiptId,
+        voidedBy:      approverName,
+        voidReason:    voidReq.reason,
+        total:         sale.total,
+        isPartialVoid: voidReq.voidType !== "whole",
+        time:          new Date().toLocaleTimeString(),
+      })
+      io.to(String(voidReq.requestedBy)).emit("voidApproved", {
+        voidRequestId: voidReq._id,
+        saleId:        voidReq.saleId,
+        message:       "Your void request was approved by the owner (PIN).",
+        time:          new Date().toISOString(),
+      })
+      io.emit("productsUpdated")
+      io.emit("sync_system_data")
+    }
+
+    res.json({ success: true, message: "Void approved via PIN and executed.", voidRequest: voidReq })
+
+  } catch (err) {
+    await session.abortTransaction()
+    session.endSession()
+    console.error("VoidRequest approve-pin error:", err)
+    res.status(500).json({ success: false, message: "Failed to approve void via PIN.", error: err.message })
   }
 })
 

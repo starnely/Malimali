@@ -15,7 +15,6 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
   const [selectedItems, setSelectedItems] = useState({})
   const [reason, setReason] = useState('')
   const [approverPin, setApproverPin] = useState('')
-  const [approvalPath, setApprovalPath] = useState('pin')  // 'pin' | 'remote' — for managers
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -49,37 +48,38 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
     return qty ? sum + qty * item.price : sum
   }, 0)
 
-  const needsPin = role !== 'owner'
-  const pinLabel = role === 'cashier' || role === 'employee' ? 'Manager PIN' : 'Owner PIN'
+  // Phase B: manager always creates a VoidRequest (never enters owner PIN directly)
+  const needsPin = role !== 'owner' && role !== 'manager'
+  const pinLabel = 'Manager PIN'
   const headerSubtitle =
-    role === 'owner' ? 'Owner — self-authorized, no PIN required' :
-    role === 'manager' ? 'Requires owner authorization' :
+    role === 'owner'   ? 'Owner — self-authorized, no PIN required' :
+    role === 'manager' ? 'Request will be sent to owner for approval' :
     'Requires manager authorization'
 
   const handleVoid = async () => {
     if (!reason.trim()) { setError('Please enter a void reason.'); return }
     if (mode === 'items' && selectedCount === 0) { setError('Select at least one item to void.'); return }
 
-    if (role === 'manager' && approvalPath === 'remote') {
+    const items = mode === 'items'
+      ? Object.entries(selectedItems).map(([itemId, voidQty]) => ({ itemId, voidQty }))
+      : []
+
+    // Manager: always route through void request (owner approves remotely or with PIN from panel)
+    if (role === 'manager') {
       setError(''); setLoading(true)
-      const items = mode === 'items'
-        ? Object.entries(selectedItems).map(([itemId, voidQty]) => ({ itemId, voidQty }))
-        : []
       const result = await onRemoteVoid({ saleId: sale._id, reason: reason.trim(), voidType: mode, items })
       setLoading(false)
       if (!result?.success) setError(result?.message || 'Failed to submit void request.')
       return
     }
 
+    // Cashier/employee: require manager PIN
     if (needsPin) {
       const pin = approverPin.trim()
       if (!/^\d{4,6}$/.test(pin)) { setError(`${pinLabel} must be 4–6 digits.`); return }
     }
 
     setError(''); setLoading(true)
-    const items = mode === 'items'
-      ? Object.entries(selectedItems).map(([itemId, voidQty]) => ({ itemId, voidQty }))
-      : []
     const result = await onVoid({
       saleId: sale._id,
       approverPin: needsPin ? approverPin.trim() : null,
@@ -114,8 +114,8 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
   )
 
   const submitLabel = () => {
-    if (loading) return role === 'manager' && approvalPath === 'remote' ? 'Sending…' : 'Verifying…'
-    if (role === 'manager' && approvalPath === 'remote') return 'Send for Owner Approval'
+    if (loading) return role === 'manager' ? 'Sending…' : 'Verifying…'
+    if (role === 'manager') return 'Send for Owner Approval'
     if (mode === 'whole') return 'Void Entire Sale'
     return `Void ${selectedCount > 0 ? selectedCount + ' Item(s)' : 'Selected Items'}`
   }
@@ -275,58 +275,35 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
             </div>
 
             {/* Authorization section — owner skips entirely */}
+            {/* Manager: always remote — just show info text */}
+            {role === 'manager' && (
+              <div style={{ padding: 14, borderRadius: 'var(--radius-md)', background: 'var(--bg-muted)', border: '1px solid var(--border-soft)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <MdSend style={{ color: 'var(--primary)', fontSize: 15 }} />
+                  <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)' }}>Owner Approval Required</span>
+                </div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                  This void request will be sent to the owner for approval. They can approve from their panel using their PIN or via their device. The sale stays active until approved.
+                </div>
+              </div>
+            )}
+
+            {/* Cashier/employee: require manager PIN */}
             {needsPin && (
               <div style={{ padding: 14, borderRadius: 'var(--radius-md)', background: 'var(--bg-muted)', border: '1px solid var(--border-soft)' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                   <MdLock style={{ color: 'var(--primary)', fontSize: 15 }} />
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)' }}>Authorization Required</span>
                 </div>
-
-                {/* Manager: choose on-site PIN or remote */}
-                {role === 'manager' && (
-                  <>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
-                      Choose how the owner will authorize this void:
-                    </p>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
-                      {[
-                        { value: 'pin', icon: '🔐', label: 'Enter Owner PIN', desc: 'Owner is on-site and will type their PIN' },
-                        { value: 'remote', icon: '📲', label: 'Remote Approval', desc: 'Send to owner\'s device for approval' },
-                      ].map(opt => (
-                        <button key={opt.value} onClick={() => setApprovalPath(opt.value)}
-                          style={{ padding: '10px 10px', borderRadius: 'var(--radius-md)', border: `2px solid ${approvalPath === opt.value ? 'var(--primary)' : 'var(--border-medium)'}`, background: approvalPath === opt.value ? 'var(--primary-light, #eff6ff)' : 'var(--bg-card)', cursor: 'pointer', textAlign: 'left', fontFamily: 'inherit' }}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: approvalPath === opt.value ? 'var(--primary)' : 'var(--text-primary)', marginBottom: 2 }}>{opt.icon} {opt.label}</div>
-                          <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.4 }}>{opt.desc}</div>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-
-                {/* Cashier: just show PIN label */}
-                {(role === 'cashier' || role === 'employee') && (
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
-                    Ask a manager to type their approval PIN below.
-                  </p>
-                )}
-
-                {/* PIN input — shown unless manager chose remote */}
-                {!(role === 'manager' && approvalPath === 'remote') && (
-                  <div>
-                    <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                      {pinLabel}
-                    </label>
-                    {pinInput}
-                  </div>
-                )}
-
-                {/* Remote path info */}
-                {role === 'manager' && approvalPath === 'remote' && (
-                  <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--bg-card)', border: '1px solid var(--border-medium)', fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-                    <MdSend style={{ verticalAlign: 'middle', marginRight: 6, color: 'var(--primary)' }} />
-                    The void request will be sent to the owner's notification panel. The sale will remain active until the owner approves.
-                  </div>
-                )}
+                <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
+                  Ask a manager to type their approval PIN below.
+                </p>
+                <div>
+                  <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+                    {pinLabel}
+                  </label>
+                  {pinInput}
+                </div>
               </div>
             )}
 

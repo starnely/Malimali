@@ -25,7 +25,8 @@ import PettyCash from '@/pages/PettyCash'
 import { useWindowSize } from '@/hooks/useWindowSize'
 import { useApp } from '@/context/AppContext'
 import DailyReport from '@/pages/DailyReport'
-import WeighStation from './pages/WeighStation';
+import WeighStation from './pages/WeighStation'
+import GlobalApprovalPopup from '@/components/GlobalApprovalPopup'
 import '@/App.css'
 
 function App() {
@@ -101,6 +102,7 @@ function App() {
                 overflow:      'visible',       // ← was 'hidden'
               }}>
                 <TopBar />
+                <GlobalApprovalPopup />
                 {/* ── Scrollable content area ── */}
                 <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                   <Routes>
@@ -118,9 +120,9 @@ function App() {
                     {(isOwner || isManager) && <Route path="/categories"      element={<Categories />} />}
                     {(isOwner || isManager) && <Route path="/daily-report"   element={<DailyReport />} />}
                     {(isOwner || isManager) && <Route path="/suppliers"       element={<Suppliers />} />}
-                    {(isOwner || isManager) && <Route path="/stores"          element={<Stores />} />}
+                    {isOwner                 && <Route path="/stores"          element={<Stores />} />}
                     {(isOwner || isManager) && <Route path="/expired-stock"   element={<ExpiredStock />} />}
-                    {(isOwner || isManager) && <Route path="/settings"        element={<Settings />} />}
+                    {isOwner                 && <Route path="/settings"        element={<Settings />} />}
                     {(isOwner || isManager) && <Route path="/customers"       element={<Customers />} />}
                     {(isOwner || isManager) && <Route path="/purchase-orders" element={<PurchaseOrders />} />}
                     {(isOwner || isManager) && <Route path="/petty-cash"      element={<PettyCash />} />}
