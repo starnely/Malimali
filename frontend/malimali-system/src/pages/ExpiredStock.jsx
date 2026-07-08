@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useMemo, useCallback } from 'react'
-import { MdWarning, MdDelete, MdStorefront, MdRefresh, MdTrendingDown, MdClose } from 'react-icons/md'
+import { MdWarning, MdDelete, MdStorefront, MdRefresh, MdTrendingDown, MdClose, MdFilterList } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useHistoryModal } from '@/hooks/useHistoryModal'
 import { API_BASE_URL } from '@/config/api'
@@ -10,6 +10,7 @@ const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 export default function ExpiredStock() {
   const { currentUser, products, fetchProducts, isOwner, isManager, stores } = useApp()
 
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [expiredStock, setExpiredStock] = useState([])
   const [totalLoss, setTotalLoss] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -136,17 +137,32 @@ export default function ExpiredStock() {
               Products past their expiry date — tracked as business loss
             </p>
           </div>
-          {isOwner && (
-            <button
-              onClick={handleAutoCheck}
-              disabled={checking}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition"
-              style={{ background: checking ? 'var(--border-medium)' : 'var(--warning)', cursor: checking ? 'not-allowed' : 'pointer' }}
-            >
-              <MdRefresh className={checking ? 'animate-spin' : ''} />
-              {checking ? 'Checking...' : 'Run Auto-Check'}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {isOwner && storeOptions.length > 1 && (
+              <button
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                style={{
+                  background: filtersOpen ? 'var(--primary)' : 'var(--bg-card)',
+                  color: filtersOpen ? '#fff' : 'var(--text-secondary)',
+                  border: '1px solid var(--border-medium)',
+                }}
+                onClick={() => setFiltersOpen(o => !o)}
+              >
+                <MdFilterList /> {filtersOpen ? 'Hide Filters' : 'Filters'}
+              </button>
+            )}
+            {isOwner && (
+              <button
+                onClick={handleAutoCheck}
+                disabled={checking}
+                className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition"
+                style={{ background: checking ? 'var(--border-medium)' : 'var(--warning)', cursor: checking ? 'not-allowed' : 'pointer' }}
+              >
+                <MdRefresh className={checking ? 'animate-spin' : ''} />
+                {checking ? 'Checking...' : 'Run Auto-Check'}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Message banner */}
@@ -154,8 +170,8 @@ export default function ExpiredStock() {
           <div
             className="mb-4 p-3 rounded-lg text-sm font-medium flex justify-between items-center"
             style={message.type === 'success'
-              ? { background: 'var(--success-light)', color: 'var(--success-dark)', border: '1px solid var(--success)' }
-              : { background: 'var(--danger-light)', color: 'var(--danger-dark)', border: '1px solid var(--danger)' }
+              ? { background: 'var(--success-light)', color: 'var(--badge-success-text)', border: '1px solid var(--success)' }
+              : { background: 'var(--danger-light)', color: 'var(--badge-danger-text)', border: '1px solid var(--danger)' }
             }
           >
             {message.text}
@@ -167,8 +183,8 @@ export default function ExpiredStock() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
           {[
             { label: 'Total Loss (Expired)', value: `KSh ${totalLoss.toLocaleString()}`, color: 'var(--danger)', bg: 'var(--danger-light)' },
-            { label: 'Expired Records', value: expiredStock.length, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
-            { label: 'Expiring Soon (≤30 days)', value: expiringProducts.length, color: 'var(--info-dark)', bg: 'var(--info-light)' },
+            { label: 'Expired Records', value: expiredStock.length, color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' },
+            { label: 'Expiring Soon (≤30 days)', value: expiringProducts.length, color: 'var(--badge-info-text)', bg: 'var(--info-light)' },
           ].map((card, i) => (
             <div key={i} className="rounded-xl p-4" style={{ background: card.bg, border: `1px solid ${card.color}30` }}>
               <div className="text-xs font-bold uppercase tracking-wider mb-1" style={{ color: card.color, opacity: 0.8 }}>
@@ -189,11 +205,11 @@ export default function ExpiredStock() {
             className="rounded-xl p-4 mb-5"
             style={{ background: 'var(--warning-light)', border: '1px solid var(--warning)' }}
           >
-            <h2 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--warning-dark)' }}>
+            <h2 className="text-sm font-bold mb-3 flex items-center gap-2" style={{ color: 'var(--badge-warning-text)' }}>
               <MdWarning />
               Products Expiring Soon
               {storeFilter !== 'All' && (
-                <span className="text-xs font-normal" style={{ color: 'var(--warning-dark)', opacity: 0.7 }}>
+                <span className="text-xs font-normal" style={{ color: 'var(--badge-warning-text)', opacity: 0.7 }}>
                   — {storeFilter}
                 </span>
               )}
@@ -213,7 +229,7 @@ export default function ExpiredStock() {
                       <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                         {p.store} · Stock: {p.stock} {p.unit || 'pcs'}
                       </div>
-                      <div className="text-xs font-bold mt-1" style={{ color: 'var(--warning-dark)' }}>
+                      <div className="text-xs font-bold mt-1" style={{ color: 'var(--badge-warning-text)' }}>
                         {daysLeft === 0 ? 'Expires today!' : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`}
                       </div>
                     </div>
@@ -233,8 +249,8 @@ export default function ExpiredStock() {
         )}
 
         {/* Store filter */}
-        {(isOwner || isManager) && storeOptions.length > 1 && (
-          <div className="flex gap-2 mb-4 flex-wrap">
+        {isOwner && storeOptions.length > 1 && (
+          <div className={`flex gap-2 mb-4 flex-wrap${filtersOpen ? '' : ' md:hidden'}`}>
             {storeOptions.map(s => (
               <button
                 key={s}
@@ -365,7 +381,7 @@ export default function ExpiredStock() {
       {showMove && moveProd && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
+          style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
         >
           <div
             className="w-full max-w-md rounded-xl overflow-hidden"
@@ -398,7 +414,7 @@ export default function ExpiredStock() {
                 ].map(row => (
                   <div key={row.label} className="flex justify-between text-sm">
                     <span style={{ color: 'var(--text-muted)' }}>{row.label}</span>
-                    <span className="font-semibold" style={{ color: 'var(--danger-dark)' }}>{row.value}</span>
+                    <span className="font-semibold" style={{ color: 'var(--badge-danger-text)' }}>{row.value}</span>
                   </div>
                 ))}
               </div>

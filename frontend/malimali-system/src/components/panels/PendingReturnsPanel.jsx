@@ -6,10 +6,10 @@ const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 const StageBadge = ({ status }) => {
   const cfg = {
-    pending_manager: { bg: 'var(--warning-light)', color: 'var(--warning-dark)', border: 'var(--warning)', label: 'Stage 1 — Manager' },
-    pending_owner:   { bg: '#ede9fe',               color: '#5b21b6',             border: '#8b5cf6',        label: 'Stage 2 — Owner'   },
-    approved:        { bg: 'var(--success-light)',  color: 'var(--success-dark)', border: 'var(--success)', label: 'Approved'          },
-    rejected:        { bg: 'var(--danger-light)',   color: 'var(--danger-dark)',  border: 'var(--danger)',  label: 'Rejected'          },
+    pending_manager: { bg: 'var(--warning-light)', color: 'var(--badge-warning-text)', border: 'var(--warning)', label: 'Stage 1 — Manager' },
+    pending_owner:   { bg: 'var(--accent-light)',    color: 'var(--badge-accent-text)',  border: 'var(--accent)',   label: 'Stage 2 — Owner'   },
+    approved:        { bg: 'var(--success-light)',  color: 'var(--badge-success-text)', border: 'var(--success)', label: 'Approved'          },
+    rejected:        { bg: 'var(--danger-light)',   color: 'var(--badge-danger-text)',  border: 'var(--danger)',  label: 'Rejected'          },
   }
   const c = cfg[status] || cfg.pending_manager
   return (
@@ -47,7 +47,7 @@ function PinInput({ label, onSubmit, loading, error }) {
           {loading ? 'Verifying…' : 'Approve'}
         </button>
       </div>
-      {error && <p style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 6, fontWeight: 600 }}>{error}</p>}
+      {error && <p style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 6, fontWeight: 600 }}>{error}</p>}
     </div>
   )
 }
@@ -98,7 +98,7 @@ export default function PendingReturnsPanel({ pendingReturns }) {
     <div className="rounded-xl p-5 mb-4" style={{ background: 'var(--warning-light)', border: '1px solid var(--warning)' }}>
       <div className="flex items-center gap-2 mb-4">
         <MdWarning className="text-xl" style={{ color: 'var(--warning)' }} />
-        <span className="text-sm font-bold" style={{ color: 'var(--warning-dark)' }}>
+        <span className="text-sm font-bold" style={{ color: 'var(--badge-warning-text)' }}>
           {panelCount} Return Request{panelCount > 1 ? 's' : ''} Pending
           {stage1Count > 0 && stage2Count > 0 ? ` (${stage1Count} manager · ${stage2Count} owner)` :
            stage1Count > 0 ? ` — Manager Approval` : ` — Owner Approval`}
@@ -226,7 +226,7 @@ export default function PendingReturnsPanel({ pendingReturns }) {
                     <button
                       onClick={() => { setPinId(ret._id); setPinStage('owner_onsite'); setPinError('') }}
                       className="px-3 py-1.5 rounded-lg text-xs font-bold"
-                      style={{ border: '1px solid #8b5cf6', color: '#5b21b6', background: '#ede9fe', cursor: 'pointer' }}>
+                      style={{ border: '1px solid var(--accent)', color: 'var(--badge-accent-text)', background: 'var(--accent-light)', cursor: 'pointer' }}>
                       <MdLock size={12} style={{ verticalAlign: 'middle', marginRight: 4 }} />
                       Enter Owner PIN
                     </button>

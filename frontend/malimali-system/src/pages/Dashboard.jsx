@@ -280,19 +280,19 @@ export default function Dashboard() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14 }}>
-        <div onClick={() => navigate('/products', { state: { filter: 'lowStock' } })} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: lowStockCount > 0 ? '#fff7ed' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? '#ea580c' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
-          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: lowStockCount > 0 ? '#fed7aa' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdWarning style={{ color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
-          <div style={{ fontSize: 26, fontWeight: 900, color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{stockLoading ? '—' : lowStockCount}</div>
-          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: lowStockCount > 0 ? '#ea580c' : 'var(--text-muted)', marginBottom: 2 }}>Low Stock</div>
-          <div style={{ fontSize: 11, color: lowStockCount > 0 ? '#92400e' : 'var(--text-muted)' }}>{stockLoading ? 'Checking...' : lowStockCount === 0 ? 'All levels OK ✓' : 'Click to view'}</div>
+        <div onClick={() => navigate('/products', { state: { filter: 'lowStock' } })} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: lowStockCount > 0 ? 'var(--orange-light)' : 'var(--bg-card)', border: `1px solid ${lowStockCount > 0 ? 'var(--warning-light)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${lowStockCount > 0 ? 'var(--orange)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
+          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: lowStockCount > 0 ? 'var(--warning-light)' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdWarning style={{ color: lowStockCount > 0 ? 'var(--orange)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: lowStockCount > 0 ? 'var(--orange)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{stockLoading ? '—' : lowStockCount}</div>
+          <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: lowStockCount > 0 ? 'var(--orange)' : 'var(--text-muted)', marginBottom: 2 }}>Low Stock</div>
+          <div style={{ fontSize: 11, color: lowStockCount > 0 ? 'var(--warning-dark)' : 'var(--text-muted)' }}>{stockLoading ? 'Checking...' : lowStockCount === 0 ? 'All levels OK ✓' : 'Click to view'}</div>
         </div>
-        <div onClick={() => navigate('/purchase-orders')} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? '#fecaca' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
-          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: supplierDebt > 0 ? '#fecaca' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdPayments style={{ color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
+        <div onClick={() => navigate('/purchase-orders')} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: `1px solid ${supplierDebt > 0 ? 'var(--danger-light)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${supplierDebt > 0 ? 'var(--danger)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
+          <div style={{ marginBottom: 8 }}><div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: supplierDebt > 0 ? 'var(--danger-light)' : 'var(--bg-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><MdPayments style={{ color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', fontSize: 18 }} /></div></div>
           <div style={{ fontSize: supplierDebt > 0 ? 18 : 26, fontWeight: 900, color: supplierDebt > 0 ? 'var(--danger)' : 'var(--text-muted)', lineHeight: 1, marginBottom: 4 }}>{supplierDebtLoading ? '—' : supplierDebt > 0 ? `${currency} ${supplierDebt.toLocaleString()}` : '✓'}</div>
           <div style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)', marginBottom: 2 }}>Supplier Debt</div>
           <div style={{ fontSize: 11, color: supplierDebt > 0 ? 'var(--danger-dark)' : 'var(--text-muted)' }}>{supplierDebtLoading ? 'Loading...' : supplierDebt > 0 ? `${supplierDebtCount} unpaid PO${supplierDebtCount !== 1 ? 's' : ''}` : 'All suppliers paid'}</div>
           {!supplierDebtLoading && pendingInvoiceCount > 0 && (
-            <div style={{ fontSize: 10, color: 'var(--warning-dark)', marginTop: 3 }}>⚠ {pendingInvoiceCount} awaiting invoice</div>
+            <div style={{ fontSize: 10, color: 'var(--badge-warning-text)', marginTop: 3 }}>⚠ {pendingInvoiceCount} awaiting invoice</div>
           )}
         </div>
         <div onClick={() => navigate('/sales-history')} className={`${styles['animate-slideUp']} ${styles.metricTile}`} style={{ background: safeReturns.length > 0 ? 'var(--info-light)' : 'var(--bg-card)', border: `1px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${safeReturns.length > 0 ? 'var(--info)' : 'var(--border-medium)'}`, borderRadius: 'var(--radius-lg)', padding: '16px 18px', cursor: 'pointer', boxShadow: 'var(--shadow-card)', transition: 'all 0.15s' }}>
@@ -330,14 +330,14 @@ export default function Dashboard() {
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{s.name}</span>
                     </div>
                     {s.hasClosed ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--success-dark)', whiteSpace: 'nowrap' }}><MdCheckCircle style={{ fontSize: 10 }} /> Closed</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--badge-success-text)', whiteSpace: 'nowrap' }}><MdCheckCircle style={{ fontSize: 10 }} /> Closed</span>
                     ) : (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--warning-dark)', whiteSpace: 'nowrap' }}><MdAccessTime style={{ fontSize: 10 }} /> Working</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--badge-warning-text)', whiteSpace: 'nowrap' }}><MdAccessTime style={{ fontSize: 10 }} /> Working</span>
                     )}
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                     <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Revenue</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--primary)' }}>{currency} {s.total.toLocaleString()}</div></div>
-                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Profit</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--success-dark)' }}>{currency} {s.profit.toLocaleString()}</div></div>
+                    <div><div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', marginBottom: 2 }}>Profit</div><div style={{ fontSize: 14, fontWeight: 900, color: 'var(--badge-success-text)' }}>{currency} {s.profit.toLocaleString()}</div></div>
                   </div>
                   <div style={{ height: 4, borderRadius: 4, background: 'var(--border-soft)', overflow: 'hidden', marginBottom: 5 }}>
                     <div style={{ height: '100%', width: `${share}%`, background: 'var(--primary)', borderRadius: 4, transition: 'width 0.5s ease' }} />
@@ -375,8 +375,8 @@ function DebtWidget({ summary, loading, onNavigate, currency = 'KSh' }) {
             {[
               { label: 'Outstanding', value: `${currency} ${summary.totalDebt.toLocaleString()}`, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
               { label: 'Active Debtors', value: summary.activeCount, bg: '#eff6ff', border: '#bfdbfe', color: 'var(--primary)' },
-              { label: 'Overdue', value: summary.overdueCount, bg: summary.overdueCount > 0 ? '#fff7ed' : '#f0fdf4', border: summary.overdueCount > 0 ? '#fed7aa' : '#bbf7d0', color: summary.overdueCount > 0 ? '#ea580c' : 'var(--success-dark)' },
-              ...(summary.blacklistedCount > 0 ? [{ label: 'Blacklisted', value: summary.blacklistedCount, bg: '#fef2f2', border: '#fecaca', color: '#dc2626' }] : []),
+              { label: 'Overdue', value: summary.overdueCount, bg: summary.overdueCount > 0 ? 'var(--orange-light)' : 'var(--success-light)', border: summary.overdueCount > 0 ? 'var(--warning-light)' : 'var(--success-light)', color: summary.overdueCount > 0 ? 'var(--orange)' : 'var(--success-dark)' },
+              ...(summary.blacklistedCount > 0 ? [{ label: 'Blacklisted', value: summary.blacklistedCount, bg: 'var(--danger-light)', border: 'var(--danger-light)', color: 'var(--danger)' }] : []),
             ].map(s => (
               <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 'var(--radius-md)', padding: '12px 14px' }}>
                 <div style={{ fontSize: 10, fontWeight: 700, color: s.color, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{s.label}</div>
@@ -385,12 +385,12 @@ function DebtWidget({ summary, loading, onNavigate, currency = 'KSh' }) {
             ))}
           </div>
           {summary.overdueCount > 0 && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#fff7ed', border: '1px solid #fed7aa', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#92400e' }}>
-                <MdWarning style={{ color: '#ea580c', fontSize: 16, flexShrink: 0 }} />
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--orange-light)', border: '1px solid var(--warning-light)', borderRadius: 'var(--radius-md)', padding: '10px 14px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--badge-warning-text)' }}>
+                <MdWarning style={{ color: 'var(--orange)', fontSize: 16, flexShrink: 0 }} />
                 {summary.overdueCount} customer{summary.overdueCount !== 1 ? 's have' : ' has'} passed their payment deadline
               </div>
-              <button onClick={e => { e.stopPropagation(); onNavigate() }} className={styles.widgetAction} style={{ padding: '5px 12px', background: '#ea580c', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Follow Up</button>
+              <button onClick={e => { e.stopPropagation(); onNavigate() }} className={styles.widgetAction} style={{ padding: '5px 12px', background: 'var(--orange)', color: '#fff', border: 'none', borderRadius: 'var(--radius-sm)', fontWeight: 700, fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>Follow Up</button>
             </div>
           )}
         </>

@@ -82,9 +82,30 @@ router.get("/status", async (req, res) => {
   }
 });
 
+// ── 4b. GET PUBLIC BRANDING — no auth required ───────────────────────
+// Returns ONLY the three fields needed to render a branded login screen.
+// Deliberately excludes taxRate, kraPin, receiptPrefix, M-Pesa, SMTP, etc.
+router.get("/branding", async (req, res) => {
+  try {
+    const settings = await Setting.findOne().select("companyName logo brandColors").lean();
+    if (!settings) return res.json({ success: true, branding: {} });
+    res.json({
+      success:  true,
+      branding: {
+        companyName: settings.companyName || "",
+        logo:        settings.logo        || "",
+        brandColors: settings.brandColors || {},
+      },
+    });
+  } catch (err) {
+    console.error("Branding fetch error:", err.message);
+    res.status(500).json({ success: false, message: "Failed to fetch branding." });
+  }
+});
+
 // ── 5. GET SETTINGS DETAILS ──────────────────────────────────────────
 // Never return the encrypted SMTP password to the frontend
-router.get("/details", async (req, res) => {
+router.get("/details", authMiddleware, async (req, res) => {
   try {
     const settings = await Setting.findOne();
     if (!settings) {

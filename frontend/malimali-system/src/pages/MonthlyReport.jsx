@@ -17,14 +17,14 @@ const XL_PRIMARY_LIGHT = 'E6F1FB'
 
 const CARD_CONFIG = [
   { key: 'revenue', label: 'Net Revenue', icon: <MdAttachMoney />, colorVar: 'var(--primary)', bgVar: 'var(--primary-light)' },
-  { key: 'profit', label: 'Total Profit', icon: <MdTrendingUp />, colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)' },
-  { key: 'taxCollected', label: 'VAT Collected', icon: <MdAttachMoney />, colorVar: '#7c3aed', bgVar: '#f5f3ff' },
-  { key: 'items', label: 'Items Sold', icon: <MdInventory />, colorVar: 'var(--warning-dark)', bgVar: 'var(--warning-light)' },
-  { key: 'txns', label: 'Transactions', icon: <MdReceiptLong />, colorVar: '#6B21A8', bgVar: '#F3E8FF' },
-  { key: 'debtCollected', label: 'Debt Collected', icon: <MdPeopleAlt />, colorVar: '#0369a1', bgVar: '#e0f2fe' },
+  { key: 'profit', label: 'Total Profit', icon: <MdTrendingUp />, colorVar: 'var(--badge-success-text)', bgVar: 'var(--success-light)' },
+  { key: 'taxCollected', label: 'VAT Collected', icon: <MdAttachMoney />, colorVar: 'var(--accent)', bgVar: 'var(--accent-light)' },
+  { key: 'items', label: 'Items Sold', icon: <MdInventory />, colorVar: 'var(--badge-warning-text)', bgVar: 'var(--warning-light)' },
+  { key: 'txns', label: 'Transactions', icon: <MdReceiptLong />, colorVar: 'var(--badge-accent-text)', bgVar: 'var(--accent-light)' },
+  { key: 'debtCollected', label: 'Debt Collected', icon: <MdPeopleAlt />, colorVar: 'var(--badge-info-text)', bgVar: 'var(--info-light)' },
   { key: 'expenses', label: 'Total Expenses', icon: <MdAttachMoney />, colorVar: 'var(--danger)', bgVar: 'var(--danger-light)' },
-  { key: 'expiredLoss', label: 'Inventory Loss', icon: <MdWarning />, colorVar: '#b45309', bgVar: '#fef3c7' },
-  { key: 'netProfit', label: 'Net Profit', icon: <MdTrendingUp />, colorVar: 'var(--success-dark)', bgVar: 'var(--success-light)' },
+  { key: 'expiredLoss', label: 'Inventory Loss', icon: <MdWarning />, colorVar: 'var(--badge-warning-text)', bgVar: 'var(--warning-light)' },
+  { key: 'netProfit', label: 'Net Profit', icon: <MdTrendingUp />, colorVar: 'var(--badge-success-text)', bgVar: 'var(--success-light)' },
 ]
 
 const EXPENSE_CAT_LABELS = {
@@ -547,7 +547,7 @@ export default function MonthlyReport() {
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--primary)', fontWeight: '600' }}>KSh {d.revenue.toLocaleString()}</td>
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: d.profit >= 0 ? 'var(--success-dark)' : 'var(--danger)', fontWeight: '600' }}>KSh {d.profit.toLocaleString()}</td>
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: 'var(--text-muted)' }}>{d.transactions}</td>
-                      <td style={{ padding: '8px 10px', fontSize: '12px', color: d.debtCollected > 0 ? '#0369a1' : 'var(--text-muted)', fontWeight: d.debtCollected > 0 ? '600' : '400' }}>
+                      <td style={{ padding: '8px 10px', fontSize: '12px', color: d.debtCollected > 0 ? 'var(--info-600)' : 'var(--text-muted)', fontWeight: d.debtCollected > 0 ? '600' : '400' }}>
                         {d.debtCollected > 0 ? `KSh ${d.debtCollected.toLocaleString()}` : '—'}
                       </td>
                       <td style={{ padding: '8px 10px', fontSize: '12px', color: d.expenses > 0 ? 'var(--danger)' : 'var(--text-muted)', fontWeight: d.expenses > 0 ? '600' : '400' }}>
@@ -604,8 +604,8 @@ export default function MonthlyReport() {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '1px' }}>{data.count} sales · {fmtQty(data.qty || 0)} items</div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                      <div style={{ fontSize: '12px', color: 'var(--success-dark)', fontWeight: '600' }}>KSh {data.revenue.toLocaleString()}</div>
-                      <div style={{ fontSize: '11px', color: '#6B21A8' }}>Profit: KSh {data.profit.toLocaleString()}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--badge-success-text)', fontWeight: '600' }}>KSh {data.revenue.toLocaleString()}</div>
+                      <div style={{ fontSize: '11px', color: 'var(--badge-accent-text)' }}>Profit: KSh {data.profit.toLocaleString()}</div>
                     </div>
                   </div>
                   <div style={{ height: '4px', background: 'var(--bg-muted)', borderRadius: '2px' }}>
@@ -619,7 +619,7 @@ export default function MonthlyReport() {
           {/* Debt Collections */}
           <div style={card}>
             <h2 style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <MdPeopleAlt style={{ color: '#0369a1', fontSize: '18px' }} /> Debt Collections
+              <MdPeopleAlt style={{ color: 'var(--info-600)', fontSize: '18px' }} /> Debt Collections
             </h2>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '12px' }}>
               {repayLoading ? 'Loading...' : `${repayments.length} payment${repayments.length !== 1 ? 's' : ''} recorded`}
@@ -630,21 +630,21 @@ export default function MonthlyReport() {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '0.5rem 0' }}>No debt collected this month.</p>
             ) : (
               <>
-                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: '#e0f2fe', border: '1px solid #bae6fd', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '11px', color: '#0369a1', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Total Collected</div>
-                  <div style={{ fontSize: '20px', fontWeight: 900, color: '#0369a1' }}>KSh {totalDebtCollected.toLocaleString()}</div>
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info-light)', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--info-600)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Total Collected</div>
+                  <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--info-600)' }}>KSh {totalDebtCollected.toLocaleString()}</div>
                 </div>
                 {debtByRecorder.map(([name, d], i) => (
                   <div key={i} style={{ marginBottom: i < debtByRecorder.length - 1 ? '10px' : '0' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
                       <span style={{ fontSize: '12px', color: 'var(--text-primary)', fontWeight: '600' }}>{name}</span>
                       <div style={{ textAlign: 'right' }}>
-                        <span style={{ fontSize: '12px', color: '#0369a1', fontWeight: '600' }}>KSh {d.total.toLocaleString()}</span>
+                        <span style={{ fontSize: '12px', color: 'var(--info-600)', fontWeight: '600' }}>KSh {d.total.toLocaleString()}</span>
                         <span style={{ fontSize: '11px', color: 'var(--text-muted)', marginLeft: '4px' }}>· {d.count}×</span>
                       </div>
                     </div>
                     <div style={{ height: '4px', background: 'var(--bg-muted)', borderRadius: '2px' }}>
-                      <div style={{ height: '100%', borderRadius: '2px', width: `${Math.round((d.total / (debtByRecorder[0][1].total || 1)) * 100)}%`, background: '#0369a1' }} />
+                      <div style={{ height: '100%', borderRadius: '2px', width: `${Math.round((d.total / (debtByRecorder[0][1].total || 1)) * 100)}%`, background: 'var(--info-600)' }} />
                     </div>
                   </div>
                 ))}
@@ -666,8 +666,8 @@ export default function MonthlyReport() {
               <p style={{ fontSize: '13px', color: 'var(--text-muted)', textAlign: 'center', padding: '0.5rem 0' }}>No expenses this month.</p>
             ) : (
               <>
-                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid #fecaca', marginBottom: '12px' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--danger-dark)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Total Expenses</div>
+                <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger-light)', marginBottom: '12px' }}>
+                  <div style={{ fontSize: '11px', color: 'var(--badge-danger-text)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '2px' }}>Total Expenses</div>
                   <div style={{ fontSize: '20px', fontWeight: 900, color: 'var(--danger)' }}>KSh {monthlyExpTotal.toLocaleString()}</div>
                 </div>
                 {expenseByCategory.map(([cat, total], i) => (

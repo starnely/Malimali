@@ -173,13 +173,13 @@ export default function SalesHistory() {
         {/* Success toasts */}
         {returnSuccess && (
           <div className="p-3 rounded-lg text-sm mb-3 flex items-center gap-2"
-            style={{ background: 'var(--success-light)', border: '1px solid var(--success)', color: 'var(--success-dark)' }}>
+            style={{ background: 'var(--success-light)', border: '1px solid var(--success)', color: 'var(--badge-success-text)' }}>
             <MdCheckCircle className="text-lg flex-shrink-0" /> {returnSuccess}
           </div>
         )}
         {voidSuccess && (
           <div className="p-3 rounded-lg text-sm mb-3 flex items-center gap-2"
-            style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--danger-dark)' }}>
+            style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--badge-danger-text)' }}>
             <MdCheckCircle className="text-lg flex-shrink-0" /> {voidSuccess}
           </div>
         )}

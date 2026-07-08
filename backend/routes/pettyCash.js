@@ -44,7 +44,8 @@ router.get("/today", async (req, res) => {
 router.get("/history", managerOrOwner, async (req, res) => {
   try {
     const filter = {}
-    if (req.query.store) filter.store = req.query.store
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
     if (req.query.from || req.query.to) {
       filter.date = {}
       if (req.query.from) filter.date.$gte = req.query.from
@@ -72,7 +73,7 @@ router.get("/:date", managerOrOwner, async (req, res) => {
 // ── 4. OPEN PETTY CASH FOR TODAY (manager+) ──────────────────────────
 router.post("/open", managerOrOwner, async (req, res) => {
   try {
-    const store = req.body.store || req.user?.store || "Main Store"
+    const store = req.user.role === "manager" ? req.user.store : (req.body.store || req.user?.store || "Main Store")
     const today = todayEAT()
 
     const existing = await PettyCash.findOne({ store, date: today })
@@ -106,7 +107,7 @@ router.post("/open", managerOrOwner, async (req, res) => {
 // For Cash Out: also auto-creates an Expense record
 router.post("/transaction", managerOrOwner, async (req, res) => {
   try {
-    const store = req.body.store || req.user?.store || "Main Store"
+    const store = req.user.role === "manager" ? req.user.store : (req.body.store || req.user?.store || "Main Store")
     const today = todayEAT()
 
     let record = await PettyCash.findOne({ store, date: today })
@@ -204,7 +205,7 @@ router.post("/transaction", managerOrOwner, async (req, res) => {
 // ── 6. CLOSE PETTY CASH (manager+) ───────────────────────────────────
 router.post("/close", managerOrOwner, async (req, res) => {
   try {
-    const store = req.body.store || req.user?.store || "Main Store"
+    const store = req.user.role === "manager" ? req.user.store : (req.body.store || req.user?.store || "Main Store")
     const today = todayEAT()
 
     const record = await PettyCash.findOne({ store, date: today })

@@ -195,7 +195,9 @@ router.use((req, res, next) => {
 router.get("/", async (req, res) => {
   try {
     const filter = {}
-    if (req.query.store) filter.store = req.query.store
+    // Managers are always scoped to their own store; owners may filter freely
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
     if (req.query.status) filter.status = req.query.status
     if (req.query.supplierId) filter.supplierId = req.query.supplierId
     if (req.query.paymentStatus) filter.paymentStatus = req.query.paymentStatus
@@ -225,7 +227,8 @@ router.get("/outstanding", async (req, res) => {
       invoiceAmount: { $gt: 0 },
       status: { $in: ["received", "partial"] },
     }
-    if (req.query.store) filter.store = req.query.store
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
     if (req.query.supplierId) filter.supplierId = req.query.supplierId
 
     const pos = await PurchaseOrder.find(filter)
@@ -236,7 +239,8 @@ router.get("/outstanding", async (req, res) => {
       status: { $in: ["received", "partial"] },
       $or: [{ invoiceAmount: { $exists: false } }, { invoiceAmount: 0 }],
     }
-    if (req.query.store) pendingInvoiceFilter.store = req.query.store
+    if (req.user.role === "manager") pendingInvoiceFilter.store = req.user.store
+    else if (req.query.store) pendingInvoiceFilter.store = req.query.store
 
     const totalOutstanding = pos.reduce((s, po) => s + (po.balance || 0), 0)
     const pendingInvoiceCount = await PurchaseOrder.countDocuments(pendingInvoiceFilter)
@@ -250,7 +254,8 @@ router.get("/outstanding", async (req, res) => {
 router.get("/supplier-payments", async (req, res) => {
   try {
     const filter = {}
-    if (req.query.store) filter.store = req.query.store
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
     if (req.query.from || req.query.to) {
       filter.date = {}
       if (req.query.from) filter.date.$gte = req.query.from
@@ -343,6 +348,8 @@ router.put("/:id", managerOrOwner, async (req, res) => {
   try {
     const po = await PurchaseOrder.findById(req.params.id)
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
+    if (req.user.role === "manager" && po.store !== req.user.store)
+      return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
     if (po.status !== "draft")
       return res.status(400).json({ success: false, message: "Only draft orders can be edited." })
 
@@ -378,6 +385,8 @@ router.patch("/:id/send", managerOrOwner, async (req, res) => {
   try {
     const po = await PurchaseOrder.findById(req.params.id)
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
+    if (req.user.role === "manager" && po.store !== req.user.store)
+      return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
     if (po.status !== "draft")
       return res.status(400).json({ success: false, message: `PO is already ${po.status}.` })
     po.status = "sent"; po.sentAt = new Date()
@@ -394,6 +403,8 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
   try {
     const po = await PurchaseOrder.findById(req.params.id)
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
+    if (req.user.role === "manager" && po.store !== req.user.store)
+      return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
     if (po.status === "received" || po.status === "cancelled")
       return res.status(400).json({ success: false, message: `PO is already ${po.status}.` })
 
@@ -456,8 +467,8 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
 
     if (io) {
       io.emit("productsUpdated")
-      io.to("owner").emit("stockReceived", { poNumber: po.poNumber, supplierName: po.supplierName, stockUpdates, receivedBy: po.receivedBy, time: new Date().toLocaleTimeString() })
-      lowStockAlerts.forEach(alert => io.to("owner").emit("lowStockAlert", alert))
+      io.to("owner").to(`manager-${po.store}`).emit("stockReceived", { poNumber: po.poNumber, supplierName: po.supplierName, stockUpdates, receivedBy: po.receivedBy, time: new Date().toLocaleTimeString() })
+      lowStockAlerts.forEach(alert => io.to("owner").to(`manager-${alert.store}`).emit("lowStockAlert", alert))
     }
 
     res.json({ success: true, purchaseOrder: po, stockUpdates, wasExpiredItems, message: `Stock updated. PO status: ${po.status}.` })
@@ -472,6 +483,8 @@ router.patch("/:id/invoice", managerOrOwner, uploadInvoice.single("invoicePhoto"
   try {
     const po = await PurchaseOrder.findById(req.params.id)
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
+    if (req.user.role === "manager" && po.store !== req.user.store)
+      return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
 
     const { invoiceNumber, invoiceAmount, invoiceDate } = req.body
 
@@ -517,6 +530,8 @@ router.post("/:id/payments", managerOrOwner, async (req, res) => {
     const po = await PurchaseOrder.findById(req.params.id)
       .populate("supplierId", "name")
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
+    if (req.user.role === "manager" && po.store !== req.user.store)
+      return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
 
     if (!po.invoiceAmount || po.invoiceAmount <= 0)
       return res.status(400).json({ success: false, message: "Record the supplier invoice first before making a payment." })
@@ -565,7 +580,7 @@ router.post("/:id/payments", managerOrOwner, async (req, res) => {
     // ── Notify owner via socket ───────────────────────────────────────
     const io = req.app.get("io")
     if (io) {
-      io.to("owner").emit("supplierPaymentMade", {
+      io.to("owner").to(`manager-${po.store}`).emit("supplierPaymentMade", {
         poNumber: po.poNumber,
         supplierName: po.supplierName,
         amount: payAmount,

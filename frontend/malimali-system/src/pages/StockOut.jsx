@@ -47,13 +47,13 @@ export default function StockOut() {
     {
       label: hasFullView ? 'Total Items Sold' : 'My Items Sold',
       value: fmtQty(todayItems),
-      color: 'var(--success-dark)',
+      color: 'var(--badge-success-text)',
       bg: 'var(--success-light)',
     },
     {
       label: hasFullView ? 'Total Transactions' : 'My Transactions',
       value: todaySales.length,
-      color: 'var(--warning-dark)',
+      color: 'var(--badge-warning-text)',
       bg: 'var(--warning-light)',
     },
   ]
@@ -207,10 +207,10 @@ export default function StockOut() {
                               style={{ background: 'var(--warning)', color: '#fff' }}>RETURNED</span>
                           ) : hasPartialReturn ? (
                             <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
-                              style={{ background: 'var(--success-light)', color: 'var(--success-dark)' }}>PART. RETURN</span>
+                              style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)' }}>PART. RETURN</span>
                           ) : (
                             <span className="text-[10px] font-black px-2 py-0.5 rounded-full"
-                              style={{ background: 'var(--success-light)', color: 'var(--success-dark)' }}>SOLD</span>
+                              style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)' }}>SOLD</span>
                           )}
                         </td>
 

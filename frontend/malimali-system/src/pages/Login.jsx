@@ -198,7 +198,7 @@ export default function Login({ onLogin }) {
 
             {/* Session expired banner */}
             {error === 'session_expired' && (
-              <div style={{ padding: '11px 14px', borderRadius: 'var(--radius-md)', background: 'var(--warning-light)', border: '1px solid var(--warning)', fontSize: 13, color: 'var(--warning-dark)', fontWeight: 600, marginBottom: 20 }}>
+              <div style={{ padding: '11px 14px', borderRadius: 'var(--radius-md)', background: 'var(--warning-light)', border: '1px solid var(--warning)', fontSize: 13, color: 'var(--badge-warning-text)', fontWeight: 600, marginBottom: 20 }}>
                 ⏰ Your session expired. Please log in again.
               </div>
             )}
@@ -275,7 +275,7 @@ export default function Login({ onLogin }) {
               <div className={styles.errorBox} style={{
                 background: 'var(--danger-light)',
                 border: '1px solid var(--danger)',
-                color: 'var(--danger-dark)',
+                color: 'var(--badge-danger-text)',
                 borderRadius: 'var(--radius-md)',
                 marginBottom: 16,
               }}>

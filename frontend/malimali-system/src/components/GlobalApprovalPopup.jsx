@@ -90,7 +90,7 @@ export default function GlobalApprovalPopup() {
         onClick={() => setDismissed(false)}
         style={{
           position: 'fixed', bottom: 20, right: 20, zIndex: 9990,
-          background: '#dc2626', color: '#fff',
+          background: 'var(--danger)', color: '#fff',
           borderRadius: '50px', border: 'none', cursor: 'pointer',
           padding: '10px 16px', fontSize: 13, fontWeight: 800,
           display: 'flex', alignItems: 'center', gap: 8,
@@ -112,12 +112,12 @@ export default function GlobalApprovalPopup() {
       background: 'var(--bg-card)',
       borderRadius: 'var(--radius-xl)',
       boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-      border: '1.5px solid #fca5a5',
+      border: '1.5px solid var(--danger-light)',
       overflow: 'hidden',
     }}>
       {/* Header */}
       <div style={{
-        background: '#7f1d1d', color: '#fff',
+        background: 'var(--danger-dark)', color: '#fff',
         padding: '12px 16px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
         flexShrink: 0,
@@ -158,7 +158,7 @@ export default function GlobalApprovalPopup() {
                     Reason: {vr.reason}
                   </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: '#dc2626', flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--danger)', flexShrink: 0 }}>
                   KSh {(sale.total || 0).toLocaleString()}
                 </div>
               </div>
@@ -180,7 +180,7 @@ export default function GlobalApprovalPopup() {
                       Cancel
                     </button>
                   </div>
-                  {pinError && <p style={{ fontSize: 11, color: 'var(--danger-dark)', marginBottom: 4, fontWeight: 600 }}>{pinError}</p>}
+                  {pinError && <p style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginBottom: 4, fontWeight: 600 }}>{pinError}</p>}
                 </div>
               ) : (
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -190,12 +190,12 @@ export default function GlobalApprovalPopup() {
                     {loadingId === vr._id ? 'Processing…' : 'Reject'}
                   </button>
                   <button onClick={() => handleApproveVoid(vr._id)} disabled={!!loadingId}
-                    style={{ flex: 1, padding: '7px 0', borderRadius: 6, border: 'none', background: '#dc2626', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ flex: 1, padding: '7px 0', borderRadius: 6, border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                     <MdCheckCircle size={12} style={{ verticalAlign: 'middle', marginRight: 3 }} />
                     {loadingId === vr._id ? 'Processing…' : 'Approve'}
                   </button>
                   <button onClick={() => { setPinVoidId(vr._id); setVoidPin(''); setPinError('') }} disabled={!!loadingId}
-                    style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid #dc2626', background: '#fef2f2', color: '#991b1b', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    style={{ padding: '7px 10px', borderRadius: 6, border: '1px solid var(--danger)', background: 'var(--danger-light)', color: 'var(--badge-danger-text)', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
                     <MdLock size={12} />
                   </button>
                 </div>
@@ -213,7 +213,7 @@ export default function GlobalApprovalPopup() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 800, color: 'var(--text-primary)' }}>
-                    ↩️ Return Request <span style={{ fontSize: 10, color: 'var(--warning-dark)', fontWeight: 600 }}>({stageLabel})</span>
+                    ↩️ Return Request <span style={{ fontSize: 10, color: 'var(--badge-warning-text)', fontWeight: 600 }}>({stageLabel})</span>
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
                     {requester.fullname || requester.username || 'Cashier'}
@@ -222,7 +222,7 @@ export default function GlobalApprovalPopup() {
                     Reason: {ret.reason}
                   </div>
                 </div>
-                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--warning-dark)', flexShrink: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--badge-warning-text)', flexShrink: 0 }}>
                   KSh {(ret.refundAmount || 0).toLocaleString()}
                 </div>
               </div>
@@ -262,7 +262,7 @@ export default function GlobalApprovalPopup() {
                         {loadingId === ret._id ? '…' : 'Approve'}
                       </button>
                     </div>
-                    {returnPinError && <p style={{ fontSize: 11, color: 'var(--danger-dark)', marginBottom: 0, fontWeight: 600 }}>{returnPinError}</p>}
+                    {returnPinError && <p style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginBottom: 0, fontWeight: 600 }}>{returnPinError}</p>}
                   </div>
                 ) : (
                   <div style={{ display: 'flex', gap: 6 }}>

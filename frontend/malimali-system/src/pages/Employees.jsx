@@ -191,7 +191,7 @@ export default function Employees() {
                     <td className={styles.td}>
                       <span className="text-xs font-bold capitalize px-2 py-0.5 rounded"
                         style={user.role === 'manager'
-                          ? { background: '#EDE9FE', color: '#6D28D9' }
+                          ? { background: 'var(--accent-light)', color: 'var(--badge-accent-text)' }
                           : { background: 'var(--primary-light)', color: 'var(--primary)' }
                         }
                       >
@@ -203,8 +203,8 @@ export default function Employees() {
                       <div className="flex flex-col gap-1">
                         <span className="text-[10px] px-2 py-0.5 rounded text-center font-bold uppercase"
                           style={user.active
-                            ? { background: 'var(--success-light)', color: 'var(--success-dark)' }
-                            : { background: 'var(--danger-light)',  color: 'var(--danger-dark)'  }
+                            ? { background: 'var(--success-light)', color: 'var(--badge-success-text)' }
+                            : { background: 'var(--danger-light)',  color: 'var(--badge-danger-text)'  }
                           }
                         >
                           {user.active ? 'Active' : 'Inactive'}
@@ -235,7 +235,7 @@ export default function Employees() {
       {/* ── Add / Edit Modal ─────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
+          style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
         >
           <div className="w-full max-w-lg rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)' }}>
             <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'var(--sidebar-bg)' }}>
@@ -311,8 +311,8 @@ export default function Employees() {
                     </label>
                     <span className="text-[10px] px-2 py-0.5 rounded font-bold"
                       style={editUser.hasPinSet
-                        ? { background: 'var(--success-light)', color: 'var(--success-dark)' }
-                        : { background: 'var(--warning-light)', color: 'var(--warning-dark)' }
+                        ? { background: 'var(--success-light)', color: 'var(--badge-success-text)' }
+                        : { background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }
                       }
                     >
                       {editUser.hasPinSet ? 'PIN Set' : 'Not Configured'}
@@ -370,7 +370,7 @@ export default function Employees() {
       {/* ── Delete Confirm Modal ─────────────────────────── */}
       {confirmDelete && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}>
+          style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}>
           <div className="w-full max-w-sm rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)' }}>
             <div className="px-5 py-4" style={{ background: 'var(--danger)' }}>
               <span className="text-white text-sm font-bold">Confirm Delete</span>

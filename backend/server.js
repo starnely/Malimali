@@ -57,7 +57,10 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
 // ── 4. DATABASE ──────────────────────────────────────────────────────
-mongoose.connect(MONGO_URI)
+mongoose.connect(MONGO_URI, {
+  serverSelectionTimeoutMS: 5000,
+  bufferCommands: false,
+})
   .then(() => console.log("✅ MongoDB connected successfully"))
   .catch(err => { console.error("❌ MongoDB connection failed:", err.message); process.exit(1); });
 

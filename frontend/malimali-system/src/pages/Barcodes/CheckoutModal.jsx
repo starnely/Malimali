@@ -428,32 +428,32 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
           )}
 
           {paymentMethod === 'credit' && blacklistInfo && !checkingBl && (
-            <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: '12px' }}>
+            <div style={{ background: 'var(--danger-light)', border: '1.5px solid var(--danger-light)', borderRadius: 'var(--radius-md)', padding: '14px 16px', marginBottom: '12px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                <MdBlock style={{ color: '#dc2626', fontSize: '20px', flexShrink: 0 }} />
-                <span style={{ fontWeight: 800, fontSize: '14px', color: '#dc2626' }}>BLACKLISTED CUSTOMER</span>
+                <MdBlock style={{ color: 'var(--danger)', fontSize: '20px', flexShrink: 0 }} />
+                <span style={{ fontWeight: 800, fontSize: '14px', color: 'var(--danger)' }}>BLACKLISTED CUSTOMER</span>
               </div>
-              <div style={{ fontSize: '13px', color: '#7f1d1d', marginBottom: '6px' }}>
+              <div style={{ fontSize: '13px', color: 'var(--badge-danger-text)', marginBottom: '6px' }}>
                 <strong>{blacklistInfo.name}</strong> has been blacklisted by <strong>{blacklistInfo.blacklistedBy}</strong>.
               </div>
-              <div style={{ fontSize: '12px', color: '#991b1b', marginBottom: '2px' }}>Reason: {blacklistInfo.reason}</div>
+              <div style={{ fontSize: '12px', color: 'var(--badge-danger-text)', marginBottom: '2px' }}>Reason: {blacklistInfo.reason}</div>
               {blacklistInfo.balance > 0 && (
-                <div style={{ fontSize: '12px', color: '#991b1b', marginBottom: '10px' }}>
+                <div style={{ fontSize: '12px', color: 'var(--badge-danger-text)', marginBottom: '10px' }}>
                   Outstanding balance: <strong>KSh {blacklistInfo.balance.toLocaleString()}</strong>
                 </div>
               )}
-              <div style={{ background: '#fee2e2', borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: '12px', fontSize: '12px', color: '#7f1d1d', fontWeight: 600 }}>
+              <div style={{ background: 'var(--danger-light)', borderRadius: 'var(--radius-sm)', padding: '8px 10px', marginBottom: '12px', fontSize: '12px', color: 'var(--badge-danger-text)', fontWeight: 600 }}>
                 ⚠️ If you proceed and this customer does not pay, <strong>you will be personally responsible</strong> for this debt.
               </div>
               {!blacklistAck ? (
-                <button onClick={() => setBlacklistAck(true)} style={{ width: '100%', padding: '9px', background: 'transparent', border: '1.5px solid #dc2626', borderRadius: 'var(--radius-md)', color: '#dc2626', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
+                <button onClick={() => setBlacklistAck(true)} style={{ width: '100%', padding: '9px', background: 'transparent', border: '1.5px solid var(--danger)', borderRadius: 'var(--radius-md)', color: 'var(--danger)', fontWeight: 700, fontSize: '13px', cursor: 'pointer', fontFamily: 'inherit' }}>
                   I understand — proceed anyway
                 </button>
               ) : (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: '#dc2626', fontWeight: 600 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--danger)', fontWeight: 600 }}>
                   <MdCheckCircle style={{ fontSize: '16px' }} />
                   Acknowledged — you are responsible if unpaid
-                  <button onClick={() => setBlacklistAck(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: '#dc2626', textDecoration: 'underline', fontFamily: 'inherit' }}>Undo</button>
+                  <button onClick={() => setBlacklistAck(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px', color: 'var(--danger)', textDecoration: 'underline', fontFamily: 'inherit' }}>Undo</button>
                 </div>
               )}
             </div>
@@ -513,7 +513,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
               </div>
               {cashGiven !== '' && cashGivenNum >= finalTotal && (
                 <div className={`${s.changeBanner} ${cashGivenNum - finalTotal === 0 ? s.changeBannerExact : s.changeBannerChange}`}>
-                  <span className={s.changeBannerLabel} style={{ color: cashGivenNum - finalTotal === 0 ? 'var(--success-dark)' : 'var(--warning-dark)' }}>
+                  <span className={s.changeBannerLabel} style={{ color: cashGivenNum - finalTotal === 0 ? 'var(--badge-success-text)' : 'var(--badge-warning-text)' }}>
                     {cashGivenNum - finalTotal === 0 ? '✅ Exact amount' : '💰 Change to give'}
                   </span>
                   {cashGivenNum - finalTotal > 0 && (
@@ -551,12 +551,12 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                     />
                   </div>
                   {mpesaPhone && !isValidKenyanPhone(mpesaPhone) && (
-                    <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                    <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 4, fontWeight: 600 }}>
                       ✗ Enter a valid number — 07XXXXXXXX, 01XXXXXXXX or 2547XXXXXXXX
                     </div>
                   )}
                   {mpesaPhone && isValidKenyanPhone(mpesaPhone) && (
-                    <div style={{ fontSize: 11, color: 'var(--success-dark)', marginTop: 4, fontWeight: 600 }}>
+                    <div style={{ fontSize: 11, color: 'var(--badge-success-text)', marginTop: 4, fontWeight: 600 }}>
                       ✓ Valid phone number
                     </div>
                   )}
@@ -675,12 +675,12 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                           />
                         </div>
                         {splitMpesaPhone && !isValidKenyanPhone(splitMpesaPhone) && (
-                          <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                          <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 4, fontWeight: 600 }}>
                             ✗ Enter a valid number — 07XXXXXXXX, 01XXXXXXXX or 2547XXXXXXXX
                           </div>
                         )}
                         {splitMpesaPhone && isValidKenyanPhone(splitMpesaPhone) && (
-                          <div style={{ fontSize: 11, color: 'var(--success-dark)', marginTop: 4, fontWeight: 600 }}>
+                          <div style={{ fontSize: 11, color: 'var(--badge-success-text)', marginTop: 4, fontWeight: 600 }}>
                             ✓ Valid phone number
                           </div>
                         )}
@@ -822,7 +822,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                   />
                 </div>
                 {cardApprovalCode.trim() && !isValidCardCode(cardApprovalCode.trim()) && (
-                  <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                  <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 4, fontWeight: 600 }}>
                     {!CODE_RX.test(cardApprovalCode.trim())
                       ? '✗ Letters and numbers only — no spaces or symbols'
                       : '✗ Too short — minimum 6 characters'}
@@ -843,8 +843,8 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                   />
                 </div>
                 {cardApprovalCode.trim() && cardApprovalCodeConfirm.trim() && cardApprovalCode.trim() !== cardApprovalCodeConfirm.trim() && (
-                  <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: '8px' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: '#dc2626', marginBottom: 6 }}>⚠️ Codes don't match</div>
+                  <div style={{ background: 'var(--danger-light)', border: '1.5px solid var(--danger-light)', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: '8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--danger)', marginBottom: 6 }}>⚠️ Codes don't match</div>
                     <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
                       <div>
                         <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 2 }}>First entry</div>
@@ -855,7 +855,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                         <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{cardApprovalCodeConfirm.trim()}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#991b1b', marginTop: 6 }}>Fix the entry that contains the typo.</div>
+                    <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 6 }}>Fix the entry that contains the typo.</div>
                   </div>
                 )}
                 {isValidCardCode(cardApprovalCode.trim()) && cardApprovalCodeConfirm.trim() && cardApprovalCode.trim() === cardApprovalCodeConfirm.trim() && (
@@ -899,7 +899,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                   />
                 </div>
                 {bankReference.trim() && !isValidBankRef(bankReference.trim()) && (
-                  <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 4, fontWeight: 600 }}>
+                  <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 4, fontWeight: 600 }}>
                     {!CODE_RX.test(bankReference.trim())
                       ? '✗ Letters and numbers only — no spaces or symbols'
                       : '✗ Too short — minimum 8 characters'}
@@ -920,8 +920,8 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                   />
                 </div>
                 {bankReference.trim() && bankReferenceConfirm.trim() && bankReference.trim() !== bankReferenceConfirm.trim() && (
-                  <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: '8px' }}>
-                    <div style={{ fontWeight: 700, fontSize: 13, color: '#dc2626', marginBottom: 6 }}>⚠️ References don't match</div>
+                  <div style={{ background: 'var(--danger-light)', border: '1.5px solid var(--danger-light)', borderRadius: 'var(--radius-md)', padding: '12px 14px', marginTop: '8px' }}>
+                    <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--danger)', marginBottom: 6 }}>⚠️ References don't match</div>
                     <div style={{ display: 'flex', gap: 16, fontSize: 12 }}>
                       <div>
                         <div style={{ color: 'var(--text-muted)', fontSize: 11, marginBottom: 2 }}>First entry</div>
@@ -932,7 +932,7 @@ export default function CheckoutModal({ cartTotal, cart, onConfirm, onCancel }) 
                         <div style={{ fontFamily: 'monospace', fontWeight: 600 }}>{bankReferenceConfirm.trim()}</div>
                       </div>
                     </div>
-                    <div style={{ fontSize: 11, color: '#991b1b', marginTop: 6 }}>Fix the entry that contains the typo.</div>
+                    <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 6 }}>Fix the entry that contains the typo.</div>
                   </div>
                 )}
                 {isValidBankRef(bankReference.trim()) && bankReferenceConfirm.trim() && bankReference.trim() === bankReferenceConfirm.trim() && (

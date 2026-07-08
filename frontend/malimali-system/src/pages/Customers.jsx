@@ -3,7 +3,7 @@ import {
   MdSearch, MdPhone, MdCheckCircle, MdStore, MdRefresh,
   MdPayment, MdClose, MdBlock, MdWarning, MdPeopleAlt,
   MdCalendarToday, MdTrendingDown, MdReceiptLong,
-  MdAccessTime, MdExpandMore, MdExpandLess, MdCall,
+  MdAccessTime, MdExpandMore, MdExpandLess, MdCall, MdFilterList,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useHistoryModal } from '@/hooks/useHistoryModal'
@@ -43,8 +43,8 @@ function PromisePill({ dateStr, size = 'sm' }) {
   if (days === null) return null
   const overdue  = days < 0
   const dueSoon  = !overdue && days <= 3
-  const color    = overdue ? '#991b1b'           : dueSoon ? '#92400e'           : 'var(--success-dark)'
-  const bg       = overdue ? '#fee2e2'           : dueSoon ? '#fff7ed'           : 'var(--success-light)'
+  const color    = overdue ? 'var(--danger-dark)' : dueSoon ? 'var(--warning-dark)'  : 'var(--success-dark)'
+  const bg       = overdue ? 'var(--danger-light)' : dueSoon ? 'var(--orange-light)' : 'var(--success-light)'
   const label    = overdue
     ? `${Math.abs(days)}d overdue`
     : days === 0 ? 'Due TODAY'
@@ -61,9 +61,9 @@ function PromisePill({ dateStr, size = 'sm' }) {
 // ── Status badge ──────────────────────────────────────────────────────
 function StatusBadge({ customer }) {
   const base = { fontSize: 10, fontWeight: 800, padding: '2px 8px', borderRadius: 20, letterSpacing: '0.04em', whiteSpace: 'nowrap' }
-  if (customer.blacklisted)   return <span style={{ ...base, background: '#fee2e2', color: '#991b1b' }}>🚫 BLACKLISTED</span>
-  if (customer.overdue)       return <span style={{ ...base, background: '#fff7ed', color: '#92400e' }}>⚠️ OVERDUE</span>
-  if (customer.balance === 0) return <span style={{ ...base, background: 'var(--success-light)', color: 'var(--success-dark)' }}>✅ SETTLED</span>
+  if (customer.blacklisted)   return <span style={{ ...base, background: 'var(--danger-light)', color: 'var(--badge-danger-text)' }}>🚫 BLACKLISTED</span>
+  if (customer.overdue)       return <span style={{ ...base, background: 'var(--orange-light)', color: 'var(--badge-warning-text)' }}>⚠️ OVERDUE</span>
+  if (customer.balance === 0) return <span style={{ ...base, background: 'var(--success-light)', color: 'var(--badge-success-text)' }}>✅ SETTLED</span>
   return                             <span style={{ ...base, background: 'var(--primary-light)', color: 'var(--primary)' }}>📋 ACTIVE</span>
 }
 
@@ -83,7 +83,7 @@ function RepaymentModal({ customer, onClose, onSubmit, loading }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-bg)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 420, boxShadow: 'var(--shadow-dropdown)', overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', background: 'var(--primary-light)', borderBottom: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
@@ -141,7 +141,7 @@ function BlacklistModal({ customer, onClose, onSubmit, loading }) {
   const [reason, setReason] = useState('')
   const isBlacklisting = !customer.blacklisted
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-bg)', backdropFilter: 'blur(4px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 380, boxShadow: 'var(--shadow-dropdown)', overflow: 'hidden' }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border-soft)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text-primary)' }}>{isBlacklisting ? '🚫 Blacklist Customer' : '✅ Remove Blacklist'}</div>
@@ -202,10 +202,10 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
       <div className={s.statGrid} style={{ background: 'var(--bg-muted)' }}>
         {[
           { label: 'Total Borrowed', value: `${currency} ${totalCredit.toLocaleString()}`,                           color: 'var(--text-primary)'  },
-          { label: 'Total Paid',     value: `${currency} ${totalPaid.toLocaleString()}`,                              color: 'var(--success-dark)'  },
+          { label: 'Total Paid',     value: `${currency} ${totalPaid.toLocaleString()}`,                              color: 'var(--badge-success-text)'  },
           { label: 'Balance Due',    value: `${currency} ${(customer.balance || 0).toLocaleString()}`,                color: customer.balance > 0 ? 'var(--danger)' : 'var(--success-dark)' },
           { label: 'Credit Sales',   value: `${sales?.length || 0} sale${sales?.length !== 1 ? 's' : ''}`,   color: 'var(--primary)'       },
-          { label: 'Payments Made',  value: `${repayments?.length || 0} payment${repayments?.length !== 1 ? 's' : ''}`, color: 'var(--success-dark)' },
+          { label: 'Payments Made',  value: `${repayments?.length || 0} payment${repayments?.length !== 1 ? 's' : ''}`, color: 'var(--badge-success-text)' },
         ].map((s, i) => (
           <div key={s.label} style={{ padding: '10px 14px' }}>
             <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', color: 'var(--text-muted)', marginBottom: 3 }}>{s.label}</div>
@@ -282,7 +282,7 @@ function CustomerExpanded({ customerId, customer, onRecord, onBlacklist, isOwner
               {repayments.map((rep, idx) => (
                 <div key={rep._id} style={{ padding: '12px 16px', borderBottom: idx < repayments.length - 1 ? '1px solid var(--border-soft)' : 'none', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
                   <div>
-                    <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--success-dark)', marginBottom: 3 }}>
+                    <div style={{ fontSize: 15, fontWeight: 900, color: 'var(--badge-success-text)', marginBottom: 3 }}>
                       + {currency} {rep.amount?.toLocaleString()}
                     </div>
                     <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>
@@ -328,11 +328,11 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
 
   const days         = daysUntil(customer.nextPromiseDate)
   const isUrgent     = days !== null && days <= 3
-  const borderColor  = customer.blacklisted ? 'var(--danger)' : customer.overdue ? '#dc2626' : isUrgent ? '#f59e0b' : customer.balance === 0 ? 'var(--success)' : 'var(--primary)'
-  const headerBg     = open ? 'var(--primary-light)' : customer.blacklisted ? '#fff5f5' : customer.overdue ? '#fff9f5' : 'var(--bg-card)'
+  const borderColor  = customer.blacklisted ? 'var(--danger)' : customer.overdue ? 'var(--danger)' : isUrgent ? 'var(--warning)' : customer.balance === 0 ? 'var(--success)' : 'var(--primary)'
+  const headerBg     = open ? 'var(--primary-light)' : customer.blacklisted ? 'var(--danger-light)' : customer.overdue ? 'var(--orange-light)' : 'var(--bg-card)'
 
   return (
-    <div style={{ borderRadius: 'var(--radius-lg)', border: `1px solid ${customer.blacklisted ? '#fecaca' : customer.overdue ? '#fed7aa' : 'var(--border-soft)'}`, borderLeft: `4px solid ${borderColor}`, background: 'var(--bg-card)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
+    <div style={{ borderRadius: 'var(--radius-lg)', border: `1px solid ${customer.blacklisted ? 'var(--danger-light)' : customer.overdue ? 'var(--warning-light)' : 'var(--border-soft)'}`, borderLeft: `4px solid ${borderColor}`, background: 'var(--bg-card)', boxShadow: 'var(--shadow-card)', overflow: 'hidden' }}>
 
       {/* ── Collapsed header — all key info visible ──────────────── */}
       <div
@@ -342,7 +342,7 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
         {/* Row 1: Avatar + Name + Status + Balance */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
           {/* Avatar */}
-          <div style={{ width: 42, height: 42, borderRadius: '50%', background: customer.blacklisted ? '#fecaca' : customer.overdue ? '#fed7aa' : 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: customer.blacklisted ? 'var(--danger)' : customer.overdue ? '#dc2626' : 'var(--primary)', fontWeight: 900, fontSize: 18, flexShrink: 0 }}>
+          <div style={{ width: 42, height: 42, borderRadius: '50%', background: customer.blacklisted ? 'var(--danger-light)' : customer.overdue ? 'var(--warning-light)' : 'var(--primary-light)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: customer.blacklisted ? 'var(--danger)' : customer.overdue ? 'var(--danger)' : 'var(--primary)', fontWeight: 900, fontSize: 18, flexShrink: 0 }}>
             {customer.name?.charAt(0).toUpperCase()}
           </div>
 
@@ -352,7 +352,7 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
               <StatusBadge customer={customer} />
             </div>
             {customer.blacklisted && customer.blacklistReason && (
-              <div style={{ fontSize: 11, color: '#dc2626', fontWeight: 600, marginTop: 2 }}>
+              <div style={{ fontSize: 11, color: 'var(--danger)', fontWeight: 600, marginTop: 2 }}>
                 Blacklisted: {customer.blacklistReason} · by {customer.blacklistedBy}
               </div>
             )}
@@ -360,7 +360,7 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
 
           {/* Balance — big and clear */}
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 20, fontWeight: 900, color: customer.balance === 0 ? 'var(--success-dark)' : customer.overdue ? '#dc2626' : 'var(--primary)', lineHeight: 1 }}>
+            <div style={{ fontSize: 20, fontWeight: 900, color: customer.balance === 0 ? 'var(--success-dark)' : customer.overdue ? 'var(--danger)' : 'var(--primary)', lineHeight: 1 }}>
               {currency} {customer.balance?.toLocaleString()}
             </div>
             <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', marginTop: 2 }}>
@@ -413,7 +413,7 @@ function CustomerRow({ customer, isOwner, onRecord, onBlacklist, defaultOpen }) 
           {customer.nextPromiseDate ? (
             <PromisePill dateStr={customer.nextPromiseDate} size="lg" />
           ) : customer.balance > 0 ? (
-            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>
+            <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}>
               ⚠️ No promise date set
             </span>
           ) : null}
@@ -441,6 +441,7 @@ export default function Customers() {
   const { fetchCustomers, recordRepayment, blacklistCustomer, stores, currentUser, isOwner, settings } = useApp()
   const currency = settings?.currency || 'KSh'
 
+  const [filtersOpen,  setFiltersOpen]  = useState(false)
   const [customers,    setCustomers]    = useState([])
   const [search,       setSearch]       = useState('')
   const [storeFilter,  setStoreFilter]  = useState('')
@@ -538,11 +539,24 @@ export default function Customers() {
       )}
 
       {/* Header */}
-      <div style={{ marginBottom: 20 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Debtor Tracker</h1>
-        <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
-          Click any customer to see full credit history · Phone numbers are clickable to call directly
-        </p>
+      <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>Debtor Tracker</h1>
+          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>
+            Click any customer to see full credit history · Phone numbers are clickable to call directly
+          </p>
+        </div>
+        <button
+          className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex-shrink-0"
+          style={{
+            background: filtersOpen ? 'var(--primary)' : 'var(--bg-card)',
+            color: filtersOpen ? '#fff' : 'var(--text-secondary)',
+            border: '1px solid var(--border-medium)',
+          }}
+          onClick={() => setFiltersOpen(o => !o)}
+        >
+          <MdFilterList /> {filtersOpen ? 'Hide Filters' : 'Filters'}
+        </button>
       </div>
 
       {/* Summary cards */}
@@ -551,8 +565,8 @@ export default function Customers() {
           { label: 'Outstanding',  value: `${currency} ${totalDebt.toLocaleString()}`, icon: <MdTrendingDown />, color: 'var(--primary)',   bg: 'var(--primary-light)', border: 'var(--primary-muted)' },
           { label: 'Active',       value: activeCount,                          icon: <MdPeopleAlt />,   color: 'var(--primary)',   bg: 'var(--primary-light)', border: 'var(--primary-muted)' },
           { label: 'Due Soon',     value: dueSoonCount,                         icon: <MdCalendarToday />, color: dueSoonCount > 0 ? 'var(--warning-dark)' : 'var(--text-muted)', bg: dueSoonCount > 0 ? 'var(--warning-light)' : 'var(--bg-card)', border: dueSoonCount > 0 ? 'var(--warning)' : 'var(--border-soft)' },
-          { label: 'Overdue',      value: overdueCount,                         icon: <MdWarning />,     color: overdueCount > 0 ? '#dc2626' : 'var(--text-muted)', bg: overdueCount > 0 ? '#fff5f5' : 'var(--bg-card)', border: overdueCount > 0 ? '#fecaca' : 'var(--border-soft)' },
-          { label: 'Blacklisted',  value: blacklistedCount,                     icon: <MdBlock />,       color: blacklistedCount > 0 ? 'var(--danger)' : 'var(--text-muted)', bg: blacklistedCount > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: blacklistedCount > 0 ? '#fecaca' : 'var(--border-soft)' },
+          { label: 'Overdue',      value: overdueCount,                         icon: <MdWarning />,     color: overdueCount > 0 ? 'var(--danger)' : 'var(--text-muted)', bg: overdueCount > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: overdueCount > 0 ? 'var(--danger-light)' : 'var(--border-soft)' },
+          { label: 'Blacklisted',  value: blacklistedCount,                     icon: <MdBlock />,       color: blacklistedCount > 0 ? 'var(--danger)' : 'var(--text-muted)', bg: blacklistedCount > 0 ? 'var(--danger-light)' : 'var(--bg-card)', border: blacklistedCount > 0 ? 'var(--danger-light)' : 'var(--border-soft)' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 'var(--radius-lg)', padding: '14px 16px', boxShadow: 'var(--shadow-card)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -565,7 +579,7 @@ export default function Customers() {
       </div>
 
       {/* Filters */}
-      <div className={s.filterRow} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-soft)', marginBottom: 16, boxShadow: 'var(--shadow-card)' }}>
+      <div className={`${s.filterRow}${filtersOpen ? '' : ' md:hidden'}`} style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', border: '1px solid var(--border-soft)', marginBottom: 16, boxShadow: 'var(--shadow-card)' }}>
         <div className={s.filterSearch}>
           <MdSearch style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', fontSize: 18 }} />
           <input type="text" placeholder="Search name or phone..." value={search} onChange={e => setSearch(e.target.value)}

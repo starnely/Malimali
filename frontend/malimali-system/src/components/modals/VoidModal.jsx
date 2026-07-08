@@ -121,11 +121,11 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
   }
 
   return (
-    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(4px)' }}>
+    <div style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, background: 'var(--overlay-bg)', backdropFilter: 'blur(4px)' }}>
       <div style={{ width: '100%', maxWidth: 520, background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-dropdown)', overflow: 'hidden', display: 'flex', flexDirection: 'column', maxHeight: '90dvh' }}>
 
         {/* Header */}
-        <div style={{ padding: '16px 20px', background: '#7f1d1d', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        <div style={{ padding: '16px 20px', background: 'var(--danger-dark)', borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <div style={{ width: 32, height: 32, borderRadius: 'var(--radius-sm)', background: 'rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <MdBlock style={{ color: '#fff', fontSize: 18 }} />
@@ -218,7 +218,7 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
                               <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Void qty:</span>
                               <button onClick={() => setItemQty(item._id, (selectedItems[item._id] || 1) - 1, item.qty, alreadyVoided)}
                                 style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 900, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)' }}>−</button>
-                              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--danger-dark)', minWidth: 20, textAlign: 'center' }}>{selectedItems[item._id]}</span>
+                              <span style={{ fontSize: 14, fontWeight: 800, color: 'var(--badge-danger-text)', minWidth: 20, textAlign: 'center' }}>{selectedItems[item._id]}</span>
                               <button onClick={() => setItemQty(item._id, (selectedItems[item._id] || 1) + 1, item.qty, alreadyVoided)}
                                 style={{ width: 24, height: 24, borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', cursor: 'pointer', fontWeight: 900, fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-primary)' }}>+</button>
                               <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>/ {remaining}</span>
@@ -232,7 +232,7 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
               )}
               {selectedCount > 0 && (
                 <div style={{ marginTop: 10, padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div style={{ fontSize: 12, color: 'var(--danger-dark)', fontWeight: 600 }}>
+                  <div style={{ fontSize: 12, color: 'var(--badge-danger-text)', fontWeight: 600 }}>
                     <MdShoppingCart style={{ verticalAlign: 'middle', marginRight: 4 }} />
                     {selectedCount} item line{selectedCount !== 1 ? 's' : ''} selected
                   </div>
@@ -247,7 +247,7 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
             <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-soft)' }}>
               <div style={{ padding: '12px 14px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger)', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
                 <MdWarning style={{ color: 'var(--danger)', fontSize: 18, flexShrink: 0, marginTop: 1 }} />
-                <div style={{ fontSize: 12, color: 'var(--danger-dark)', lineHeight: 1.5 }}>
+                <div style={{ fontSize: 12, color: 'var(--badge-danger-text)', lineHeight: 1.5 }}>
                   Voiding the entire sale will <strong>return all {sale?.items?.length} items to stock</strong> and cannot be undone.
                 </div>
               </div>
@@ -309,7 +309,7 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
 
             {/* Error */}
             {error && (
-              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
                 <MdWarning style={{ flexShrink: 0 }} /> {error}
               </div>
             )}

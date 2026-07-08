@@ -257,7 +257,40 @@ router.patch("/:id/toggle", authMiddleware, ownerOnly, async (req, res) => {
   }
 });
 
-// ── 6. UPDATE USER PROFILE (owner only) ─────────────────────────────
+// ── 6. SET OWN APPROVAL PIN (owner sets/changes their own PIN) ───────
+// Must be defined BEFORE /:id to prevent Express swallowing it as a param.
+router.put("/set-my-pin", authMiddleware, ownerOnly, async (req, res) => {
+  try {
+    const { currentPassword, pin } = req.body;
+
+    if (!currentPassword || !pin) {
+      return res.status(400).json({ success: false, message: "Current password and new PIN are required." });
+    }
+
+    const pinStr = String(pin).trim();
+    if (!/^\d{4,6}$/.test(pinStr)) {
+      return res.status(400).json({ success: false, message: "PIN must be 4–6 digits (numbers only)." });
+    }
+
+    const user = await User.findById(req.user.id);
+    if (!user) return res.status(404).json({ success: false, message: "User not found." });
+
+    const isMatch = await bcrypt.compare(currentPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ success: false, message: "Current password is incorrect." });
+    }
+
+    user.approvalPin = await bcrypt.hash(pinStr, 10);
+    await user.save();
+    return res.json({ success: true, message: "Approval PIN updated successfully." });
+
+  } catch (err) {
+    console.error("Set-my-pin error:", err.message);
+    return res.status(500).json({ success: false, message: "Server error.", error: err.message });
+  }
+});
+
+// ── 7. UPDATE USER PROFILE (owner only) ─────────────────────────────
 router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
   try {
     const { id } = req.params;
@@ -319,39 +352,6 @@ router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
     }
     console.error("User update error:", err.message);
     return res.status(500).json({ success: false, message: "Server error during profile update.", error: err.message });
-  }
-});
-
-// ── 7. SET OWN APPROVAL PIN (owner sets/changes their own PIN) ───────
-// Requires current password to authorise the change (same pattern as change-password).
-router.put("/set-my-pin", authMiddleware, ownerOnly, async (req, res) => {
-  try {
-    const { currentPassword, pin } = req.body;
-
-    if (!currentPassword || !pin) {
-      return res.status(400).json({ success: false, message: "Current password and new PIN are required." });
-    }
-
-    const pinStr = String(pin).trim();
-    if (!/^\d{4,6}$/.test(pinStr)) {
-      return res.status(400).json({ success: false, message: "PIN must be 4–6 digits (numbers only)." });
-    }
-
-    const user = await User.findById(req.user.id);
-    if (!user) return res.status(404).json({ success: false, message: "User not found." });
-
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, message: "Current password is incorrect." });
-    }
-
-    user.approvalPin = await bcrypt.hash(pinStr, 10);
-    await user.save();
-    return res.json({ success: true, message: "Approval PIN updated successfully." });
-
-  } catch (err) {
-    console.error("Set-my-pin error:", err.message);
-    return res.status(500).json({ success: false, message: "Server error.", error: err.message });
   }
 });
 

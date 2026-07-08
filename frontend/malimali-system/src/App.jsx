@@ -42,7 +42,7 @@ function App() {
           <div className="flex flex-col items-center gap-4 text-center px-6" style={{ maxWidth: '280px' }}>
             <div
               className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-bold flex-shrink-0"
-              style={{ background: 'var(--warning-light)', color: 'var(--warning-dark)' }}
+              style={{ background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}
             >
               !
             </div>

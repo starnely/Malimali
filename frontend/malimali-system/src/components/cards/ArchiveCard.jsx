@@ -19,7 +19,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
     {
       label:   '💵 Cash in Drawer',
       value:   pb.cash   || 0,
-      color:   'var(--success-dark)',
+      color:   'var(--badge-success-text)',
       bg:      'var(--success-light)',
       border:  'var(--success)',
       always:  true,
@@ -27,7 +27,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
     {
       label:   '📱 M-Pesa Total',
       value:   pb.mpesa  || 0,
-      color:   'var(--info-dark)',
+      color:   'var(--badge-info-text)',
       bg:      'var(--info-light)',
       border:  'var(--info)',
       always:  true,
@@ -73,7 +73,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
             style={{ background: archive.isLive ? 'var(--success-light)' : 'var(--primary-light)' }}
           >
             {archive.isLive
-              ? <MdRefresh style={{ color: 'var(--success-dark)', fontSize: '20px' }} />
+              ? <MdRefresh style={{ color: 'var(--badge-success-text)', fontSize: '20px' }} />
               : <MdArchive style={{ color: 'var(--primary)',      fontSize: '20px' }} />
             }
           </div>
@@ -87,7 +87,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
               {archive.isLive && (
                 <span
                   className="text-[10px] px-2 py-0.5 rounded font-black uppercase tracking-wider"
-                  style={{ background: 'var(--success-light)', color: 'var(--success-dark)' }}
+                  style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)' }}
                 >
                   LIVE
                 </span>
@@ -118,7 +118,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
           </div>
           <div className="text-right">
             <div className="text-[10px] uppercase font-bold" style={{ color: 'var(--text-muted)' }}>Profit</div>
-            <div className="text-lg font-black" style={{ color: 'var(--success-dark)' }}>
+            <div className="text-lg font-black" style={{ color: 'var(--badge-success-text)' }}>
               {currency} {(archive.totalProfit || 0).toLocaleString()}
             </div>
           </div>
@@ -137,9 +137,9 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
             {[
               { label: 'Total Revenue', value: `${currency} ${(archive.totalRevenue || 0).toLocaleString()}`, color: 'var(--primary)',      bg: 'var(--primary-light)',  icon: <MdAttachMoney /> },
-              { label: 'Total Profit',  value: `${currency} ${(archive.totalProfit  || 0).toLocaleString()}`, color: 'var(--success-dark)', bg: 'var(--success-light)', icon: <MdTrendingUp />  },
-              { label: 'Transactions',  value: archive.totalTransactions || 0,                        color: 'var(--warning-dark)', bg: 'var(--warning-light)', icon: <MdPointOfSale /> },
-              { label: 'Items Sold',    value: fmtQty(archive.totalItems || 0),                      color: 'var(--info-dark)',    bg: 'var(--info-light)',    icon: <MdInventory />   },
+              { label: 'Total Profit',  value: `${currency} ${(archive.totalProfit  || 0).toLocaleString()}`, color: 'var(--badge-success-text)', bg: 'var(--success-light)', icon: <MdTrendingUp />  },
+              { label: 'Transactions',  value: archive.totalTransactions || 0,                        color: 'var(--badge-warning-text)', bg: 'var(--warning-light)', icon: <MdPointOfSale /> },
+              { label: 'Items Sold',    value: fmtQty(archive.totalItems || 0),                      color: 'var(--badge-info-text)',    bg: 'var(--info-light)',    icon: <MdInventory />   },
             ].map((card, i) => (
               <div
                 key={i}
@@ -184,7 +184,7 @@ export default function ArchiveCard({ archive, isExpanded, onToggle, onViewDebto
             >
               <div
                 className="text-[10px] uppercase font-bold mb-1"
-                style={{ color: pb.credit > 0 ? 'var(--danger-dark)' : 'var(--text-muted)' }}
+                style={{ color: pb.credit > 0 ? 'var(--badge-danger-text)' : 'var(--text-muted)' }}
               >
                 📋 Unpaid Credit {pb.credit > 0 ? '→ View' : ''}
               </div>

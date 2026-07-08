@@ -3,7 +3,7 @@ import {
   MdAttachMoney, MdAdd, MdClose, MdDelete,
   MdPieChart, MdCalendarToday, MdRefresh,
   MdTrendingDown, MdReceiptLong, MdCategory,
-  MdExpandMore, MdExpandLess, MdStorefront,
+  MdExpandMore, MdExpandLess, MdStorefront, MdFilterList,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import { useHistoryModal } from '@/hooks/useHistoryModal'
@@ -55,6 +55,7 @@ export default function Expenses() {
   const [expenses,      setExpenses]      = useState([])
   const [summary,       setSummary]       = useState([])
   const [grandTotal,    setGrandTotal]    = useState(0)
+  const [filtersOpen,   setFiltersOpen]   = useState(false)
   const [filterDate,    setFilterDate]    = useState(TODAY_EAT)
   const [filterCat,     setFilterCat]     = useState('')
   const [filterStore,   setFilterStore]   = useState('')   // owner view filter
@@ -145,7 +146,18 @@ export default function Expenses() {
           <h1><MdAttachMoney style={{ color: 'var(--danger)' }} /> Expenses</h1>
           <p>Track daily business expenses and view category breakdowns</p>
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <button
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: filtersOpen ? 'var(--primary)' : 'var(--bg-card)',
+              color: filtersOpen ? '#fff' : 'var(--text-secondary)',
+              border: '1px solid var(--border-medium)',
+            }}
+            onClick={() => setFiltersOpen(o => !o)}
+          >
+            <MdFilterList /> {filtersOpen ? 'Hide Filters' : 'Filters'}
+          </button>
           <button className={styles.btnSecondary} onClick={load} disabled={loading}>
             <MdRefresh style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} />
             {loading ? 'Loading...' : 'Refresh'}
@@ -157,7 +169,7 @@ export default function Expenses() {
       </div>
 
       {/* ── Filters ── */}
-      <div className={styles.filtersBar}>
+      <div className={`${styles.filtersBar}${filtersOpen ? '' : ' md:hidden'}`}>
 
         {/* Owner: store filter for viewing */}
         {isOwner && stores.length > 0 && (
@@ -202,7 +214,7 @@ export default function Expenses() {
         {/* Summary cards */}
         <div className={styles.summaryRow}>
           <div className={`${styles.summaryCard} ${styles.summaryDanger}`}>
-            <div className={styles.summaryIconWrap} style={{ background: '#fee2e2' }}>
+            <div className={styles.summaryIconWrap} style={{ background: 'var(--danger-light)' }}>
               <MdTrendingDown style={{ color: 'var(--danger)', fontSize: 20 }} />
             </div>
             <div>
@@ -213,7 +225,7 @@ export default function Expenses() {
           </div>
 
           <div className={`${styles.summaryCard} ${styles.summaryBlue}`}>
-            <div className={styles.summaryIconWrap} style={{ background: '#dbeafe' }}>
+            <div className={styles.summaryIconWrap} style={{ background: 'var(--info-light)' }}>
               <MdReceiptLong style={{ color: 'var(--primary)', fontSize: 20 }} />
             </div>
             <div>
@@ -224,8 +236,8 @@ export default function Expenses() {
           </div>
 
           <div className={`${styles.summaryCard} ${styles.summaryPurple}`}>
-            <div className={styles.summaryIconWrap} style={{ background: '#ede9fe' }}>
-              <MdCategory style={{ color: '#7c3aed', fontSize: 20 }} />
+            <div className={styles.summaryIconWrap} style={{ background: 'var(--accent-light)' }}>
+              <MdCategory style={{ color: 'var(--accent)', fontSize: 20 }} />
             </div>
             <div>
               <div className={styles.label}>Categories Used</div>
@@ -236,12 +248,12 @@ export default function Expenses() {
 
           {summary[0] && (
             <div className={`${styles.summaryCard} ${styles.summaryOrange}`}>
-              <div className={styles.summaryIconWrap} style={{ background: '#ffedd5' }}>
+              <div className={styles.summaryIconWrap} style={{ background: 'var(--warning-light)' }}>
                 <span style={{ fontSize: 20 }}>{CAT_MAP[summary[0]._id]?.emoji || '📊'}</span>
               </div>
               <div>
                 <div className={styles.label}>Highest Category</div>
-                <div className={styles.value} style={{ fontSize: 14, color: '#ea580c' }}>{CAT_MAP[summary[0]._id]?.label || summary[0]._id}</div>
+                <div className={styles.value} style={{ fontSize: 14, color: 'var(--orange)' }}>{CAT_MAP[summary[0]._id]?.label || summary[0]._id}</div>
                 <div className={styles.summaryMeta}>KSh {summary[0].total.toLocaleString()}</div>
               </div>
             </div>
@@ -424,7 +436,7 @@ function ExpenseRow({ exp, canDelete, showStore, confirmId, setConfirmId, handle
         <td style={{ textAlign: 'center' }}>
           {confirmId === exp._id ? (
             <div style={{ display: 'flex', gap: 6, justifyContent: 'center', alignItems: 'center' }}>
-              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--danger-dark)' }}>Delete?</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--badge-danger-text)' }}>Delete?</span>
               <button onClick={() => setConfirmId(null)} className={styles.btnSecondary} style={{ padding: '2px 8px', height: 26, fontSize: 11 }}>No</button>
               <button onClick={() => handleDelete(exp._id)} style={{ padding: '2px 8px', height: 26, fontSize: 11, border: 'none', borderRadius: 'var(--radius-sm)', background: 'var(--danger)', color: 'white', fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Yes</button>
             </div>
@@ -519,17 +531,17 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
           {Number(amount) > 0 && (
             <div style={{
               padding: '12px 14px', background: 'var(--danger-light)',
-              border: '1px solid #fecaca', borderRadius: 'var(--radius-md)',
+              border: '1px solid var(--danger-light)', borderRadius: 'var(--radius-md)',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center',
             }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger-dark)', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--badge-danger-text)', textTransform: 'uppercase' }}>
                   {selectedCat?.emoji} {selectedCat?.label}
                   {(isOwner ? selectedStore : store) && (
                     <span style={{ marginLeft: 8, opacity: 0.7 }}>· {isOwner ? selectedStore : store}</span>
                   )}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--danger-dark)', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: 'var(--badge-danger-text)', marginTop: 2 }}>
                   {description || 'No description'}
                 </div>
               </div>
@@ -540,7 +552,7 @@ function LogExpenseModal({ store, isOwner, onClose, onSaved, logExpense }) {
           )}
 
           {error && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>
               {error}
             </div>
           )}

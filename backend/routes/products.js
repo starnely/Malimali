@@ -56,7 +56,8 @@ router.get("/", async (req, res) => {
 router.get("/low-stock", async (req, res) => {
   try {
     const filter = { isExpired: { $ne: true } }
-    if (req.query.store) filter.store = req.query.store
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
     const rawThreshold = req.query.threshold !== undefined ? parseInt(req.query.threshold, 10) : null
     const stockExpr = rawThreshold !== null && !isNaN(rawThreshold)
       ? { $lte: ["$stock", rawThreshold] }
@@ -165,6 +166,8 @@ router.put("/:id", managerOrOwner, async (req, res) => {
 
     const existing = await Product.findById(req.params.id).lean()
     if (!existing) return res.status(404).json({ success: false, message: "Product not found." })
+    if (req.user.role === "manager" && existing.store !== req.user.store)
+      return res.status(403).json({ success: false, message: "Access denied: This product belongs to a different store." })
 
     const finalBarcode = barcode && barcode.trim()
       ? barcode.trim()
@@ -216,7 +219,7 @@ router.put("/:id", managerOrOwner, async (req, res) => {
     } else {
       Product.findByIdAndUpdate(updated._id, { $set: { needsReorder: true } }).catch(() => {})
       if (io) {
-        io.to("owner").to("manager").emit("lowStockAlert", {
+        io.to("owner").to(`manager-${updated.store}`).emit("lowStockAlert", {
           productId: updated._id,
           productName: updated.name,
           stock: updated.stock,

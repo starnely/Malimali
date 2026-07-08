@@ -2,13 +2,13 @@ import SaleCard from './SaleCard'
 import { fmtQty } from '@/utils/utils'
 
 const DAY_COLORS = [
-  { bg: 'var(--primary-light)', border: 'var(--primary-muted)', header: 'var(--primary-light)', text: 'var(--primary-dark)' }, // Sun
-  { bg: 'var(--success-light)', border: 'var(--success)', header: 'var(--success-light)', text: 'var(--success-dark)' }, // Mon
-  { bg: 'var(--info-light)', border: 'var(--info)', header: 'var(--info-light)', text: 'var(--info-dark)' }, // Tue
-  { bg: 'var(--warning-light)', border: 'var(--warning)', header: 'var(--warning-light)', text: 'var(--warning-dark)' }, // Wed
-  { bg: 'var(--danger-light)', border: 'var(--danger)', header: 'var(--danger-light)', text: 'var(--danger-dark)' }, // Thu
-  { bg: 'var(--primary-light)', border: 'var(--primary)', header: 'var(--primary-light)', text: 'var(--primary)' }, // Fri
-  { bg: 'var(--success-light)', border: 'var(--success-dark)', header: 'var(--success-light)', text: 'var(--success-dark)' }, // Sat
+  { bg: 'var(--primary-light)', border: 'var(--primary-muted)', header: 'var(--primary-light)', text: 'var(--badge-primary-text)' }, // Sun
+  { bg: 'var(--success-light)', border: 'var(--success)', header: 'var(--success-light)', text: 'var(--badge-success-text)' }, // Mon
+  { bg: 'var(--info-light)', border: 'var(--info)', header: 'var(--info-light)', text: 'var(--badge-info-text)' }, // Tue
+  { bg: 'var(--warning-light)', border: 'var(--warning)', header: 'var(--warning-light)', text: 'var(--badge-warning-text)' }, // Wed
+  { bg: 'var(--danger-light)', border: 'var(--danger)', header: 'var(--danger-light)', text: 'var(--badge-danger-text)' }, // Thu
+  { bg: 'var(--primary-light)', border: 'var(--primary)', header: 'var(--primary-light)', text: 'var(--badge-primary-text)' }, // Fri
+  { bg: 'var(--success-light)', border: 'var(--success-dark)', header: 'var(--success-light)', text: 'var(--badge-success-text)' }, // Sat
 ]
 
 function getColorForDate(date) {

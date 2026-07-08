@@ -202,7 +202,7 @@ export default function ProductFormPanel({
                 style={{ background: 'var(--success)' }}
               />
             </span>
-            <span className="text-xs font-bold" style={{ color: 'var(--success-dark)' }}>
+            <span className="text-xs font-bold" style={{ color: 'var(--badge-success-text)' }}>
               Scanner Ready
             </span>
             <button
@@ -240,7 +240,7 @@ export default function ProductFormPanel({
             style={{
               border: '1px solid var(--success)',
               background: 'var(--success-light)',
-              color: 'var(--success-dark)',
+              color: 'var(--badge-success-text)',
             }}
           />
         </div>
@@ -436,7 +436,7 @@ export default function ProductFormPanel({
                 {pluConflict ? (
                   <div style={{
                     fontSize: 11, marginTop: 4, fontWeight: 700,
-                    color: 'var(--danger-dark)',
+                    color: 'var(--badge-danger-text)',
                     background: 'var(--danger-light)',
                     border: '1px solid var(--danger)',
                     borderRadius: 'var(--radius-sm)',
@@ -445,7 +445,7 @@ export default function ProductFormPanel({
                     PLU {form.pluNumber} is already assigned to <strong>{pluConflict.name}</strong> ({pluConflict.store}). Choose a different number.
                   </div>
                 ) : form.pluNumber && Number(form.pluNumber) > 0 ? (
-                  <div style={{ fontSize: 10, color: 'var(--success-dark)', marginTop: 3, fontWeight: 600 }}>
+                  <div style={{ fontSize: 10, color: 'var(--badge-success-text)', marginTop: 3, fontWeight: 600 }}>
                     ✓ PLU {form.pluNumber} is available
                   </div>
                 ) : (
@@ -492,7 +492,7 @@ export default function ProductFormPanel({
             style={{
               borderLeft: '3px solid var(--danger)',
               background: 'var(--danger-light)',
-              color: 'var(--danger-dark)',
+              color: 'var(--badge-danger-text)',
             }}
           >
             {error}
@@ -504,7 +504,7 @@ export default function ProductFormPanel({
             style={{
               borderLeft: '3px solid var(--success)',
               background: 'var(--success-light)',
-              color: 'var(--success-dark)',
+              color: 'var(--badge-success-text)',
             }}
           >
             {success}

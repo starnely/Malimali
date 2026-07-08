@@ -269,7 +269,7 @@ export default function Reports() {
                       <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{cat.name}</span>
                       <div className="flex gap-4">
                         <span className="text-xs" style={{ color: 'var(--text-muted)' }}>Revenue: {currency} {cat.revenue.toLocaleString()}</span>
-                        <span className="text-sm font-semibold" style={{ color: 'var(--success-dark)' }}>Profit: {currency} {cat.profit.toLocaleString()}</span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--badge-success-text)' }}>Profit: {currency} {cat.profit.toLocaleString()}</span>
                       </div>
                     </div>
                     <div className="h-2 rounded overflow-hidden" style={{ background: 'var(--bg-muted)' }}>

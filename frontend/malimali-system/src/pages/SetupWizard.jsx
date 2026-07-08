@@ -264,7 +264,7 @@ const SetupWizard = () => {
 
           {uiError && (
             <div className="mb-5 flex items-start gap-2.5 p-3.5 rounded-xl text-xs font-medium"
-              style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--danger-dark)' }}>
+              style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--badge-danger-text)' }}>
               <MdErrorOutline className="flex-shrink-0 mt-0.5" size={16} />
               <span>{uiError}</span>
             </div>
@@ -474,7 +474,7 @@ const SetupWizard = () => {
                   </p>
                 </div>
                 <div className="flex items-start gap-2.5 p-3.5 rounded-xl text-xs font-medium"
-                  style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--danger-dark)' }}>
+                  style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--badge-danger-text)' }}>
                   <MdErrorOutline className="flex-shrink-0 mt-0.5" size={16} />
                   <span>{storeError}</span>
                 </div>

@@ -458,7 +458,7 @@ export default function DailyReport() {
         <div style={{ marginTop: 10, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
           {displayDate}
           {selectedStore !== 'All' && <span style={{ marginLeft: 8, color: 'var(--primary)' }}>· {selectedStore}</span>}
-          {isToday && <span style={{ marginLeft: 8, padding: '2px 8px', background: 'var(--success-light)', color: 'var(--success-dark)', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>LIVE</span>}
+          {isToday && <span style={{ marginLeft: 8, padding: '2px 8px', background: 'var(--success-light)', color: 'var(--badge-success-text)', borderRadius: 8, fontSize: 11, fontWeight: 700 }}>LIVE</span>}
         </div>
       </div>
 
@@ -508,22 +508,22 @@ export default function DailyReport() {
                 label="Net Profit"
                 value={expenseLoading || !summary ? '—' : `${netProfit < 0 ? '−' : ''}KSh ${Math.abs(netProfit).toLocaleString()}`}
                 color={netProfit >= 0 ? 'var(--success-dark)' : 'var(--danger)'}
-                bg={netProfit >= 0 ? '#f0fdf4' : 'var(--danger-light)'}
+                bg={netProfit >= 0 ? 'var(--success-light)' : 'var(--danger-light)'}
                 icon={netProfit >= 0 ? <MdTrendingUp /> : <MdWarning />}
                 sub={netProfit >= 0 ? 'Gross Profit − Expenses − Expired Loss' : '⚠️ Expenses + losses exceed gross profit'}
               />
               <StatTile
                 label="Debt Collected"
                 value={repayLoading ? '—' : `KSh ${totalDebtCollected.toLocaleString()}`}
-                color="#0369a1" bg="#e0f2fe"
+                color="var(--info-600)" bg="var(--info-light)"
                 icon={<MdPeopleAlt />}
                 sub={`${repayments.length} payment${repayments.length !== 1 ? 's' : ''}`}
               />
               <StatTile
                 label="Supplier Debt"
                 value={debtLoading ? '—' : `KSh ${supplierDebt.toLocaleString()}`}
-                color={supplierDebt > 0 ? '#b45309' : 'var(--success-dark)'}
-                bg={supplierDebt > 0 ? '#fef3c7' : 'var(--success-light)'}
+                color={supplierDebt > 0 ? 'var(--warning-dark)' : 'var(--success-dark)'}
+                bg={supplierDebt > 0 ? 'var(--warning-light)' : 'var(--success-light)'}
                 icon={<MdLocalShipping />}
                 sub={supplierDebt > 0 ? 'Outstanding to suppliers' : '✓ All suppliers paid'}
               />
@@ -539,9 +539,9 @@ export default function DailyReport() {
                     { label: 'Cost of Goods (COGS)',             value: summary?.totalCOGS    || 0,  color: 'var(--text-muted)',   sign: '−', bold: false, muted: true,  topBorder: false, large: false },
                     { label: 'Gross Profit',                     value: summary?.totalProfit  || 0,  color: (summary?.totalProfit || 0) >= 0 ? 'var(--success-dark)' : 'var(--danger)', sign: '', bold: true, muted: false, topBorder: true, large: false },
                     { label: 'Total Expenses',                   value: expenseTotal,                color: 'var(--danger)',        sign: '−', bold: false, muted: false, topBorder: false, large: false },
-                    { label: 'Inventory Loss (Expired Stock)',   value: expiredLoss,                 color: '#b45309',              sign: '−', bold: false, muted: false, topBorder: false, large: false },
+                    { label: 'Inventory Loss (Expired Stock)',   value: expiredLoss,                 color: 'var(--badge-warning-text)',  sign: '−', bold: false, muted: false, topBorder: false, large: false },
                     { label: 'Net Profit',                       value: netProfit,                   color: netProfit >= 0 ? 'var(--success-dark)' : 'var(--danger)', sign: '', bold: true, muted: false, topBorder: true, large: true },
-                    { label: 'Supplier Debt (unpaid)',           value: supplierDebt,                color: supplierDebt > 0 ? '#b45309' : 'var(--success-dark)', sign: '', bold: false, muted: true, topBorder: true, large: false },
+                    { label: 'Supplier Debt (unpaid)',           value: supplierDebt,                color: supplierDebt > 0 ? 'var(--warning-dark)' : 'var(--success-dark)', sign: '', bold: false, muted: true, topBorder: true, large: false },
                   ].map((row, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '9px 0', borderTop: row.topBorder ? '1px solid var(--border-soft)' : 'none', marginTop: row.topBorder ? 4 : 0 }}>
                       <span style={{ fontSize: 13, color: row.muted ? 'var(--text-muted)' : 'var(--text-secondary)', fontWeight: row.bold ? 700 : 400 }}>{row.label}</span>
@@ -557,11 +557,11 @@ export default function DailyReport() {
                 <SectionHeader icon={<MdAttachMoney />} title="Payment Breakdown" subtitle="How customers paid today" />
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {summary ? [
-                    { label: '💵 Cash',          value: summary.paymentBreakdown.cash   || 0, count: summary.cashSalesCount   || 0, color: 'var(--success-dark)', bg: 'var(--success-light)' },
-                    { label: '📱 M-Pesa',         value: summary.paymentBreakdown.mpesa  || 0, count: summary.mpesaSalesCount  || 0, color: 'var(--info-dark)',    bg: 'var(--info-light)' },
+                    { label: '💵 Cash',          value: summary.paymentBreakdown.cash   || 0, count: summary.cashSalesCount   || 0, color: 'var(--badge-success-text)', bg: 'var(--success-light)' },
+                    { label: '📱 M-Pesa',         value: summary.paymentBreakdown.mpesa  || 0, count: summary.mpesaSalesCount  || 0, color: 'var(--badge-info-text)',    bg: 'var(--info-light)' },
                     { label: '💳 Card (EDC)',     value: summary.paymentBreakdown.card   || 0, count: summary.cardSalesCount   || 0, color: 'var(--primary)',      bg: 'var(--primary-light)' },
                     { label: '🏦 Bank Transfer',  value: summary.paymentBreakdown.bank   || 0, count: summary.bankSalesCount   || 0, color: 'var(--primary)',      bg: 'var(--primary-light)' },
-                    { label: '📋 Credit (Owed)',  value: summary.paymentBreakdown.credit || 0, count: summary.creditSalesCount || 0, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
+                    { label: '📋 Credit (Owed)',  value: summary.paymentBreakdown.credit || 0, count: summary.creditSalesCount || 0, color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' },
                   ].filter(p => p.value > 0 || p.label.includes('Cash')).map((p, i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 12px', background: p.bg, borderRadius: 'var(--radius-md)' }}>
                       <span style={{ fontSize: 13, fontWeight: 600, color: p.color }}>{p.label}</span>
@@ -598,7 +598,7 @@ export default function DailyReport() {
                       </div>
                     ))}
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, marginTop: 6, borderTop: '2px solid var(--danger)', fontSize: 14, fontWeight: 800 }}>
-                      <span style={{ color: 'var(--danger-dark)' }}>Total</span>
+                      <span style={{ color: 'var(--badge-danger-text)' }}>Total</span>
                       <span style={{ color: 'var(--danger)' }}>KSh {expenseTotal.toLocaleString()}</span>
                     </div>
                   </div>
@@ -626,8 +626,8 @@ export default function DailyReport() {
                   {!pcLoading && pettyCash && (
                     <span style={{
                       fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                      background: !pettyCash.isClosed ? 'var(--warning-light)' : pettyCash.closedBy === 'System (Auto-Close)' ? '#fef3c7' : 'var(--success-light)',
-                      color:      !pettyCash.isClosed ? 'var(--warning-dark)' : pettyCash.closedBy === 'System (Auto-Close)' ? '#92400e' : 'var(--success-dark)',
+                      background: !pettyCash.isClosed ? 'var(--warning-light)' : pettyCash.closedBy === 'System (Auto-Close)' ? 'var(--warning-light)' : 'var(--success-light)',
+                      color:      !pettyCash.isClosed ? 'var(--warning-dark)' : pettyCash.closedBy === 'System (Auto-Close)' ? 'var(--warning-dark)' : 'var(--success-dark)',
                     }}>
                       {!pettyCash.isClosed ? '🔓 Open' : pettyCash.closedBy === 'System (Auto-Close)' ? '⚠️ Auto-Closed' : '✅ Closed'}
                     </span>
@@ -644,7 +644,7 @@ export default function DailyReport() {
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
                       {[
                         { label: 'Opening Float', value: pettyCash.openingFloat, color: 'var(--primary)',      bg: 'var(--primary-light)' },
-                        { label: 'Cash In',        value: pettyCash.totalIn,      color: 'var(--success-dark)', bg: 'var(--success-light)' },
+                        { label: 'Cash In',        value: pettyCash.totalIn,      color: 'var(--badge-success-text)', bg: 'var(--success-light)' },
                         { label: 'Cash Out',       value: pettyCash.totalOut,     color: 'var(--danger)',       bg: 'var(--danger-light)' },
                         { label: 'Net Balance',    value: pettyCash.netBalance,   color: pettyCash.netBalance >= 0 ? 'var(--success-dark)' : 'var(--danger)', bg: pettyCash.netBalance >= 0 ? 'var(--success-light)' : 'var(--danger-light)' },
                       ].map(s => (
@@ -724,12 +724,12 @@ export default function DailyReport() {
                           <div style={{ textAlign: 'right' }}>
                             <div style={{ fontSize: 13, fontWeight: 800, color: 'var(--primary)' }}>KSh {(a.revenue || 0).toLocaleString()}</div>
                             {v !== 0 && (
-                              <div style={{ fontSize: 11, fontWeight: 700, color: v > 0 ? '#0369a1' : 'var(--danger)' }}>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: v > 0 ? 'var(--info-600)' : 'var(--danger)' }}>
                                 {v > 0 ? `+KSh ${v.toLocaleString()} over` : `KSh ${Math.abs(v).toLocaleString()} short`}
                               </div>
                             )}
                             {v === 0 && a.actualCash > 0 && (
-                              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success-dark)' }}>✓ Balanced</div>
+                              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--badge-success-text)' }}>✓ Balanced</div>
                             )}
                           </div>
                         </div>
@@ -753,9 +753,9 @@ export default function DailyReport() {
                   </div>
                 ) : (
                   <div>
-                    <div style={{ padding: '10px 14px', background: '#e0f2fe', borderRadius: 'var(--radius-md)', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 12, color: '#0369a1', fontWeight: 700 }}>Total Collected</span>
-                      <span style={{ fontSize: 18, fontWeight: 900, color: '#0369a1' }}>KSh {totalDebtCollected.toLocaleString()}</span>
+                    <div style={{ padding: '10px 14px', background: 'var(--info-light)', borderRadius: 'var(--radius-md)', marginBottom: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: 12, color: 'var(--info-600)', fontWeight: 700 }}>Total Collected</span>
+                      <span style={{ fontSize: 18, fontWeight: 900, color: 'var(--info-600)' }}>KSh {totalDebtCollected.toLocaleString()}</span>
                     </div>
                     {repayments.slice(0, 6).map((rep, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 0', borderBottom: i < Math.min(5, repayments.length - 1) ? '1px solid var(--border-soft)' : 'none', fontSize: 12 }}>
@@ -763,7 +763,7 @@ export default function DailyReport() {
                           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{rep.customerName || '—'}</span>
                           <span style={{ color: 'var(--text-muted)', marginLeft: 6 }}>· {rep.recordedBy}</span>
                         </div>
-                        <span style={{ fontWeight: 700, color: '#0369a1' }}>KSh {rep.amount?.toLocaleString()}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--info-600)' }}>KSh {rep.amount?.toLocaleString()}</span>
                       </div>
                     ))}
                     {repayments.length > 6 && (
@@ -809,15 +809,15 @@ export default function DailyReport() {
                             <td style={{ padding: '10px 14px' }}>
                               {hasClosed ? (
                                 <div>
-                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--success-light)', color: 'var(--success-dark)' }}>✓ Closed</span>
+                                  <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--success-light)', color: 'var(--badge-success-text)' }}>✓ Closed</span>
                                   {v !== 0 && (
-                                    <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: v > 0 ? '#0369a1' : 'var(--danger)' }}>
+                                    <span style={{ marginLeft: 6, fontSize: 11, fontWeight: 700, color: v > 0 ? 'var(--info-600)' : 'var(--danger)' }}>
                                       {v > 0 ? `+${v.toLocaleString()}` : v.toLocaleString()} variance
                                     </span>
                                   )}
                                 </div>
                               ) : (
-                                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>⏳ Working</span>
+                                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}>⏳ Working</span>
                               )}
                             </td>
                           </tr>

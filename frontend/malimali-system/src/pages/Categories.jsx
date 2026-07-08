@@ -161,9 +161,9 @@ export default function Categories() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12, marginBottom: 20 }}>
         {[
           { label: 'Total Categories', value: categories.length, icon: <MdCategory />, color: 'var(--primary)', bg: 'var(--primary-light)' },
-          { label: 'Global', value: globalCats.length, icon: <MdPublic />, color: 'var(--info-dark)', bg: 'var(--info-light)' },
-          { label: 'Store-Specific', value: storeCats.length, icon: <MdStorefront />, color: 'var(--success-dark)', bg: 'var(--success-light)' },
-          { label: 'Stores Covered', value: storeNames.length, icon: <MdInventory2 />, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
+          { label: 'Global', value: globalCats.length, icon: <MdPublic />, color: 'var(--badge-info-text)', bg: 'var(--info-light)' },
+          { label: 'Store-Specific', value: storeCats.length, icon: <MdStorefront />, color: 'var(--badge-success-text)', bg: 'var(--success-light)' },
+          { label: 'Stores Covered', value: storeNames.length, icon: <MdInventory2 />, color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' },
         ].map(s => (
           <div key={s.label} style={{ background: s.bg, borderRadius: 'var(--radius-lg)', padding: '14px 16px', boxShadow: 'var(--shadow-card)', border: '1px solid rgba(0,0,0,0.05)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
@@ -236,11 +236,11 @@ export default function Categories() {
                   {/* Scope badge */}
                   <td style={{ padding: '12px 16px' }}>
                     {cat.store ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--success-dark)', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--badge-success-text)', display: 'inline-flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
                         <MdStorefront style={{ fontSize: 12 }} /> {cat.store}
                       </span>
                     ) : (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--info-light)', color: 'var(--info-dark)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--info-light)', color: 'var(--badge-info-text)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                         <MdPublic style={{ fontSize: 12 }} /> Global
                       </span>
                     )}
@@ -267,7 +267,7 @@ export default function Categories() {
                   <td style={{ padding: '12px 16px' }}>
                     {confirmId === cat._id ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6, justifyContent: 'center' }}>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger-dark)' }}>Delete?</span>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--badge-danger-text)' }}>Delete?</span>
                         <button onClick={() => setConfirmId(null)}
                           style={{ padding: '3px 9px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
                           Cancel
@@ -314,7 +314,7 @@ export default function Categories() {
 
       {/* ── Add / Edit Modal ─────────────────────────────────────────── */}
       {showModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay-bg)', backdropFilter: 'blur(4px)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
           <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius-lg)', width: '100%', maxWidth: 460, boxShadow: 'var(--shadow-dropdown)', overflow: 'hidden' }}>
 
             {/* Header */}
@@ -387,7 +387,7 @@ export default function Categories() {
               </div>
 
               {error && (
-                <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
+                <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--danger-light)', border: '1px solid var(--danger)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600, marginBottom: 16 }}>
                   ❌ {error}
                 </div>
               )}

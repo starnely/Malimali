@@ -52,7 +52,6 @@ const ownerLinks = [
 ]
 
 const managerLinks = [
-  { to: '/', label: 'Dashboard', icon: <MdDashboard /> },
   { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner /> },
   {
     label: 'Products', icon: <MdInventory />, key: 'products',
@@ -65,7 +64,6 @@ const managerLinks = [
   { to: '/sales-history', label: 'Sales History', icon: <MdHistory /> },
   { to: '/reports', label: 'Store Reports', icon: <MdBarChart /> },
   { to: '/daily-report', label: 'Daily Z-Report', icon: <MdReceiptLong /> },
-  { to: '/daily-archives', label: 'Daily Archives', icon: <MdArchive /> },
   { to: '/weigh-station', label: 'Weigh Station', icon: <MdScale /> },
   { to: '/customers', label: 'Debtors', icon: <MdPeopleAlt /> },
   {
@@ -82,7 +80,6 @@ const managerLinks = [
       { to: '/petty-cash', label: 'Petty Cash', icon: <MdAccountBalanceWallet /> },
     ]
   },
-  { to: '/stores', label: 'Stores', icon: <MdStorefront /> },
 ]
 
 const cashierLinks = [

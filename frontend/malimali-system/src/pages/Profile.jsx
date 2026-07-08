@@ -14,10 +14,10 @@ const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 // ── Role config ────────────────────────────────────────────────────────────
 const ROLE_CONFIG = {
-  owner:    { label: 'Owner',    color: 'var(--primary)',  bg: 'var(--primary-light)'  },
-  manager:  { label: 'Manager',  color: 'var(--warning)',  bg: 'var(--warning-light)'  },
-  cashier:  { label: 'Cashier',  color: 'var(--success)',  bg: 'var(--success-light)'  },
-  employee: { label: 'Employee', color: 'var(--success)',  bg: 'var(--success-light)'  },
+  owner:    { label: 'Owner',    color: 'var(--badge-primary-text)',  bg: 'var(--primary-light)'  },
+  manager:  { label: 'Manager',  color: 'var(--badge-warning-text)',  bg: 'var(--warning-light)'  },
+  cashier:  { label: 'Cashier',  color: 'var(--badge-success-text)',  bg: 'var(--success-light)'  },
+  employee: { label: 'Employee', color: 'var(--badge-success-text)',  bg: 'var(--success-light)'  },
 }
 
 function Toast({ toast }) {
@@ -27,8 +27,8 @@ function Toast({ toast }) {
     <div
       className="flex items-center gap-2 px-4 py-3 rounded-xl mb-5 text-sm font-medium"
       style={isSuccess
-        ? { background: 'var(--success-light)', color: 'var(--success-dark)', border: '1px solid var(--success)' }
-        : { background: 'var(--danger-light)',  color: 'var(--danger-dark)',  border: '1px solid var(--danger)'  }
+        ? { background: 'var(--success-light)', color: 'var(--badge-success-text)', border: '1px solid var(--success)' }
+        : { background: 'var(--danger-light)',  color: 'var(--badge-danger-text)',  border: '1px solid var(--danger)'  }
       }
     >
       {isSuccess ? <MdCheckCircle size={18} /> : <MdError size={18} />}
@@ -210,7 +210,7 @@ export default function Profile() {
             { icon: <MdBadge />,        label: 'Username',       value: currentUser?.username || '—', mono: true },
             { icon: <MdStorefront />,   label: 'Assigned Store', value: currentUser?.store || 'Not assigned' },
             { icon: <MdShield />,       label: 'Account Status', value: (
-              <span style={{ color: 'var(--success-dark)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
+              <span style={{ color: 'var(--badge-success-text)', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '5px' }}>
                 <span style={{ width: '7px', height: '7px', borderRadius: '50%', background: 'var(--success)', display: 'inline-block' }} />
                 Active
               </span>
@@ -342,7 +342,7 @@ export default function Profile() {
                 marginTop: '20px', padding: '14px', borderRadius: 'var(--radius-md)',
                 background: 'var(--info-light)', border: '1px solid var(--info)',
               }}>
-                <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--info-dark)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                <p style={{ fontSize: '11px', fontWeight: '700', color: 'var(--badge-info-text)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Security Tips
                 </p>
                 {[
@@ -350,7 +350,7 @@ export default function Profile() {
                   'Always log out when leaving the terminal',
                   'Report suspicious activity to the owner',
                 ].map((tip, i) => (
-                  <p key={i} style={{ fontSize: '11px', color: 'var(--info-dark)', marginTop: '4px', display: 'flex', gap: '6px' }}>
+                  <p key={i} style={{ fontSize: '11px', color: 'var(--badge-info-text)', marginTop: '4px', display: 'flex', gap: '6px' }}>
                     <span style={{ flexShrink: 0 }}>•</span> {tip}
                   </p>
                 ))}

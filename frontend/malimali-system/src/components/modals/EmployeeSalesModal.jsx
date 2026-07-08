@@ -51,7 +51,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
   return (
     <>
       <style>{`@media print { .no-print { display: none !important; } * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; } .modal-overlay { background: white !important; position: static !important; padding: 0 !important; } .modal-container { box-shadow: none !important; border: none !important; width: 100% !important; max-width: none !important; max-height: none !important; } .scroll-area { overflow: visible !important; height: auto !important; } table { width: 100% !important; border: 1px solid #eee !important; } }`}</style>
-      <div className="modal-overlay fixed inset-0 flex items-center justify-center z-[1000] p-4" style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}>
+      <div className="modal-overlay fixed inset-0 flex items-center justify-center z-[1000] p-4" style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}>
         <div className="modal-container w-full rounded-xl overflow-hidden flex flex-col" style={{ background: 'var(--bg-card)', maxWidth: '640px', maxHeight: '85dvh', boxShadow: 'var(--shadow-dropdown)' }}>
           <div className="flex-shrink-0 px-5 py-4 flex justify-between items-center" style={{ background: 'var(--sidebar-bg)', borderBottom: '1px solid var(--sidebar-border)' }}>
             <div className="flex items-center gap-3">
@@ -64,9 +64,9 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
           <div className="flex-shrink-0 grid grid-cols-4 gap-3 px-5 py-4" style={{ borderBottom: '1px solid var(--border-soft)' }}>
             {[
               { label: 'Transactions', value: employeeSales.length, color: 'var(--primary)', bg: 'var(--primary-light)' },
-              { label: 'Items Sold', value: fmtQty(totalItems), color: 'var(--success-dark)', bg: 'var(--success-light)' },
-              { label: 'Revenue', value: `${currency} ${Math.round(totalRevenue).toLocaleString()}`, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
-              { label: 'Profit', value: `${currency} ${Math.round(totalProfit).toLocaleString()}`, color: 'var(--info-dark)', bg: 'var(--info-light)' },
+              { label: 'Items Sold', value: fmtQty(totalItems), color: 'var(--badge-success-text)', bg: 'var(--success-light)' },
+              { label: 'Revenue', value: `${currency} ${Math.round(totalRevenue).toLocaleString()}`, color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' },
+              { label: 'Profit', value: `${currency} ${Math.round(totalProfit).toLocaleString()}`, color: 'var(--badge-info-text)', bg: 'var(--info-light)' },
             ].map((card, i) => (
               <div key={i} className="rounded-lg p-2.5 text-center" style={{ background: card.bg }}>
                 <div className="text-[10px] font-black uppercase tracking-wider mb-1" style={{ color: card.color }}>{card.label}</div>
@@ -100,7 +100,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--primary)', fontWeight: 700 }}>{sale.receiptId || '—'}</td>
                         <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)' }}>{fmtQty(saleItems)}</td>
                         <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--text-primary)', fontWeight: 500 }}>{currency} {Math.round(saleRevenue).toLocaleString()}</td>
-                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--success-dark)', fontWeight: 600 }}>{currency} {Math.round(saleProfit).toLocaleString()}</td>
+                        <td style={{ padding: '10px 14px', fontSize: '13px', color: 'var(--badge-success-text)', fontWeight: 600 }}>{currency} {Math.round(saleProfit).toLocaleString()}</td>
                         <td style={{ padding: '10px 14px', fontSize: '12px', color: 'var(--text-muted)' }}>{sale.time || '—'}</td>
                       </tr>
                     )
@@ -111,7 +111,7 @@ export default function EmployeeSalesModal({ employee, sales, products = [], dat
                     <td colSpan={2} style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>Totals</td>
                     <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--text-primary)' }}>{fmtQty(totalItems)}</td>
                     <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--primary)' }}>{currency} {Math.round(totalRevenue).toLocaleString()}</td>
-                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--success-dark)' }}>{currency} {Math.round(totalProfit).toLocaleString()}</td>
+                    <td style={{ padding: '10px 14px', fontSize: '13px', fontWeight: 700, color: 'var(--badge-success-text)' }}>{currency} {Math.round(totalProfit).toLocaleString()}</td>
                     <td />
                   </tr>
                 </tfoot>

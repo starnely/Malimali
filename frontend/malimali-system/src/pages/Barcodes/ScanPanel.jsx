@@ -110,10 +110,10 @@ export default function ScanPanel({
   }, [manualCode, products])
 
   const stockBadge = (stock) => {
-    if (stock <= 0) return { label: 'Out of stock', color: 'var(--danger-dark)', bg: 'var(--danger-light)' }
-    if (stock <= 3) return { label: `${fmtQty(stock)} left`, color: '#92400e', bg: '#fef3c7' }
-    if (stock <= 6) return { label: `${fmtQty(stock)} left`, color: '#854f0b', bg: '#faeeda' }
-    return { label: `${fmtQty(stock)} in stock`, color: 'var(--success-dark)', bg: 'var(--success-light)' }
+    if (stock <= 0) return { label: 'Out of stock', color: 'var(--badge-danger-text)', bg: 'var(--danger-light)' }
+    if (stock <= 3) return { label: `${fmtQty(stock)} left`, color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' }
+    if (stock <= 6) return { label: `${fmtQty(stock)} left`, color: 'var(--badge-warning-text)', bg: 'var(--orange-light)' }
+    return { label: `${fmtQty(stock)} in stock`, color: 'var(--badge-success-text)', bg: 'var(--success-light)' }
   }
 
   const commitManual = async () => {
@@ -509,7 +509,7 @@ export default function ScanPanel({
                       <span style={{
                         marginLeft: 6, fontSize: 10, fontWeight: 700,
                         padding: '1px 6px', borderRadius: 20,
-                        background: 'var(--primary-light)', color: 'var(--primary)',
+                        background: 'var(--primary-light)', color: 'var(--badge-primary-text)',
                         verticalAlign: 'middle', whiteSpace: 'nowrap',
                       }}>
                         ⚖ {item.weightGrams}g

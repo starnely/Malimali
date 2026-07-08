@@ -64,21 +64,21 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
 
       {/* Partial void banner */}
       {hasPartialVoids && (
-        <div style={{ background: 'var(--warning-light)', color: 'var(--warning-dark)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--warning)' }}>
+        <div style={{ background: 'var(--warning-light)', color: 'var(--badge-warning-text)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--warning)' }}>
           ⚠️ Partial void — some items have been voided
         </div>
       )}
 
       {/* Partial return banner */}
       {hasPartialReturns && (
-        <div style={{ background: 'var(--success-light)', color: 'var(--success-dark)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--success)' }}>
+        <div style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, borderBottom: '1px solid var(--success)' }}>
           ↩️ Partial return — some items have been returned
         </div>
       )}
 
       {/* Pending void-approval banner */}
       {!isVoided && pendingVoid && (
-        <div style={{ background: '#fff7ed', color: '#92400e', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #fcd34d' }}>
+        <div style={{ background: 'var(--orange-light)', color: 'var(--badge-warning-text)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--warning)' }}>
           <span>⏳ Void pending owner approval</span>
           <span style={{ opacity: 0.7, fontWeight: 600 }}>by {pendingVoid.requestedBy?.fullname || pendingVoid.requestedBy?.username || 'Manager'}</span>
         </div>
@@ -86,7 +86,7 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
 
       {/* Pending return-approval banner */}
       {pendingReturn && (
-        <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #86efac' }}>
+        <div style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)', padding: '6px 16px', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid var(--success)' }}>
           <span>⏳ Return pending {pendingReturn.status === 'pending_manager' ? 'manager' : 'owner'} approval</span>
           <span style={{ opacity: 0.7, fontWeight: 600 }}>KSh {(pendingReturn.refundAmount || 0).toLocaleString()}</span>
         </div>
@@ -114,7 +114,7 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
             {payment.label}
           </span>
           {pm === 'credit' && sale.paymentInfo?.promiseDate && (
-            <span className="text-xs font-semibold" style={{ color: 'var(--warning-dark)' }}>
+            <span className="text-xs font-semibold" style={{ color: 'var(--badge-warning-text)' }}>
               📅 Due: {new Date(sale.paymentInfo.promiseDate + 'T00:00:00').toLocaleDateString('en-KE', { day: 'numeric', month: 'short', year: 'numeric' })}
             </span>
           )}
@@ -187,14 +187,14 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
                     {isPartialVoid ? (
                       <span>
                         <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', marginRight: 4 }}>{item.qty}</span>
-                        <span style={{ fontWeight: 700, color: 'var(--warning-dark)' }}>{activeQty}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--badge-warning-text)' }}>{activeQty}</span>
                         <span style={{ fontSize: 10, color: 'var(--danger)', marginLeft: 4 }}>({item.voidedQty} voided)</span>
                       </span>
                     ) : isPartialReturn ? (
                       <span>
                         <span style={{ textDecoration: 'line-through', color: 'var(--text-muted)', marginRight: 4 }}>{item.qty - (item.voidedQty || 0)}</span>
-                        <span style={{ fontWeight: 700, color: 'var(--success-dark)' }}>{activeQty}</span>
-                        <span style={{ fontSize: 10, color: 'var(--success-dark)', marginLeft: 4 }}>({item.returnedQty} returned)</span>
+                        <span style={{ fontWeight: 700, color: 'var(--badge-success-text)' }}>{activeQty}</span>
+                        <span style={{ fontSize: 10, color: 'var(--badge-success-text)', marginLeft: 4 }}>({item.returnedQty} returned)</span>
                       </span>
                     ) : (
                       item.qty
@@ -215,7 +215,7 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
                       </div>
                     )}
                     {isPartialReturn && (
-                      <div style={{ fontSize: 10, color: 'var(--success-dark)', fontWeight: 600 }}>
+                      <div style={{ fontSize: 10, color: 'var(--badge-success-text)', fontWeight: 600 }}>
                         −KSh {((item.price || 0) * (item.returnedQty || 0)).toLocaleString()} returned
                       </div>
                     )}
@@ -229,11 +229,11 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
                         {item.voidedBy && <span style={{ opacity: 0.7, marginLeft: 4 }}>by {item.voidedBy}</span>}
                       </span>
                     ) : isPartialVoid ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}>
                         ⚠️ Partial void
                       </span>
                     ) : isPartialReturn ? (
-                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--success-light)', color: 'var(--success-dark)' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: 'var(--success-light)', color: 'var(--badge-success-text)' }}>
                         ↩️ Partial return
                       </span>
                     ) : (
@@ -250,7 +250,7 @@ export default function SaleCard({ sale, onReturn, onVoid, category }) {
                         <MdUndo className="text-sm" /> Return
                       </button>
                     ) : !isVoided && returnStatus === 'pending' ? (
-                      <span className="text-xs font-medium" style={{ color: 'var(--warning-dark)' }}>
+                      <span className="text-xs font-medium" style={{ color: 'var(--badge-warning-text)' }}>
                         Awaiting approval
                       </span>
                     ) : null}

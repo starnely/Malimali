@@ -12,12 +12,12 @@ router.get("/", async (req, res) => {
   try {
     let query = {}
 
-    // Store filter for owner/manager
-    if (req.query.store) query.store = req.query.store
-
-    // Employees see only their store
-    if (req.user.role === "cashier" || req.user.role === "employee") {
+    if (req.user.role === "manager") {
+      query.store = req.user.store
+    } else if (req.user.role === "cashier" || req.user.role === "employee") {
       if (req.user.store) query.store = req.user.store
+    } else if (req.query.store) {
+      query.store = req.query.store
     }
 
     // Date range filter (EAT timezone — UTC+3)
@@ -49,7 +49,13 @@ router.get("/", async (req, res) => {
 // ── GET expired stock summary (loss totals by store/category) ─────────
 router.get("/summary", async (req, res) => {
   try {
-    const expired = await ExpiredStock.find({})
+    const summaryFilter = {}
+    if (req.user.role === "manager" || req.user.role === "cashier" || req.user.role === "employee") {
+      summaryFilter.store = req.user.store
+    } else if (req.query.store) {
+      summaryFilter.store = req.query.store
+    }
+    const expired = await ExpiredStock.find(summaryFilter)
 
     const byStore = {}
     const byCategory = {}
@@ -133,7 +139,7 @@ router.post("/move/:productId", async (req, res) => {
     const io = req.app.get("io")
     if (io) {
       io.emit("productsUpdated")
-      io.to("owner").emit("expiredStockMoved", {
+      io.to("owner").to(`manager-${product.store}`).emit("expiredStockMoved", {
         productName: product.name,
         quantity,
         totalLoss,

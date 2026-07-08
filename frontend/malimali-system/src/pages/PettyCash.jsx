@@ -8,7 +8,7 @@ import { useHistoryModal } from '@/hooks/useHistoryModal'
 import styles from '@/styles/PettyCash.module.css'
 
 const S = {
-  overlay: { position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 },
+  overlay: { position: 'fixed', inset: 0, background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50, padding: 16 },
   modal:   { background: 'var(--bg-card)', borderRadius: 'var(--radius-xl)', boxShadow: 'var(--shadow-dropdown)', width: '100%', maxWidth: 440, overflow: 'hidden' },
   mHead:   { background: 'var(--sidebar-bg)', padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' },
   mBody:   { padding: 20 },
@@ -154,7 +154,7 @@ export default function PettyCash() {
                     const totalBalance = open.reduce((s, r) => s + (r.record.netBalance   || 0), 0)
                     return [
                       { label: 'Total Float',    value: totalFloat,   color: 'var(--primary)',      bg: 'var(--primary-light)' },
-                      { label: 'Total Cash In',  value: totalIn,      color: 'var(--success-dark)', bg: 'var(--success-light)' },
+                      { label: 'Total Cash In',  value: totalIn,      color: 'var(--badge-success-text)', bg: 'var(--success-light)' },
                       { label: 'Total Cash Out', value: totalOut,     color: 'var(--danger)',       bg: 'var(--danger-light)' },
                       { label: 'Total Balance',  value: totalBalance, color: totalBalance >= 0 ? 'var(--success-dark)' : 'var(--danger)', bg: totalBalance >= 0 ? 'var(--success-light)' : 'var(--danger-light)' },
                     ].map(stat => (
@@ -187,13 +187,13 @@ export default function PettyCash() {
                       {rec ? (
                         <span style={{
                           fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20,
-                          background: !rec.isClosed ? 'var(--success-light)' : rec.closedBy === 'System (Auto-Close)' ? '#fef3c7' : 'var(--bg-muted)',
-                          color:      !rec.isClosed ? 'var(--success-dark)' : rec.closedBy === 'System (Auto-Close)' ? '#92400e' : 'var(--text-muted)',
+                          background: !rec.isClosed ? 'var(--success-light)' : rec.closedBy === 'System (Auto-Close)' ? 'var(--warning-light)' : 'var(--bg-muted)',
+                          color:      !rec.isClosed ? 'var(--success-dark)' : rec.closedBy === 'System (Auto-Close)' ? 'var(--warning-dark)' : 'var(--text-muted)',
                         }}>
                           {!rec.isClosed ? '🔓 Open' : rec.closedBy === 'System (Auto-Close)' ? '⚠️ Auto-Closed' : '✅ Closed'}
                         </span>
                       ) : (
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 10px', borderRadius: 20, background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}>
                           💤 Not opened
                         </span>
                       )}
@@ -204,7 +204,7 @@ export default function PettyCash() {
                         {[
                           { label: 'Float',    value: rec.openingFloat, color: 'var(--text-secondary)', bold: false },
                           { label: 'Balance',  value: rec.netBalance,   color: rec.netBalance >= 0 ? 'var(--success-dark)' : 'var(--danger)', bold: true },
-                          { label: 'Cash In',  value: rec.totalIn,      color: 'var(--success-dark)', bold: false },
+                          { label: 'Cash In',  value: rec.totalIn,      color: 'var(--badge-success-text)', bold: false },
                           { label: 'Cash Out', value: rec.totalOut,     color: 'var(--danger)', bold: false },
                         ].map(s => (
                           <div key={s.label} style={{ padding: '8px 10px', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)' }}>
@@ -336,7 +336,7 @@ export default function PettyCash() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12 }}>
                 {[
                   { label: 'Opening Float', value: record.openingFloat, color: 'var(--primary)',      bg: 'var(--primary-light)',  border: 'var(--primary)' },
-                  { label: 'Total Cash In',  value: record.totalIn,      color: 'var(--success-dark)', bg: 'var(--success-light)', border: 'var(--success)' },
+                  { label: 'Total Cash In',  value: record.totalIn,      color: 'var(--badge-success-text)', bg: 'var(--success-light)', border: 'var(--success)' },
                   { label: 'Total Cash Out', value: record.totalOut,     color: 'var(--danger)',       bg: 'var(--danger-light)',  border: 'var(--danger)' },
                   { label: 'Net Balance',    value: record.netBalance,   color: balance >= 0 ? 'var(--success-dark)' : 'var(--danger)', bg: balance >= 0 ? 'var(--success-light)' : 'var(--danger-light)', border: balance >= 0 ? 'var(--success)' : 'var(--danger)' },
                 ].map(stat => (
@@ -352,14 +352,14 @@ export default function PettyCash() {
                 <div style={{ padding: '12px 16px', background: 'var(--success-light)', border: '1px solid var(--success)', borderRadius: 'var(--radius-md)', display: 'flex', gap: 10, alignItems: 'center' }}>
                   <MdLock style={{ color: 'var(--success)', fontSize: 18, flexShrink: 0 }} />
                   <div>
-                    <div style={{ fontWeight: 700, color: 'var(--success-dark)', fontSize: 13 }}>Petty cash closed for today</div>
-                    <div style={{ fontSize: 12, color: 'var(--success-dark)' }}>
+                    <div style={{ fontWeight: 700, color: 'var(--badge-success-text)', fontSize: 13 }}>Petty cash closed for today</div>
+                    <div style={{ fontSize: 12, color: 'var(--badge-success-text)' }}>
                       Closed by {record.closedBy} · Closing float: KSh {record.closingFloat?.toLocaleString()}
                     </div>
                   </div>
                 </div>
               ) : (
-                <div style={{ padding: '10px 16px', background: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--info-dark)', fontWeight: 600 }}>
+                <div style={{ padding: '10px 16px', background: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--badge-info-text)', fontWeight: 600 }}>
                   ✅ Petty cash is open · Opened by {record.openedBy}
                   {!canEdit && ' · View only'}
                 </div>
@@ -405,7 +405,7 @@ export default function PettyCash() {
                               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1, display: 'flex', alignItems: 'center', gap: 6 }}>
                                 {tx.time} · {tx.recordedBy}
                                 {tx.type === 'out' && catInfo && (
-                                  <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--danger-light)', color: 'var(--danger-dark)' }}>
+                                  <span style={{ padding: '1px 7px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--danger-light)', color: 'var(--badge-danger-text)' }}>
                                     {catInfo.emoji} {catInfo.label} · logged as expense
                                   </span>
                                 )}
@@ -448,14 +448,14 @@ export default function PettyCash() {
                       <td style={{ padding: '11px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>{rec.store}</td>
                       <td style={{ padding: '11px 14px', fontSize: 12, color: 'var(--text-secondary)' }}>{rec.openedBy}</td>
                       <td style={{ padding: '11px 14px', fontSize: 13 }}>KSh {rec.openingFloat?.toLocaleString()}</td>
-                      <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--success-dark)', fontWeight: 700 }}>+KSh {rec.totalIn?.toLocaleString()}</td>
+                      <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--badge-success-text)', fontWeight: 700 }}>+KSh {rec.totalIn?.toLocaleString()}</td>
                       <td style={{ padding: '11px 14px', fontSize: 13, color: 'var(--danger)', fontWeight: 700 }}>−KSh {rec.totalOut?.toLocaleString()}</td>
                       <td style={{ padding: '11px 14px', fontSize: 13, fontWeight: 800, color: rec.netBalance >= 0 ? 'var(--success-dark)' : 'var(--danger)' }}>KSh {rec.netBalance?.toLocaleString()}</td>
                       <td style={{ padding: '11px 14px' }}>
                         <span style={{
                           padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 700,
-                          background: !rec.isClosed ? 'var(--warning-light)' : rec.closedBy === 'System (Auto-Close)' ? '#fef3c7' : 'var(--success-light)',
-                          color: !rec.isClosed ? 'var(--warning-dark)' : rec.closedBy === 'System (Auto-Close)' ? '#92400e' : 'var(--success-dark)',
+                          background: !rec.isClosed ? 'var(--warning-light)' : rec.closedBy === 'System (Auto-Close)' ? 'var(--warning-light)' : 'var(--success-light)',
+                          color: !rec.isClosed ? 'var(--warning-dark)' : rec.closedBy === 'System (Auto-Close)' ? 'var(--warning-dark)' : 'var(--success-dark)',
                         }}>
                           {!rec.isClosed ? '🔓 Open' : rec.closedBy === 'System (Auto-Close)' ? '⚠️ Auto-Closed' : '✅ Closed'}
                         </span>
@@ -526,7 +526,7 @@ function OpenModal({ store, onClose, onDone, openPettyCash }) {
             <label style={S.label}>Notes (optional)</label>
             <input style={S.input} value={notes} onChange={e => setNotes(e.target.value)} placeholder='Any starting notes...' />
           </div>
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
         </div>
         <div style={S.mFoot}>
           <button style={btn('var(--bg-card)', 'var(--text-secondary)', { border: '1px solid var(--border-medium)' })} onClick={onClose}>Cancel</button>
@@ -563,7 +563,7 @@ function TxModal({ store, txType, balance, onClose, onDone, addPettyCashTransact
   return (
     <div style={S.overlay}>
       <div style={S.modal}>
-        <div style={{ ...S.mHead, background: isOut ? '#7f1d1d' : '#14532d' }}>
+        <div style={{ ...S.mHead, background: isOut ? 'var(--danger-dark)' : 'var(--success-dark)' }}>
           <h2 style={{ color: 'white', fontSize: 14, fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
             {isOut ? <MdArrowUpward /> : <MdArrowDownward />} {label} · {store}
           </h2>
@@ -571,7 +571,7 @@ function TxModal({ store, txType, balance, onClose, onDone, addPettyCashTransact
         </div>
         <div style={S.mBody}>
           {isOut && (
-            <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--warning-light)', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600, color: 'var(--warning-dark)' }}>
+            <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--warning-light)', borderRadius: 'var(--radius-md)', fontSize: 13, fontWeight: 600, color: 'var(--badge-warning-text)' }}>
               Current balance: KSh {balance.toLocaleString()}
             </div>
           )}
@@ -597,19 +597,19 @@ function TxModal({ store, txType, balance, onClose, onDone, addPettyCashTransact
             <input style={S.input} value={desc} onChange={e => setDesc(e.target.value)} placeholder={isOut ? 'What was this for?' : 'Source of cash...'} />
           </div>
           {isOut && Number(amount) > 0 && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', border: '1px solid #fecaca', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', border: '1px solid var(--danger-light)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger-dark)', textTransform: 'uppercase' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--badge-danger-text)', textTransform: 'uppercase' }}>
                   {CASHOUT_CATEGORIES.find(c => c.value === category)?.emoji} {CASHOUT_CATEGORIES.find(c => c.value === category)?.label}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 2 }}>
+                <div style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 2 }}>
                   Will deduct from petty cash + log as expense
                 </div>
               </div>
               <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--danger)' }}>−KSh {Number(amount).toLocaleString()}</div>
             </div>
           )}
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
         </div>
         <div style={S.mFoot}>
           <button style={btn('var(--bg-card)', 'var(--text-secondary)', { border: '1px solid var(--border-medium)' })} onClick={onClose}>Cancel</button>
@@ -673,7 +673,7 @@ function CloseModal({ store, record, onClose, onDone, closePettyCash }) {
             <label style={S.label}>Notes (optional)</label>
             <input style={S.input} value={notes} onChange={e => setNotes(e.target.value)} placeholder='Any closing notes...' />
           </div>
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
         </div>
         <div style={S.mFoot}>
           <button style={btn('var(--bg-card)', 'var(--text-secondary)', { border: '1px solid var(--border-medium)' })} onClick={onClose}>Cancel</button>

@@ -170,7 +170,7 @@ export default function Suppliers() {
       <div className="flex-shrink-0 px-6 pb-4 flex gap-3 flex-wrap">
         {[
           { label: 'Total',    value: suppliers.length },
-          { label: 'Active',   value: suppliers.filter(s => s.isActive !== false).length, color: 'var(--success-dark)' },
+          { label: 'Active',   value: suppliers.filter(s => s.isActive !== false).length, color: 'var(--badge-success-text)' },
           { label: 'Archived', value: suppliers.filter(s => s.isActive === false).length, color: 'var(--text-muted)'   },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-soft)', borderRadius: 'var(--radius-md)', padding: '10px 16px', minWidth: 100 }}>
@@ -233,13 +233,13 @@ export default function Suppliers() {
                     {/* Stores supplied — key column */}
                     <td className="px-4 py-3">
                       {isGlobal ? (
-                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--info-light)', color: 'var(--info-dark)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--info-light)', color: 'var(--badge-info-text)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                           <MdPublic style={{ fontSize: 12 }} /> All Stores
                         </span>
                       ) : (
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
                           {supStores.map(s => (
-                            <span key={s} style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--success-dark)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                            <span key={s} style={{ fontSize: 11, fontWeight: 700, padding: '2px 9px', borderRadius: 20, background: 'var(--success-light)', color: 'var(--badge-success-text)', display: 'inline-flex', alignItems: 'center', gap: 3 }}>
                               <MdStorefront style={{ fontSize: 11 }} /> {s}
                             </span>
                           ))}
@@ -262,13 +262,13 @@ export default function Suppliers() {
                     <td className="px-4 py-3">
                       {confirmId === sup._id ? (
                         <div className="flex items-center gap-2 justify-center">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--danger-dark)' }}>Delete?</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--badge-danger-text)' }}>Delete?</span>
                           <button onClick={() => setConfirmId(null)} style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
                           <button onClick={() => handleDelete(sup._id)} style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--danger)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Yes</button>
                         </div>
                       ) : archiveId === sup._id ? (
                         <div className="flex items-center gap-2 justify-center">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--warning-dark)' }}>{isArchived ? 'Restore?' : 'Archive?'}</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--badge-warning-text)' }}>{isArchived ? 'Restore?' : 'Archive?'}</span>
                           <button onClick={() => setArchiveId(null)} style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-medium)', background: 'var(--bg-card)', color: 'var(--text-secondary)', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>No</button>
                           <button onClick={() => handleArchive(sup._id)} style={{ padding: '3px 8px', borderRadius: 'var(--radius-sm)', border: 'none', background: 'var(--warning-dark)', color: '#fff', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Yes</button>
                         </div>
@@ -312,7 +312,7 @@ export default function Suppliers() {
       {/* ── Modal ───────────────────────────────────────────────────── */}
       {showModal && (
         <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(3px)' }}>
+          style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(3px)' }}>
           <div className="w-full max-w-lg rounded-xl overflow-hidden" style={{ background: 'var(--bg-card)', boxShadow: 'var(--shadow-dropdown)', maxHeight: '90vh', overflowY: 'auto' }}>
 
             <div className="px-5 py-4 flex items-center justify-between" style={{ background: 'var(--sidebar-bg)', position: 'sticky', top: 0, zIndex: 1 }}>

@@ -160,7 +160,7 @@ export default function MyCredits() {
       {/* ── Summary Bar ── */}
       <div className={s.summaryGrid}>
         <div className={`${s.summaryCard} ${s.blue}`}>
-          <div className={s.summaryIcon} style={{ background: '#dbeafe' }}>
+          <div className={s.summaryIcon} style={{ background: 'var(--info-light)' }}>
             <MdTrendingDown style={{ color: 'var(--primary)', fontSize: '20px' }} />
           </div>
           <div>
@@ -173,8 +173,8 @@ export default function MyCredits() {
         </div>
 
         <div className={`${s.summaryCard} ${s.red}`}>
-          <div className={s.summaryIcon} style={{ background: '#fee2e2' }}>
-            <MdWarning style={{ color: '#dc2626', fontSize: '20px' }} />
+          <div className={s.summaryIcon} style={{ background: 'var(--danger-light)' }}>
+            <MdWarning style={{ color: 'var(--danger)', fontSize: '20px' }} />
           </div>
           <div>
             <div className={s.summaryLabel}>Overdue</div>
@@ -186,8 +186,8 @@ export default function MyCredits() {
         </div>
 
         <div className={`${s.summaryCard} ${s.green}`}>
-          <div className={s.summaryIcon} style={{ background: '#dcfce7' }}>
-            <MdCheckCircle style={{ color: 'var(--success-dark)', fontSize: '20px' }} />
+          <div className={s.summaryIcon} style={{ background: 'var(--success-light)' }}>
+            <MdCheckCircle style={{ color: 'var(--badge-success-text)', fontSize: '20px' }} />
           </div>
           <div>
             <div className={s.summaryLabel}>Settled</div>
@@ -199,8 +199,8 @@ export default function MyCredits() {
         </div>
 
         <div className={`${s.summaryCard} ${s.orange}`}>
-          <div className={s.summaryIcon} style={{ background: '#ffedd5' }}>
-            <MdCreditCard style={{ color: '#ea580c', fontSize: '20px' }} />
+          <div className={s.summaryIcon} style={{ background: 'var(--warning-light)' }}>
+            <MdCreditCard style={{ color: 'var(--orange)', fontSize: '20px' }} />
           </div>
           <div>
             <div className={s.summaryLabel}>Recovered</div>
@@ -219,7 +219,7 @@ export default function MyCredits() {
         <div className={s.recoveryBar}>
           <div className={s.recoveryBarLabel}>
             <span>Recovery Progress</span>
-            <span style={{ color: 'var(--success-dark)', fontWeight: 700 }}>
+            <span style={{ color: 'var(--badge-success-text)', fontWeight: 700 }}>
               {Math.round((recoveredAmt / totalOriginal) * 100)}%
             </span>
           </div>
@@ -382,7 +382,7 @@ export default function MyCredits() {
                     {!isSettled && paidAmt > 0 && (
                       <div className={s.paidDetail}>
                         <span>KSh {paidAmt.toLocaleString()} already paid</span>
-                        <span style={{ color: 'var(--success-dark)', fontWeight: 700 }}>{paidPct}%</span>
+                        <span style={{ color: 'var(--badge-success-text)', fontWeight: 700 }}>{paidPct}%</span>
                       </div>
                     )}
 

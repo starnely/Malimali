@@ -12,7 +12,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50"
-      style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
     >
       <div
         className="w-[90vw] max-w-[380px] rounded-xl overflow-hidden"
@@ -58,7 +58,7 @@ export default function RestockModal({ restockProduct, restockQty, setRestockQty
               {restockQty && Number(restockQty) > 0 && (
                 <>
                   <span style={{ color: 'var(--text-muted)' }}>→</span>
-                  <span className="text-xs font-bold" style={{ color: 'var(--success-dark)' }}>
+                  <span className="text-xs font-bold" style={{ color: 'var(--badge-success-text)' }}>
                     {fmtQty(newTotal)} {unit} after restock
                   </span>
                 </>

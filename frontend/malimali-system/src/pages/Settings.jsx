@@ -250,13 +250,13 @@ export default function Settings() {
         {/* Toast messages */}
         {saved && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium"
-            style={{ background: 'var(--success-light)', color: 'var(--success-dark)', border: '1px solid var(--success)' }}>
+            style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)', border: '1px solid var(--success)' }}>
             <MdCheckCircle /> Settings saved successfully
           </div>
         )}
         {error && (
           <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium"
-            style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)', border: '1px solid var(--danger)' }}>
+            style={{ background: 'var(--danger-light)', color: 'var(--badge-danger-text)', border: '1px solid var(--danger)' }}>
             {error}
           </div>
         )}
@@ -384,7 +384,7 @@ export default function Settings() {
             <span style={titleIcon}><MdSecurity /></span>
             KRA Compliance
           </div>
-          <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', marginBottom: '1.25rem', fontSize: '12px', color: 'var(--info-dark)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+          <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', marginBottom: '1.25rem', fontSize: '12px', color: 'var(--badge-info-text)', display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
             <MdBadge style={{ flexShrink: 0, marginTop: '1px', fontSize: '15px' }} />
             <div><strong>eTIMS Preparation Mode</strong> — KRA PIN saved here will be used when eTIMS integration is activated. No data is currently submitted to KRA.</div>
           </div>
@@ -408,13 +408,13 @@ export default function Settings() {
 
             {pinSaved && (
               <div className="flex items-center gap-2 px-4 py-3 rounded-xl mb-4 text-sm font-medium"
-                style={{ background: 'var(--success-light)', color: 'var(--success-dark)', border: '1px solid var(--success)' }}>
+                style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)', border: '1px solid var(--success)' }}>
                 <MdCheckCircle /> Approval PIN updated successfully
               </div>
             )}
             {pinError && (
               <div className="px-4 py-3 rounded-xl mb-4 text-sm font-medium"
-                style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)', border: '1px solid var(--danger)' }}>
+                style={{ background: 'var(--danger-light)', color: 'var(--badge-danger-text)', border: '1px solid var(--danger)' }}>
                 {pinError}
               </div>
             )}
@@ -501,7 +501,7 @@ export default function Settings() {
             </div>
           )}
           {form.printerType === 'usb' && (
-            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--warning-light)', border: '1px solid var(--warning)', fontSize: '12px', color: 'var(--warning-dark)' }}>
+            <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--warning-light)', border: '1px solid var(--warning)', fontSize: '12px', color: 'var(--badge-warning-text)' }}>
               USB printing requires the POS backend to be running on the same PC as the printer. Ensure the thermal printer driver is installed.
             </div>
           )}
@@ -518,7 +518,7 @@ export default function Settings() {
           </p>
 
           {/* Gmail tip banner */}
-          <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', marginBottom: '1.25rem', fontSize: '12px', color: 'var(--info-dark)', lineHeight: 1.6 }}>
+          <div style={{ padding: '12px 16px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', marginBottom: '1.25rem', fontSize: '12px', color: 'var(--badge-info-text)', lineHeight: 1.6 }}>
             <strong>Gmail users:</strong> Go to <em>Google Account → Security → 2-Step Verification → App Passwords</em>.
             Generate a password for "Mail" and paste it in the App Password field below.
             Do <strong>not</strong> use your regular Gmail password.
@@ -636,7 +636,7 @@ export default function Settings() {
               )
             })}
           </div>
-          <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', fontSize: '12px', color: 'var(--info-dark)' }}>
+          <div style={{ padding: '10px 14px', borderRadius: 'var(--radius-md)', background: 'var(--info-light)', border: '1px solid var(--info)', fontSize: '12px', color: 'var(--badge-info-text)' }}>
             Color changes take effect after saving and refreshing all open terminals.
           </div>
         </div>

@@ -13,13 +13,20 @@ router.get("/", async (req, res) => {
     const { store, all } = req.query
     const filter = all === "true" ? {} : { isActive: true }
 
-    if (store && store.trim() && store !== "All") {
-      // Global suppliers (empty stores array) OR suppliers that include this store
+    if (req.user.role === "manager") {
+      // Managers see global suppliers (no stores restriction) OR ones linked to their store
+      filter.$or = [
+        { stores: { $size: 0 } },
+        { stores: req.user.store },
+      ]
+    } else if (store && store.trim() && store !== "All") {
+      // Owner filtering by a specific store
       filter.$or = [
         { stores: { $size: 0 } },
         { stores: store.trim() },
       ]
     }
+    // Owner with no store query sees all suppliers
 
     const suppliers = await Supplier.find(filter).sort({ name: 1 })
     res.json({ success: true, suppliers })
@@ -31,7 +38,7 @@ router.get("/", async (req, res) => {
 
 // ── 2. CREATE SUPPLIER ───────────────────────────────────────────────
 // body: { name, company, email, phone, address, notes, stores: [] }
-router.post("/", managerOrOwner, async (req, res) => {
+router.post("/", ownerOnly, async (req, res) => {
   try {
     const { name, company, email, phone, address, notes, stores } = req.body
 
@@ -67,7 +74,7 @@ router.post("/", managerOrOwner, async (req, res) => {
 })
 
 // ── 3. UPDATE SUPPLIER ───────────────────────────────────────────────
-router.put("/:id", managerOrOwner, async (req, res) => {
+router.put("/:id", ownerOnly, async (req, res) => {
   try {
     const { name, company, email, phone, address, notes, stores } = req.body
 

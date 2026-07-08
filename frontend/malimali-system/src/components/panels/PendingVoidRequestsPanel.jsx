@@ -44,10 +44,10 @@ export default function PendingVoidRequestsPanel() {
   }
 
   return (
-    <div className="rounded-xl p-5 mb-4" style={{ background: '#fef2f2', border: '1px solid #fca5a5' }}>
+    <div className="rounded-xl p-5 mb-4" style={{ background: 'var(--danger-light)', border: '1px solid var(--danger-light)' }}>
       <div className="flex items-center gap-2 mb-4">
-        <MdBlock className="text-xl" style={{ color: '#dc2626' }} />
-        <span className="text-sm font-bold" style={{ color: '#991b1b' }}>
+        <MdBlock className="text-xl" style={{ color: 'var(--danger)' }} />
+        <span className="text-sm font-bold" style={{ color: 'var(--badge-danger-text)' }}>
           {pendingVoidRequests.length} Void Request{pendingVoidRequests.length > 1 ? 's' : ''} Awaiting Your Approval
         </span>
       </div>
@@ -65,7 +65,7 @@ export default function PendingVoidRequestsPanel() {
                   <span className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>
                     Void #{req._id?.slice(-6).toUpperCase()}
                   </span>
-                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: '#fef2f2', color: '#991b1b', border: '1px solid #fca5a5' }}>
+                  <span style={{ padding: '2px 8px', borderRadius: 4, fontSize: 11, fontWeight: 700, background: 'var(--danger-light)', color: 'var(--badge-danger-text)', border: '1px solid var(--danger-light)' }}>
                     Remote Request
                   </span>
                 </div>
@@ -120,11 +120,11 @@ export default function PendingVoidRequestsPanel() {
                       <button
                         onClick={() => handleApproveWithPin(req._id)}
                         disabled={!!loadingId || pin.length < 4}
-                        style={{ padding: '8px 14px', borderRadius: 6, border: 'none', background: loadingId || pin.length < 4 ? 'var(--border-medium)' : '#dc2626', color: '#fff', fontSize: 12, fontWeight: 700, cursor: loadingId || pin.length < 4 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                        style={{ padding: '8px 14px', borderRadius: 6, border: 'none', background: loadingId || pin.length < 4 ? 'var(--border-medium)' : 'var(--danger)', color: '#fff', fontSize: 12, fontWeight: 700, cursor: loadingId || pin.length < 4 ? 'not-allowed' : 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
                         {loadingId === req._id ? 'Verifying…' : 'Approve'}
                       </button>
                     </div>
-                    {pinError && <p style={{ fontSize: 11, color: 'var(--danger-dark)', marginTop: 5, fontWeight: 600 }}>{pinError}</p>}
+                    {pinError && <p style={{ fontSize: 11, color: 'var(--badge-danger-text)', marginTop: 5, fontWeight: 600 }}>{pinError}</p>}
                   </div>
                 )}
 
@@ -146,7 +146,7 @@ export default function PendingVoidRequestsPanel() {
                         onClick={() => confirmType === 'approve' ? handleApprove(req._id) : handleReject(req._id)}
                         disabled={!!loadingId}
                         className="flex-1 py-1.5 rounded-lg text-xs font-bold text-white"
-                        style={{ background: confirmType === 'approve' ? '#dc2626' : 'var(--border-medium)', cursor: loadingId ? 'not-allowed' : 'pointer', opacity: loadingId ? 0.6 : 1 }}>
+                        style={{ background: confirmType === 'approve' ? 'var(--danger)' : 'var(--border-medium)', cursor: loadingId ? 'not-allowed' : 'pointer', opacity: loadingId ? 0.6 : 1 }}>
                         {loadingId === req._id
                           ? 'Processing…'
                           : confirmType === 'approve' ? 'Yes, Approve Void' : 'Yes, Reject'}
@@ -158,7 +158,7 @@ export default function PendingVoidRequestsPanel() {
 
               {/* Amount + buttons */}
               <div className="text-right" style={{ flexShrink: 0 }}>
-                <div className="text-lg font-black mb-2" style={{ color: '#dc2626' }}>
+                <div className="text-lg font-black mb-2" style={{ color: 'var(--danger)' }}>
                   KSh {total.toLocaleString()}
                 </div>
 
@@ -179,9 +179,9 @@ export default function PendingVoidRequestsPanel() {
                         onClick={() => { setConfirmId(req._id); setConfirmType('approve') }}
                         disabled={!!loadingId}
                         className="px-3 py-1.5 rounded-lg text-xs font-bold text-white flex items-center gap-1"
-                        style={{ background: '#dc2626', cursor: 'pointer' }}
-                        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = '#991b1b' }}
-                        onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = '#dc2626' }}>
+                        style={{ background: 'var(--danger)', cursor: 'pointer' }}
+                        onMouseEnter={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--danger-dark)' }}
+                        onMouseLeave={e => { if (!isTouchDevice()) e.currentTarget.style.background = 'var(--danger)' }}>
                         <MdCheckCircle size={13} /> Approve Void
                       </button>
                     </div>
@@ -189,7 +189,7 @@ export default function PendingVoidRequestsPanel() {
                       onClick={() => { setPinId(req._id); setPin(''); setPinError(''); setConfirmId(null) }}
                       disabled={!!loadingId}
                       className="w-full px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center justify-center gap-1"
-                      style={{ border: '1px solid #dc2626', color: '#991b1b', background: '#fef2f2', cursor: 'pointer' }}>
+                      style={{ border: '1px solid var(--danger)', color: 'var(--badge-danger-text)', background: 'var(--danger-light)', cursor: 'pointer' }}>
                       <MdLock size={12} /> Approve with Owner PIN
                     </button>
                   </div>

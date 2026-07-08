@@ -1,5 +1,5 @@
 ﻿import { useState, useEffect, useCallback } from 'react'
-import { MdAdd } from 'react-icons/md'
+import { MdAdd, MdFilterList } from 'react-icons/md'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useApp } from '@/context/AppContext'
 import { useWindowSize } from '@/hooks/useWindowSize'
@@ -29,7 +29,8 @@ export default function Products() {
     categories,
     suppliers,
     stores,
-    settings
+    settings,
+    isOwner,
   } = useApp()
 
   const { isMobile } = useWindowSize()
@@ -56,6 +57,7 @@ export default function Products() {
   const [savedBarcode, setSavedBarcode] = useState('')
 
   const showLowStockOnly = location.state?.filter === 'lowStock'
+  const [filtersOpen, setFiltersOpen] = useState(false)
 
   // ── Helpers ────────────────────────────────────────────
   const closeModal = useCallback(() => {
@@ -370,33 +372,46 @@ export default function Products() {
                 {showLowStockOnly && (
                   <span
                     className="ml-2 text-xs font-bold px-2 py-0.5 rounded-full"
-                    style={{ background: 'var(--warning-light)', color: 'var(--warning-dark)' }}
+                    style={{ background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}
                   >
                     Low Stock Filter Active
                   </span>
                 )}
               </p>
             </div>
-            <button
-              onClick={openAdd}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition ${styles.addBtn}`}
-            >
-              <MdAdd className="text-lg" /> Add Product
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+                style={{
+                  background: filtersOpen ? 'var(--primary)' : 'var(--bg-card)',
+                  color: filtersOpen ? '#fff' : 'var(--text-secondary)',
+                  border: '1px solid var(--border-medium)',
+                }}
+                onClick={() => setFiltersOpen(o => !o)}
+              >
+                <MdFilterList /> {filtersOpen ? 'Hide Filters' : 'Filters'}
+              </button>
+              <button
+                onClick={openAdd}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold text-white transition ${styles.addBtn}`}
+              >
+                <MdAdd className="text-lg" /> Add Product
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Filter section — sticky on mobile, static on desktop */}
+        {/* Filter section — sticky on mobile, static on desktop; collapsed by default on desktop */}
         <div
-          className="flex-shrink-0 px-6 pb-3 sticky top-0 z-20 md:static"
+          className={`flex-shrink-0 px-6 pb-3 sticky top-0 z-20 md:static${filtersOpen ? '' : ' md:hidden'}`}
           style={{ background: 'var(--bg-page)' }}
         >
           <ProductFilters
             search={search} setSearch={setSearch}
             categoryFilter={categoryFilter} setCategoryFilter={setCategoryFilter}
             categories={categories.map(c => c.name || c)}
-            storeFilter={storeFilter} setStoreFilter={setStoreFilter}
-            stores={stores}
+            storeFilter={storeFilter} setStoreFilter={isOwner ? setStoreFilter : undefined}
+            stores={isOwner ? stores : []}
           />
         </div>
 
@@ -413,7 +428,7 @@ export default function Products() {
       {showModal && isOverlay && (
         <div
           className="fixed inset-0 z-30"
-          style={{ background: 'rgba(15,23,42,0.5)', backdropFilter: 'blur(2px)' }}
+          style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(2px)' }}
           onClick={closeModal}
         />
       )}

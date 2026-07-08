@@ -87,7 +87,7 @@ export default function Stores() {
       {/* ── Cascade warning banner ─────────────────────── */}
       {cascadeWarning && (
         <div className="flex-shrink-0 mx-6 mt-4 flex items-start gap-2.5 p-3.5 rounded-xl text-xs font-medium"
-          style={{ background: 'var(--warning-light)', border: '1px solid var(--warning-dark)', color: 'var(--warning-dark)' }}>
+          style={{ background: 'var(--warning-light)', border: '1px solid var(--warning-dark)', color: 'var(--badge-warning-text)' }}>
           <span className="flex-shrink-0 mt-0.5">⚠️</span>
           <span>Store renamed, but some linked records (products, sales, expenses) may not have updated. Please contact your administrator to run a data repair.</span>
           <button onClick={() => setCascadeWarning(false)} className="ml-auto flex-shrink-0 font-bold opacity-60 hover:opacity-100">✕</button>
@@ -160,7 +160,7 @@ export default function Stores() {
                       <div className="font-bold" style={{ color: 'var(--text-primary)' }}>{store.name}</div>
                       <div
                         className="text-[10px] font-black uppercase tracking-widest mt-0.5"
-                        style={{ color: 'var(--success-dark)' }}
+                        style={{ color: 'var(--badge-success-text)' }}
                       >
                         Active Unit
                       </div>
@@ -174,7 +174,7 @@ export default function Stores() {
                     <td className="px-4 py-3">
                       {confirmId === store._id ? (
                         <div className="flex items-center gap-2 justify-center">
-                          <span className="text-xs font-semibold" style={{ color: 'var(--danger-dark)' }}>Delete?</span>
+                          <span className="text-xs font-semibold" style={{ color: 'var(--badge-danger-text)' }}>Delete?</span>
                           <button
                             onClick={() => setConfirmId(null)}
                             className="px-2 py-1 rounded text-xs font-semibold transition"
@@ -220,7 +220,7 @@ export default function Stores() {
       {showModal && (
         <div
           className="fixed inset-0 flex items-center justify-center z-50 p-4"
-          style={{ background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
+          style={{ background: 'var(--overlay-bg)', backdropFilter: 'blur(3px)', WebkitBackdropFilter: 'blur(3px)' }}
         >
           <div
             className="w-full max-w-md rounded-xl overflow-hidden"

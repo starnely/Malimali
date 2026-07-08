@@ -8,7 +8,7 @@ import {
   MdLocalShipping, MdWarning, MdEdit,
   MdPictureAsPdf, MdMarkEmailRead,
   MdPayments, MdReceipt, MdAccountBalance,
-  MdPhoneAndroid, MdMoney, MdStore, MdArrowDropDown,
+  MdPhoneAndroid, MdMoney, MdStore, MdArrowDropDown, MdFilterList,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
 import styles from '@/styles/PurchaseOrders.module.css'
@@ -27,8 +27,8 @@ const STATUS_LABELS = {
 
 const PAYMENT_STATUS = {
   unpaid: { label: 'Unpaid', color: 'var(--danger)', bg: 'var(--danger-light)' },
-  partial: { label: 'Partial', color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
-  paid: { label: 'Paid', color: 'var(--success-dark)', bg: 'var(--success-light)' },
+  partial: { label: 'Partial', color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' },
+  paid: { label: 'Paid', color: 'var(--badge-success-text)', bg: 'var(--success-light)' },
 }
 
 const METHOD_ICONS = { cash: '💵', mpesa: '📱', bank: '🏦' }
@@ -48,6 +48,7 @@ export default function PurchaseOrders() {
 
   const [orders, setOrders] = useState([])
   const [loading, setLoading] = useState(true)
+  const [filtersOpen, setFiltersOpen] = useState(false)
   const [filterStatus, setFilterStatus] = useState('')
   const [filterSupplier, setFilterSupplier] = useState('')
   const [filterPayment, setFilterPayment] = useState('')
@@ -195,7 +196,7 @@ export default function PurchaseOrders() {
   return (
     <div className={styles.page}>
       {toast && (
-        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 'var(--radius-md)', background: toast.type === 'error' ? 'var(--danger)' : toast.type === 'warning' ? '#b45309' : 'var(--success)', color: 'white', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-dropdown)', maxWidth: 360 }}>
+        <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, padding: '10px 18px', borderRadius: 'var(--radius-md)', background: toast.type === 'error' ? 'var(--danger)' : toast.type === 'warning' ? 'var(--warning-dark)' : 'var(--success)', color: 'white', fontWeight: 700, fontSize: 13, boxShadow: 'var(--shadow-dropdown)', maxWidth: 360 }}>
           {toast.msg}
         </div>
       )}
@@ -217,6 +218,17 @@ export default function PurchaseOrders() {
               🤖 {runningAutoSuggest ? 'Running…' : 'Run Auto-Suggest'}
             </button>
           )}
+          <button
+            className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
+            style={{
+              background: filtersOpen ? 'var(--primary)' : 'var(--bg-card)',
+              color: filtersOpen ? '#fff' : 'var(--text-secondary)',
+              border: '1px solid var(--border-medium)',
+            }}
+            onClick={() => setFiltersOpen(o => !o)}
+          >
+            <MdFilterList /> {filtersOpen ? 'Hide Filters' : 'Filters'}
+          </button>
           <button className={styles.btnSecondary} onClick={load}><MdRefresh /> Refresh</button>
           <button className={styles.btnPrimary} onClick={() => openCreatePO()}><MdAdd /> New PO</button>
         </div>
@@ -228,7 +240,7 @@ export default function PurchaseOrders() {
             { label: 'Total POs', value: stats.total, color: 'var(--primary)' },
             { label: 'Draft', value: stats.draft, color: 'var(--text-muted)' },
             { label: 'Sent', value: stats.sent, color: 'var(--info)' },
-            { label: 'Partial', value: stats.partial, color: 'var(--warning-dark)' },
+            { label: 'Partial', value: stats.partial, color: 'var(--badge-warning-text)' },
             { label: 'Received', value: stats.received, color: 'var(--success)' },
             { label: 'Unpaid Invoices', value: stats.unpaid, color: 'var(--danger)' },
           ].map(s => (
@@ -240,7 +252,7 @@ export default function PurchaseOrders() {
         </div>
         {stats.outstanding > 0 && (
           <div style={{ marginTop: 10, padding: '12px 16px', background: 'var(--danger-light)', border: '1px solid var(--danger)', borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--danger-dark)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: 'var(--badge-danger-text)' }}>
               <MdPayments size={18} /> Total outstanding supplier balance
             </div>
             <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--danger)' }}>KSh {stats.outstanding.toLocaleString()}</div>
@@ -249,7 +261,7 @@ export default function PurchaseOrders() {
       </div>
 
       {/* ── Filters bar ── */}
-      <div className={styles.filtersBar}>
+      <div className={`${styles.filtersBar}${filtersOpen ? '' : ' md:hidden'}`}>
         {/* Store filter — owners only */}
         {isOwner && (
           <select className={styles.filterSelect} value={filterStore} onChange={e => setFilterStore(e.target.value)}>
@@ -342,7 +354,7 @@ export default function PurchaseOrders() {
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)', fontFamily: 'monospace', fontSize: 12 }}>{po.poNumber}</div>
                         <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{po.date}</div>
                         {po.source === 'suggested' && (
-                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--info-light)', color: 'var(--info-dark)', whiteSpace: 'nowrap' }}>
+                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--info-light)', color: 'var(--badge-info-text)', whiteSpace: 'nowrap' }}>
                             🤖 Auto-Suggested
                           </div>
                         )}
@@ -362,7 +374,7 @@ export default function PurchaseOrders() {
                       </td>
                       <td>
                         <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>KSh {(po.totalOrderedCost || 0).toLocaleString()}</div>
-                        {po.status === 'partial' && <div style={{ fontSize: 11, color: 'var(--success-dark)' }}>Rcvd: KSh {(po.totalReceivedCost || 0).toLocaleString()}</div>}
+                        {po.status === 'partial' && <div style={{ fontSize: 11, color: 'var(--badge-success-text)' }}>Rcvd: KSh {(po.totalReceivedCost || 0).toLocaleString()}</div>}
                       </td>
                       <td>
                         {hasInvoice ? (
@@ -382,7 +394,7 @@ export default function PurchaseOrders() {
                           {STATUS_LABELS[po.status]?.icon} {STATUS_LABELS[po.status]?.label}
                         </span>
                         {(po.status === 'received' || po.status === 'partial') && !po.invoiceAmount && (
-                          <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: 'var(--warning-light)', color: 'var(--warning-dark)', whiteSpace: 'nowrap' }}>
+                          <div style={{ marginTop: 4, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontSize: 10, fontWeight: 700, background: 'var(--warning-light)', color: 'var(--badge-warning-text)', whiteSpace: 'nowrap' }}>
                             ⚠ Invoice due
                           </div>
                         )}
@@ -417,7 +429,7 @@ export default function PurchaseOrders() {
                         <div className={styles.poCardPoNumber}>{po.poNumber}</div>
                         <div className={styles.poCardDate}>{po.date}</div>
                         {po.source === 'suggested' && (
-                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--info-light)', color: 'var(--info-dark)', whiteSpace: 'nowrap' }}>
+                          <div style={{ marginTop: 3, display: 'inline-flex', alignItems: 'center', gap: 3, padding: '1px 6px', borderRadius: 8, fontSize: 10, fontWeight: 700, background: 'var(--info-light)', color: 'var(--badge-info-text)', whiteSpace: 'nowrap' }}>
                             🤖 Auto-Suggested
                           </div>
                         )}
@@ -447,7 +459,7 @@ export default function PurchaseOrders() {
                         <span className={styles.poCardFieldLabel}>Value</span>
                         <span className={styles.poCardFieldValue}>
                           <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>KSh {(po.totalOrderedCost || 0).toLocaleString()}</span>
-                          {po.status === 'partial' && <span style={{ fontSize: 11, color: 'var(--success-dark)', marginLeft: 6 }}>Rcvd: KSh {(po.totalReceivedCost || 0).toLocaleString()}</span>}
+                          {po.status === 'partial' && <span style={{ fontSize: 11, color: 'var(--badge-success-text)', marginLeft: 6 }}>Rcvd: KSh {(po.totalReceivedCost || 0).toLocaleString()}</span>}
                         </span>
                       </div>
                       <div className={styles.poCardField}>
@@ -462,7 +474,7 @@ export default function PurchaseOrders() {
                               </div>
                             </>
                           ) : (po.status === 'received' || po.status === 'partial') ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: 'var(--warning-light)', color: 'var(--warning-dark)' }}>
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 10, fontSize: 11, fontWeight: 700, background: 'var(--warning-light)', color: 'var(--badge-warning-text)' }}>
                               ⚠ Invoice due
                             </span>
                           ) : (
@@ -708,7 +720,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
 
       {lowGroup.length > 0 && (
         <>
-          <div style={{ ...GROUP_HDR, color: 'var(--warning-dark)', background: 'var(--warning-light)', borderBottom: '1px solid var(--warning)', position: 'sticky', top: 0 }}>
+          <div style={{ ...GROUP_HDR, color: 'var(--badge-warning-text)', background: 'var(--warning-light)', borderBottom: '1px solid var(--warning)', position: 'sticky', top: 0 }}>
             ⚠️ Low Stock
           </div>
           {lowGroup.map(p => {
@@ -728,7 +740,7 @@ function ProductCombobox({ value, options, usedIds, disabled, onChange }) {
                 }}
               >
                 <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{p.name}</span>
-                <span style={{ marginLeft: 7, color: 'var(--warning-dark)', fontSize: 11 }}>
+                <span style={{ marginLeft: 7, color: 'var(--badge-warning-text)', fontSize: 11 }}>
                   stock: {fmtQty(p.stock ?? p.quantity ?? 0)}{p.unit ? ` ${p.unit}` : ''} · reorder at {reorder}
                 </span>
                 {isUsed && <span style={{ marginLeft: 7, fontSize: 10, color: 'var(--text-muted)' }}>(already added)</span>}
@@ -1013,7 +1025,7 @@ function CreatePOModal({
                 ))}
               </select>
               {!selectedStore && (
-                <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 4 }}>Select a store first to see its suppliers.</div>
+                <div style={{ fontSize: 11, color: 'var(--badge-warning-text)', marginTop: 4 }}>Select a store first to see its suppliers.</div>
               )}
             </div>
             <div className={styles.formGroup}>
@@ -1024,7 +1036,7 @@ function CreatePOModal({
               <label>Supplier Phone</label>
               <input value={supplierPhone} onChange={e => setSupplierPhone(e.target.value)} placeholder='e.g. 0712 345 678' />
               {supplierId && supplierPhone && (
-                <div style={{ fontSize: 11, color: 'var(--success-dark)', marginTop: 4 }}>✓ Auto-filled from supplier record</div>
+                <div style={{ fontSize: 11, color: 'var(--badge-success-text)', marginTop: 4 }}>✓ Auto-filled from supplier record</div>
               )}
             </div>
             <div className={styles.formGroup}>
@@ -1041,7 +1053,7 @@ function CreatePOModal({
           <div className={styles.itemsSection}>
             <h3>Order Items</h3>
             {!selectedStore && (
-              <div style={{ padding: '10px 14px', background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--warning-dark)', fontWeight: 600, marginBottom: 10 }}>
+              <div style={{ padding: '10px 14px', background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--badge-warning-text)', fontWeight: 600, marginBottom: 10 }}>
                 ⚠️ Select a store above to load its products.
               </div>
             )}
@@ -1072,7 +1084,7 @@ function CreatePOModal({
                         />
                         {/* Reorder level hint */}
                         {reorderLevel != null && (
-                          <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <div style={{ fontSize: 11, color: 'var(--badge-warning-text)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
                             <MdWarning size={11} /> Reorder at {reorderLevel} {productUnit}
                           </div>
                         )}
@@ -1138,7 +1150,7 @@ function CreatePOModal({
                           onChange={productId => onProductChange(i, productId)}
                         />
                         {reorderLevel != null && (
-                          <div style={{ fontSize: 11, color: 'var(--warning-dark)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <div style={{ fontSize: 11, color: 'var(--badge-warning-text)', marginTop: 3, display: 'flex', alignItems: 'center', gap: 3 }}>
                             <MdWarning size={11} /> Reorder at {reorderLevel} {productUnit}
                           </div>
                         )}
@@ -1195,7 +1207,7 @@ function CreatePOModal({
           </div>
 
           {error && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>
               <MdWarning style={{ verticalAlign: 'middle', marginRight: 6 }} />{error}
             </div>
           )}
@@ -1250,7 +1262,7 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
           <button className={styles.modalClose} onClick={onClose}><MdClose /></button>
         </div>
         <div className={styles.modalBody}>
-          <div style={{ padding: '10px 14px', background: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: 13, marginBottom: 16, color: 'var(--info-dark)', fontWeight: 600 }}>
+          <div style={{ padding: '10px 14px', background: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: 13, marginBottom: 16, color: 'var(--badge-info-text)', fontWeight: 600 }}>
             📋 Record the invoice the supplier brought with this delivery. The invoice amount may differ from the PO value.
           </div>
           <div className={styles.formGroup}><label>Invoice Number (from supplier's document)</label><input value={invoiceNumber} onChange={e => setInvoiceNumber(e.target.value)} placeholder="e.g. INV-2026-089" /></div>
@@ -1269,14 +1281,14 @@ function InvoiceModal({ po, currentUser, onClose, onSaved }) {
           </div>
           {Number(invoiceAmount) > 0 && (
             <div style={{ padding: '12px 14px', background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', fontSize: 13 }}>
-              <div style={{ fontWeight: 700, color: 'var(--warning-dark)', marginBottom: 4 }}>Invoice Summary</div>
+              <div style={{ fontWeight: 700, color: 'var(--badge-warning-text)', marginBottom: 4 }}>Invoice Summary</div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ color: 'var(--text-secondary)' }}>Amount to pay supplier:</span>
-                <span style={{ fontWeight: 900, fontSize: 16, color: 'var(--warning-dark)' }}>KSh {Number(invoiceAmount).toLocaleString()}</span>
+                <span style={{ fontWeight: 900, fontSize: 16, color: 'var(--badge-warning-text)' }}>KSh {Number(invoiceAmount).toLocaleString()}</span>
               </div>
             </div>
           )}
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
         </div>
         <div className={styles.modalFooter}>
           <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>
@@ -1395,7 +1407,7 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
           <div className={styles.paymentSummaryGrid} style={{ gap: 10, marginBottom: 16 }}>
             {[
               { label: 'Invoice Amount', value: `KSh ${(po.invoiceAmount || 0).toLocaleString()}`, color: 'var(--text-primary)' },
-              { label: 'Already Paid', value: `KSh ${(po.amountPaid || 0).toLocaleString()}`, color: 'var(--success-dark)' },
+              { label: 'Already Paid', value: `KSh ${(po.amountPaid || 0).toLocaleString()}`, color: 'var(--badge-success-text)' },
               { label: 'Balance Due', value: `KSh ${balance.toLocaleString()}`, color: balance > 0 ? 'var(--danger)' : 'var(--success-dark)' },
             ].map(s => (
               <div key={s.label} style={{ padding: '10px 12px', background: 'var(--bg-muted)', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-soft)' }}>
@@ -1408,7 +1420,7 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
             <div style={{ padding: '12px 14px', background: advisory.net >= Number(amount || 0) ? 'var(--success-light)' : 'var(--warning-light)', border: `1px solid ${advisory.net >= Number(amount || 0) ? 'var(--success)' : 'var(--warning)'}`, borderRadius: 'var(--radius-md)', marginBottom: 16, fontSize: 12 }}>
               <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 8 }}>📊 This Month's Financial Position</div>
               {[
-                { label: 'Revenue this month', value: advisory.revenue, color: 'var(--success-dark)' },
+                { label: 'Revenue this month', value: advisory.revenue, color: 'var(--badge-success-text)' },
                 { label: 'Expenses this month', value: advisory.expenses, color: 'var(--danger)' },
                 { label: 'Supplier payments made', value: advisory.supplierPayments, color: advisory.supplierPayments > 0 ? 'var(--danger)' : 'var(--text-muted)' },
                 { label: 'Other supplier debt', value: advisory.otherSupplierDebt, color: advisory.otherSupplierDebt > 0 ? 'var(--warning-dark)' : 'var(--text-muted)' },
@@ -1469,12 +1481,12 @@ function PaymentModal({ po, currentUser, onClose, onPaid }) {
                     {p.reference && <span style={{ color: 'var(--text-muted)', marginLeft: 8 }}>{p.reference}</span>}
                     <div style={{ color: 'var(--text-muted)', fontSize: 11 }}>{p.date} · by {p.paidBy}</div>
                   </div>
-                  <span style={{ fontWeight: 700, color: 'var(--success-dark)' }}>KSh {p.amount.toLocaleString()}</span>
+                  <span style={{ fontWeight: 700, color: 'var(--badge-success-text)' }}>KSh {p.amount.toLocaleString()}</span>
                 </div>
               ))}
             </div>
           )}
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
+          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>{error}</div>}
         </div>
         <div className={styles.modalFooter}>
           <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>
@@ -1563,7 +1575,7 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
                     { label: 'Invoice No', value: po.invoiceNumber || '—', color: 'var(--text-primary)' },
                     { label: 'Invoice Date', value: po.invoiceDate || '—', color: 'var(--text-primary)' },
                     { label: 'Invoice Amount', value: `KSh ${(po.invoiceAmount || 0).toLocaleString()}`, color: 'var(--text-primary)' },
-                    { label: 'Amount Paid', value: `KSh ${(po.amountPaid || 0).toLocaleString()}`, color: 'var(--success-dark)' },
+                    { label: 'Amount Paid', value: `KSh ${(po.amountPaid || 0).toLocaleString()}`, color: 'var(--badge-success-text)' },
                     { label: 'Balance Due', value: `KSh ${(po.balance || 0).toLocaleString()}`, color: po.balance > 0 ? 'var(--danger)' : 'var(--success-dark)' },
                     { label: 'Payment Status', value: ps?.label || '—', color: ps?.color || 'var(--text-muted)' },
                   ].map(s => (
@@ -1574,7 +1586,7 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
                   ))}
                 </div>
               ) : (
-                <div style={{ padding: '12px 14px', background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--warning-dark)', fontWeight: 600 }}>
+                <div style={{ padding: '12px 14px', background: 'var(--warning-light)', border: '1px solid var(--warning)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--badge-warning-text)', fontWeight: 600 }}>
                   ⚠️ No invoice recorded yet. Click "Record Invoice" below to add the supplier's invoice details.
                 </div>
               )}
@@ -1587,8 +1599,8 @@ function ViewPOModal({ po, onClose, onDownloadPDF, onEmail, onPay, onInvoice }) 
             </div>
             {po.totalReceivedCost > 0 && (
               <div style={{ textAlign: 'right', padding: '10px 16px', background: 'var(--success-light)', borderRadius: 'var(--radius-md)' }}>
-                <div style={{ fontSize: 11, color: 'var(--success-dark)', fontWeight: 700, textTransform: 'uppercase' }}>Received Value</div>
-                <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--success-dark)' }}>KSh {(po.totalReceivedCost || 0).toLocaleString()}</div>
+                <div style={{ fontSize: 11, color: 'var(--badge-success-text)', fontWeight: 700, textTransform: 'uppercase' }}>Received Value</div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: 'var(--badge-success-text)' }}>KSh {(po.totalReceivedCost || 0).toLocaleString()}</div>
               </div>
             )}
           </div>
@@ -1680,7 +1692,7 @@ function ReceiveModal({ po, products, onClose, onReceived, receivePurchaseOrder 
         </div>
         <div className={styles.modalBody}>
 
-          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--info-light)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--info-dark)', fontWeight: 600 }}>
+          <div style={{ marginBottom: 16, padding: '10px 14px', background: 'var(--info-light)', borderRadius: 'var(--radius-md)', fontSize: 13, color: 'var(--badge-info-text)', fontWeight: 600 }}>
             <MdLocalShipping style={{ verticalAlign: 'middle', marginRight: 6 }} />
             Confirm quantities and actual unit costs paid. Buy prices update for <strong>future sales only</strong> — past sales already recorded are not affected.
           </div>
@@ -1796,13 +1808,13 @@ function ReceiveModal({ po, products, onClose, onReceived, receivePurchaseOrder 
 
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 4 }}>
             <div style={{ background: 'var(--success-light)', border: '1px solid var(--success)', borderRadius: 'var(--radius-md)', padding: '10px 16px', textAlign: 'right' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--success-dark)', textTransform: 'uppercase' }}>Total Value Received Now</div>
-              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--success-dark)' }}>KSh {totalValue.toLocaleString()}</div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--badge-success-text)', textTransform: 'uppercase' }}>Total Value Received Now</div>
+              <div style={{ fontSize: 20, fontWeight: 900, color: 'var(--badge-success-text)' }}>KSh {totalValue.toLocaleString()}</div>
             </div>
           </div>
 
           {error && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>
               <MdWarning style={{ verticalAlign: 'middle', marginRight: 6 }} />{error}
             </div>
           )}
@@ -1857,7 +1869,7 @@ function EmailPOModal({ po, currentUser, onClose, onSent }) {
           <div style={{ padding: '10px 14px', background: 'var(--info-light)', border: '1px solid var(--info)', borderRadius: 'var(--radius-md)', fontSize: 13, marginBottom: 16 }}>
             <strong>Supplier:</strong> {po.supplierName}
             {po.supplierPhone && <span style={{ marginLeft: 12, color: 'var(--text-muted)' }}>📞 {po.supplierPhone}</span>}
-            {!supplierEmail && <div style={{ marginTop: 6, color: 'var(--warning-dark)', fontWeight: 600, fontSize: 12 }}>⚠️ No email saved for this supplier.</div>}
+            {!supplierEmail && <div style={{ marginTop: 6, color: 'var(--badge-warning-text)', fontWeight: 600, fontSize: 12 }}>⚠️ No email saved for this supplier.</div>}
           </div>
           <div className={styles.formGroup}><label>Recipient Email *</label><input value={recipient} onChange={e => setRecipient(e.target.value)} placeholder="supplier@company.com" autoFocus={!isTouchDevice()} /></div>
           <div className={styles.formGroup}><label>Subject</label><input value={subject} onChange={e => setSubject(e.target.value)} /></div>
@@ -1868,7 +1880,7 @@ function EmailPOModal({ po, currentUser, onClose, onSent }) {
             <div>✅ {po.items?.length} product line{po.items?.length !== 1 ? 's' : ''} · Total: <strong>KSh {(po.totalOrderedCost || 0).toLocaleString()}</strong></div>
             <div style={{ marginTop: 6, color: 'var(--text-muted)', fontStyle: 'italic' }}>Status updates to "Sent" after delivery.</div>
           </div>
-          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--danger-dark)', fontSize: 13, fontWeight: 600 }}>⚠️ {error}</div>}
+          {error && <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--danger-light)', borderRadius: 'var(--radius-md)', color: 'var(--badge-danger-text)', fontSize: 13, fontWeight: 600 }}>⚠️ {error}</div>}
         </div>
         <div className={styles.modalFooter}>
           <button className={styles.btnSecondary} onClick={onClose}>Cancel</button>

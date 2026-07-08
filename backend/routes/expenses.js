@@ -10,7 +10,8 @@ router.use(authMiddleware)
 router.get("/", async (req, res) => {
   try {
     const filter = { isDeleted: false }
-    if (req.query.store)    filter.store    = req.query.store
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
     if (req.query.category) filter.category = req.query.category
     if (req.query.date)     filter.date     = req.query.date
 
@@ -37,7 +38,8 @@ router.get("/", async (req, res) => {
 router.get("/summary", async (req, res) => {
   try {
     const matchFilter = { isDeleted: false }
-    if (req.query.store) matchFilter.store = req.query.store
+    if (req.user.role === "manager") matchFilter.store = req.user.store
+    else if (req.query.store) matchFilter.store = req.query.store
     if (req.query.date)  matchFilter.date  = req.query.date
 
     if (req.query.from || req.query.to) {
@@ -71,7 +73,8 @@ router.get("/monthly", async (req, res) => {
     const to      = `${year}-${mm}-${lastDay}`
 
     const filter = { isDeleted: false, date: { $gte: from, $lte: to } }
-    if (req.query.store) filter.store = req.query.store
+    if (req.user.role === "manager") filter.store = req.user.store
+    else if (req.query.store) filter.store = req.query.store
 
     const expenses = await Expense.find(filter).sort({ date: 1 })
     const byDate   = {}

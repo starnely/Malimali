@@ -46,7 +46,7 @@ export default function DebtorPanel({ date, onClose }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(15,23,42,0.6)', WebkitBackdropFilter: 'blur(4px)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(4px)', backdropFilter: 'blur(4px)' }}
     >
       <div
         className="w-full rounded-2xl overflow-hidden flex flex-col"
@@ -138,7 +138,7 @@ export default function DebtorPanel({ date, onClose }) {
                       const promise = formatPromise(sale.paymentInfo?.promiseDate)
                       const isOverdue = promise && promise.days < 0
                       const isDueToday = promise && promise.days === 0
-                      const promiseColor = isOverdue ? 'var(--danger-dark)' : isDueToday ? '#ea580c' : 'var(--warning-dark)'
+                      const promiseColor = isOverdue ? 'var(--danger-dark)' : isDueToday ? 'var(--orange)' : 'var(--warning-dark)'
 
                       return (
                         <div
@@ -158,7 +158,7 @@ export default function DebtorPanel({ date, onClose }) {
                             </div>
                             <span
                               className="text-xs font-black px-2 py-0.5 rounded"
-                              style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)' }}
+                              style={{ background: 'var(--danger-light)', color: 'var(--badge-danger-text)' }}
                             >
                               KSh {(sale.paymentInfo?.finalTotal ?? 0).toLocaleString()}
                             </span>
@@ -209,7 +209,7 @@ export default function DebtorPanel({ date, onClose }) {
               >
                 <MdWarning size={18} />
               </div>
-              <p className="text-xs leading-relaxed" style={{ color: 'var(--warning-dark)' }}>
+              <p className="text-xs leading-relaxed" style={{ color: 'var(--badge-warning-text)' }}>
                 <strong>Risk Alert:</strong> These amounts are not in your drawer or M-Pesa.
                 Ensure <strong>{Object.keys(byEmployee).join(', ')}</strong> provides
                 documentation for these credit arrangements.

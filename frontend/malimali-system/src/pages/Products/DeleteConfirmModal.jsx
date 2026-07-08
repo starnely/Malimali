@@ -7,7 +7,7 @@ export default function DeleteConfirmModal({ deleteConfirm, handleDeleteConfirme
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 animate-fadeIn"
-      style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)',backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)',backdropFilter: 'blur(3px)' }}
     >
       <div
         className="w-[90vw] max-w-[360px] rounded-xl p-6"

@@ -90,7 +90,7 @@ export default function EmployeeCard({
                 </span>
               ) : (
                 <span className="flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-black uppercase animate-pulse"
-                  style={{ background: 'var(--success-light)', color: 'var(--success-dark)' }}>
+                  style={{ background: 'var(--success-light)', color: 'var(--badge-success-text)' }}>
                   <MdTimer className="text-xs" /> Working
                 </span>
               )}
@@ -140,7 +140,7 @@ export default function EmployeeCard({
                 <button
                   onClick={() => setEmployeeDateFilter(prev => ({ ...prev, [cashier]: {} }))}
                   className="flex-shrink-0 text-xs px-2.5 py-1.5 rounded-lg font-bold"
-                  style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)', touchAction: 'manipulation', userSelect: 'none' }}
+                  style={{ background: 'var(--danger-light)', color: 'var(--badge-danger-text)', touchAction: 'manipulation', userSelect: 'none' }}
                 >
                   ×
                 </button>

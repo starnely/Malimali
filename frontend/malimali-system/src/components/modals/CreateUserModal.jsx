@@ -32,7 +32,7 @@ export default function CreateUserModal({ isOpen, onClose, onCreate }) {
   return (
     <div
       className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      style={{ background: 'rgba(15,23,42,0.6)', WebkitBackdropFilter: 'blur(3px)',backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)',backdropFilter: 'blur(3px)' }}
     >
       <div
         className="w-full max-w-md rounded-xl overflow-hidden"

@@ -114,7 +114,7 @@ export default function DailyArchives() {
               className="px-3 py-2 rounded-lg text-sm font-semibold transition"
               style={{
                 background: 'var(--danger-light)',
-                color: 'var(--danger-dark)',
+                color: 'var(--badge-danger-text)',
                 border: '1px solid var(--danger)',
               }}
             >

@@ -49,14 +49,14 @@ export default function SalesStats({ isOwner, filtered, category, currency = 'KS
       label: 'Transactions',
       value: transactionCount,
       icon: <MdReceipt />,
-      color: 'var(--success-dark)',
+      color: 'var(--badge-success-text)',
       bg: 'var(--success-light)',
     },
     {
       label: 'Items Sold',
       value: fmtQty(totalItemsSold),
       icon: <MdInventory />,
-      color: 'var(--warning-dark)',
+      color: 'var(--badge-warning-text)',
       bg: 'var(--warning-light)',
     },
   ]

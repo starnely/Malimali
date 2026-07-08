@@ -148,13 +148,13 @@ export default function DailySummaryModal({ onClose }) {
       label: '💵 Cash Sales',
       value: summary.paymentBreakdown.cash,
       sub: `${summary.cashSalesCount || 0} cash · ${summary.splitSalesCount || 0} split`,
-      color: 'var(--success-dark)', bg: 'var(--success-light)',
+      color: 'var(--badge-success-text)', bg: 'var(--success-light)',
     },
     {
       label: '📱 M-Pesa Total',
       value: summary.paymentBreakdown.mpesa,
       sub: `${summary.mpesaSalesCount || 0} mpesa`,
-      color: 'var(--info-dark)', bg: 'var(--info-light)',
+      color: 'var(--badge-info-text)', bg: 'var(--info-light)',
     },
     {
       label: '💳 Card (EDC)',
@@ -396,7 +396,7 @@ export default function DailySummaryModal({ onClose }) {
     <>
       <div
         className="modal-overlay fixed inset-0 flex items-center justify-center z-[1000] p-4"
-        style={{ background: 'rgba(15,23,42,0.55)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
+        style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
       >
         <div
           className="modal-container w-full rounded-xl overflow-hidden flex flex-col"
@@ -443,10 +443,10 @@ export default function DailySummaryModal({ onClose }) {
                 style={{ background: 'var(--success-light)', border: '1px solid var(--success)' }}>
                 <MdCheckCircle style={{ color: 'var(--success)', fontSize: '24px', flexShrink: 0 }} />
                 <div>
-                  <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--success-dark)' }}>
+                  <div style={{ fontSize: '14px', fontWeight: '700', color: 'var(--badge-success-text)' }}>
                     Shift Closed Successfully
                   </div>
-                  <div style={{ fontSize: '12px', color: 'var(--success-dark)', marginTop: '2px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--badge-success-text)', marginTop: '2px' }}>
                     Your Z-Report has been saved. You can print it below.
                   </div>
                 </div>
@@ -467,10 +467,10 @@ export default function DailySummaryModal({ onClose }) {
                   {[
                     { label: 'Net Revenue', value: `${currency} ${summary.totalRevenue.toLocaleString()}`, icon: <MdAttachMoney />, color: 'var(--primary)', bg: 'var(--primary-light)' },
                     { label: 'Profit Today', value: `${currency} ${summary.totalProfit.toLocaleString()}`, icon: <MdTrendingUp />, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bg: summary.totalProfit >= 0 ? 'var(--success-light)' : 'var(--danger-light)' },
-                    { label: 'Items Sold', value: fmtQty(summary?.totalItems || 0), icon: <MdInventory />, color: 'var(--warning-dark)', bg: 'var(--warning-light)' },
-                    { label: 'Transactions', value: summary.totalTransactions, icon: <MdPerson />, color: 'var(--info-dark)', bg: 'var(--info-light)' },
-                    ...(summary.totalTaxCollected > 0 ? [{ label: 'VAT Collected', value: `${currency} ${summary.totalTaxCollected.toLocaleString()}`, icon: <MdAttachMoney />, color: '#7c3aed', bg: '#f5f3ff' }] : []),
-                    { label: 'Debt Collected', value: `${currency} ${totalDebtCollected.toLocaleString()}`, icon: <MdPeopleAlt />, color: '#0369a1', bg: '#e0f2fe' },
+                    { label: 'Items Sold', value: fmtQty(summary?.totalItems || 0), icon: <MdInventory />, color: 'var(--badge-warning-text)', bg: 'var(--warning-light)' },
+                    { label: 'Transactions', value: summary.totalTransactions, icon: <MdPerson />, color: 'var(--badge-info-text)', bg: 'var(--info-light)' },
+                    ...(summary.totalTaxCollected > 0 ? [{ label: 'VAT Collected', value: `${currency} ${summary.totalTaxCollected.toLocaleString()}`, icon: <MdAttachMoney />, color: 'var(--accent)', bg: 'var(--accent-light)' }] : []),
+                    { label: 'Debt Collected', value: `${currency} ${totalDebtCollected.toLocaleString()}`, icon: <MdPeopleAlt />, color: 'var(--info-600)', bg: 'var(--info-light)' },
                   ].map((card, i) => (
                     <div key={i} className="rounded-xl p-4 flex items-center gap-3" style={{ background: card.bg }}>
                       <div className="text-2xl" style={{ color: card.color }}>{card.icon}</div>
@@ -487,7 +487,7 @@ export default function DailySummaryModal({ onClose }) {
                   <div className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: 'var(--text-secondary)' }}>Profit Breakdown</div>
                   {[
                     { label: 'Net Revenue (excl. VAT)', value: `${currency} ${summary.totalRevenue.toLocaleString()}`, color: 'var(--primary)' },
-                    ...(summary.totalTaxCollected > 0 ? [{ label: `VAT Collected (→ KRA)`, value: `${currency} ${summary.totalTaxCollected.toLocaleString()}`, color: '#7c3aed', note: true }] : []),
+                    ...(summary.totalTaxCollected > 0 ? [{ label: `VAT Collected (→ KRA)`, value: `${currency} ${summary.totalTaxCollected.toLocaleString()}`, color: 'var(--accent)', note: true }] : []),
                     { label: 'Cost of Goods Sold', value: `− ${currency} ${summary.totalCOGS.toLocaleString()}`, color: 'var(--danger)' },
                     { label: 'Profit', value: `${currency} ${summary.totalProfit.toLocaleString()}`, color: summary.totalProfit >= 0 ? 'var(--success-dark)' : 'var(--danger-dark)', bold: true },
                   ].map((row, i) => (
@@ -524,7 +524,7 @@ export default function DailySummaryModal({ onClose }) {
                 {/* ★ Phase 6: Expenses panel */}
                 <div className="rounded-xl p-4 mb-4" style={{
                   background: expenseTotal > 0 ? 'var(--danger-light)' : 'var(--bg-muted)',
-                  border: `1px solid ${expenseTotal > 0 ? '#fecaca' : 'var(--border-soft)'}`,
+                  border: `1px solid ${expenseTotal > 0 ? 'var(--danger-light)' : 'var(--border-soft)'}`,
                 }}>
                   <div className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: expenseTotal > 0 ? 'var(--danger-dark)' : 'var(--text-secondary)' }}>
                     💸 Expenses Today
@@ -537,14 +537,14 @@ export default function DailySummaryModal({ onClose }) {
                     <>
                       {expenseSummary.map((cat, i) => (
                         <div key={cat._id} className="flex justify-between py-2"
-                          style={{ borderBottom: i < expenseSummary.length - 1 ? '1px solid #fecaca' : 'none', fontSize: '13px' }}>
+                          style={{ borderBottom: i < expenseSummary.length - 1 ? '1px solid var(--danger-light)' : 'none', fontSize: '13px' }}>
                           <span style={{ color: 'var(--text-secondary)' }}>{EXPENSE_CAT_LABELS[cat._id] || cat._id}</span>
                           <span style={{ fontWeight: 700, color: 'var(--danger)' }}>KSh {cat.total.toLocaleString()}</span>
                         </div>
                       ))}
                       <div className="flex justify-between pt-3 mt-1"
-                        style={{ borderTop: '2px solid #fecaca', fontSize: '14px', fontWeight: 800 }}>
-                        <span style={{ color: 'var(--danger-dark)' }}>Total Expenses</span>
+                        style={{ borderTop: '2px solid var(--danger)', fontSize: '14px', fontWeight: 800 }}>
+                        <span style={{ color: 'var(--badge-danger-text)' }}>Total Expenses</span>
                         <span style={{ color: 'var(--danger)' }}>KSh {expenseTotal.toLocaleString()}</span>
                       </div>
                     </>
@@ -564,8 +564,8 @@ export default function DailySummaryModal({ onClose }) {
                         📊 Profit & Loss (Today)
                       </div>
                       {[
-                        { label: 'Net Revenue (excl. VAT)', value: summary.totalRevenue, color: 'var(--success-dark)' },
-                        ...(summary.totalTaxCollected > 0 ? [{ label: 'VAT Collected (→ KRA)', value: summary.totalTaxCollected, color: '#7c3aed' }] : []),
+                        { label: 'Net Revenue (excl. VAT)', value: summary.totalRevenue, color: 'var(--badge-success-text)' },
+                        ...(summary.totalTaxCollected > 0 ? [{ label: 'VAT Collected (→ KRA)', value: summary.totalTaxCollected, color: 'var(--accent)' }] : []),
                         { label: 'Total Expenses', value: expenseTotal, color: 'var(--danger)', prefix: '− ' },
                       ].map((row, i) => (
                         <div key={i} className="flex justify-between py-1.5" style={{ fontSize: '13px' }}>
@@ -630,26 +630,26 @@ export default function DailySummaryModal({ onClose }) {
 
                 {/* Debt collections panel */}
                 {totalDebtCollected > 0 && (
-                  <div className="rounded-xl p-4 mb-4" style={{ background: '#f0f9ff', border: '1px solid #bae6fd' }}>
-                    <div className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: '#0369a1' }}>
+                  <div className="rounded-xl p-4 mb-4" style={{ background: 'var(--info-light)', border: '1px solid var(--info-light)' }}>
+                    <div className="text-xs font-black uppercase tracking-wider mb-3" style={{ color: 'var(--info-600)' }}>
                       💰 Debt Collections Today
                     </div>
                     <div className="flex justify-between items-center mb-3">
                       <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                         {todayRepayments.length} payment{todayRepayments.length !== 1 ? 's' : ''} recorded
                       </span>
-                      <span className="text-base font-black" style={{ color: '#0369a1' }}>
+                      <span className="text-base font-black" style={{ color: 'var(--info-600)' }}>
                         KSh {totalDebtCollected.toLocaleString()}
                       </span>
                     </div>
                     {todayRepayments.slice(0, 5).map((rep, i) => (
                       <div key={i} className="flex justify-between items-center py-2"
-                        style={{ borderTop: i > 0 ? '1px solid #e0f2fe' : 'none', fontSize: '12px' }}>
+                        style={{ borderTop: i > 0 ? '1px solid var(--info-light)' : 'none', fontSize: '12px' }}>
                         <div>
                           <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{rep.customerName || '—'}</span>
                           <span style={{ color: 'var(--text-muted)', marginLeft: '8px' }}>by {rep.recordedBy}</span>
                         </div>
-                        <span style={{ fontWeight: 700, color: '#0369a1' }}>KSh {rep.amount?.toLocaleString()}</span>
+                        <span style={{ fontWeight: 700, color: 'var(--info-600)' }}>KSh {rep.amount?.toLocaleString()}</span>
                       </div>
                     ))}
                     {todayRepayments.length > 5 && (
@@ -749,7 +749,7 @@ export default function DailySummaryModal({ onClose }) {
                       </div>
                     ) : (
                       <div className="rounded-lg p-3" style={{ background: 'var(--success-light)', border: '1px solid var(--success)' }}>
-                        <div style={{ fontSize: '12px', color: 'var(--success-dark)', fontWeight: '600' }}>
+                        <div style={{ fontSize: '12px', color: 'var(--badge-success-text)', fontWeight: '600' }}>
                           Reconciliation saved at shift close.
                         </div>
                       </div>
@@ -782,7 +782,7 @@ export default function DailySummaryModal({ onClose }) {
                           <div className="text-sm font-black" style={{ color: 'var(--primary)' }}>
                             KSh {emp.revenue.toLocaleString()}
                           </div>
-                          <div className="text-xs" style={{ color: 'var(--success-dark)' }}>
+                          <div className="text-xs" style={{ color: 'var(--badge-success-text)' }}>
                             Profit: KSh {emp.profit.toLocaleString()}
                           </div>
                         </div>
@@ -800,7 +800,7 @@ export default function DailySummaryModal({ onClose }) {
             style={{ borderTop: '1px solid var(--border-soft)', background: 'var(--bg-card)' }}
           >
             {closeError && (
-              <div style={{ fontSize: '12px', color: 'var(--danger-dark)', fontWeight: '600', flex: 1 }}>
+              <div style={{ fontSize: '12px', color: 'var(--badge-danger-text)', fontWeight: '600', flex: 1 }}>
                 ⚠️ {closeError}
               </div>
             )}

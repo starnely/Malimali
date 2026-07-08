@@ -95,7 +95,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: 'rgba(15,23,42,0.6)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
+      style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(3px)', backdropFilter: 'blur(3px)' }}
     >
       <div
         className="w-full max-w-md rounded-xl overflow-hidden"
@@ -219,7 +219,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
               style={{ background: 'var(--danger-light)', border: '1px solid var(--danger)' }}
             >
               <div>
-                <div className="text-sm font-bold" style={{ color: 'var(--danger-dark)' }}>Refund Amount</div>
+                <div className="text-sm font-bold" style={{ color: 'var(--badge-danger-text)' }}>Refund Amount</div>
                 <div className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
                   Pending owner approval · stock restored after approval
                 </div>
@@ -233,7 +233,7 @@ export default function ReturnModal({ sale, onClose, onSuccess }) {
           {submitError && (
             <div
               className="text-sm p-3 rounded-lg mb-3"
-              style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)', border: '1px solid var(--danger)' }}
+              style={{ background: 'var(--danger-light)', color: 'var(--badge-danger-text)', border: '1px solid var(--danger)' }}
             >
               {submitError}
             </div>

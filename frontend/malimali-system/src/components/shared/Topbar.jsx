@@ -2,7 +2,7 @@
 import {
   MdNotifications, MdPerson, MdWarning, MdClose, MdLocationOn,
   MdAccessTime, MdLogout, MdAccountCircle, MdLockClock, MdChat,
-  MdSettings, MdDocumentScanner, MdArchive, MdMenu,
+  MdSettings, MdMenu,
   MdLightMode, MdDarkMode,
 } from 'react-icons/md'
 import { useApp } from '@/context/AppContext'
@@ -74,10 +74,10 @@ function NotificationPanel({ onClose }) {
   }
 
   const typeStyles = {
-    success: { bg: 'var(--success-light)', border: 'var(--success)', color: 'var(--success-dark)' },
-    error: { bg: 'var(--danger-light)', border: 'var(--danger)', color: 'var(--danger-dark)' },
-    warning: { bg: 'var(--warning-light)', border: 'var(--warning)', color: 'var(--warning-dark)' },
-    info: { bg: 'var(--info-light)', border: 'var(--info)', color: 'var(--info-dark)' },
+    success: { bg: 'var(--success-light)', border: 'var(--success)', color: 'var(--badge-success-text)' },
+    error: { bg: 'var(--danger-light)', border: 'var(--danger)', color: 'var(--badge-danger-text)' },
+    warning: { bg: 'var(--warning-light)', border: 'var(--warning)', color: 'var(--badge-warning-text)' },
+    info: { bg: 'var(--info-light)', border: 'var(--info)', color: 'var(--badge-info-text)' },
   }
 
   return (
@@ -102,7 +102,7 @@ function NotificationPanel({ onClose }) {
             Mark all read
           </button>
           <button onClick={handleClearAll} className="flex-1 px-2 py-1.5 rounded-md text-xs font-semibold"
-            style={{ background: 'var(--danger-light)', color: 'var(--danger-dark)' }}>
+            style={{ background: 'var(--danger-light)', color: 'var(--badge-danger-text)' }}>
             Clear all
           </button>
         </div>
@@ -199,10 +199,10 @@ export default function TopBar() {
   const removeToast = (id) => setToasts(prev => prev.filter(t => t.id !== id))
 
   const toastStyles = {
-    success: { border: 'var(--success)', icon: '✅', bg: 'var(--success-light)', color: 'var(--success-dark)' },
-    error: { border: 'var(--danger)', icon: '❌', bg: 'var(--danger-light)', color: 'var(--danger-dark)' },
-    return: { border: 'var(--warning)', icon: '🔄', bg: 'var(--warning-light)', color: 'var(--warning-dark)' },
-    info: { border: 'var(--info)', icon: 'ℹ️', bg: 'var(--info-light)', color: 'var(--info-dark)' },
+    success: { border: 'var(--success)', icon: '✅', bg: 'var(--success-light)', color: 'var(--badge-success-text)' },
+    error: { border: 'var(--danger)', icon: '❌', bg: 'var(--danger-light)', color: 'var(--badge-danger-text)' },
+    return: { border: 'var(--warning)', icon: '🔄', bg: 'var(--warning-light)', color: 'var(--badge-warning-text)' },
+    info: { border: 'var(--info)', icon: 'ℹ️', bg: 'var(--info-light)', color: 'var(--badge-info-text)' },
   }
 
   // ── Socket listeners — TOASTS ONLY ───────────────────────────────
@@ -281,17 +281,14 @@ export default function TopBar() {
   const avatarColor = isOwner ? 'var(--primary)' : isManager ? 'var(--warning)' : 'var(--success)'
   const avatarInitial = (currentUser?.fullname || currentUser?.username || 'U').charAt(0).toUpperCase()
 
-  const topbarShortcuts = (isOwner || isManager) ? [
-    { to: '/barcodes', label: 'Barcodes', icon: <MdDocumentScanner size={15} /> },
-    { to: '/daily-archives', label: 'Archives', icon: <MdArchive size={15} /> },
-  ] : []
+  const topbarShortcuts = []
 
   return (
     <>
       {showNotifications && (
         <>
           <div onClick={() => setShowNotifications(false)} className="fixed inset-0 z-[1999]"
-            style={{ background: 'rgba(15,23,42,0.4)', WebkitBackdropFilter: 'blur(2px)', backdropFilter: 'blur(2px)' }} />
+            style={{ background: 'var(--overlay-bg)', WebkitBackdropFilter: 'blur(2px)', backdropFilter: 'blur(2px)' }} />
           <NotificationPanel onClose={() => setShowNotifications(false)} />
         </>
       )}
@@ -412,7 +409,7 @@ export default function TopBar() {
               className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all"
               style={alreadyClosed
                 ? { background: 'var(--bg-muted)', color: 'var(--text-muted)', cursor: 'not-allowed', border: '1px solid var(--border-soft)' }
-                : { background: 'var(--warning-light)', color: 'var(--warning-dark)', border: '1px solid var(--warning)' }
+                : { background: 'var(--warning-light)', color: 'var(--badge-warning-text)', border: '1px solid var(--warning)' }
               }
             >
               <MdLockClock className="text-base" />
@@ -547,7 +544,7 @@ export default function TopBar() {
                     <div className="my-1.5 mx-2" style={{ height: 1, background: 'var(--border-soft)' }} />
                     <button onClick={() => { logout(); setShowProfileMenu(false) }}
                       className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${tb.menuBtnDanger}`}
-                      style={{ color: 'var(--danger-dark)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
+                      style={{ color: 'var(--badge-danger-text)', background: 'transparent', border: 'none', cursor: 'pointer', fontFamily: 'inherit' }}>
                       <MdLogout className="text-xl flex-shrink-0" />
                       Sign Out
                     </button>

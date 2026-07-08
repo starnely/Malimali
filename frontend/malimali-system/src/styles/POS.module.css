@@ -276,7 +276,7 @@
 .posScannerLabel {
   font-size: 11px;
   font-weight: 700;
-  color: var(--success-dark);
+  color: var(--badge-success-text);
   white-space: nowrap;
 }
 

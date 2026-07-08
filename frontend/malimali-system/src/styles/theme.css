@@ -46,6 +46,7 @@
   --info:             #0EA5E9;
   --info-light:       #E0F2FE;
   --info-dark:        #075985;
+  --info-600:         #0369a1;   /* Sky-700 — info text, links */
 
   /* ── Accent / purple (VAT tags, highlights, secondary actions) ── */
   --accent:           #7C3AED;
@@ -73,6 +74,15 @@
   --radius-lg:        14px;
   --radius-xl:        20px;
 
+  /* ── Badge / pill text tokens — dark text for light-bg badges ── */
+  /* In dark mode these are overridden to bright readable tones below */
+  --badge-success-text: var(--success-dark);   /* #065F46 in light mode */
+  --badge-warning-text: var(--warning-dark);   /* #92400E in light mode */
+  --badge-danger-text:  var(--danger-dark);    /* #991B1B in light mode */
+  --badge-info-text:    var(--info-dark);      /* #075985 in light mode */
+  --badge-accent-text:  var(--accent-dark);    /* #4C1D95 in light mode */
+  --badge-primary-text: var(--primary-dark);   /* #0C447C in light mode */
+
   /* ── Neutral fallbacks (light defaults for any unset context) ── */
   --bg-page:          #F5F7FF;
   --bg-card:          #FFFFFF;
@@ -86,6 +96,7 @@
   --shadow-card:      0 1px 3px rgba(0,0,0,0.07), 0 4px 12px rgba(79,70,229,0.06);
   --shadow-dropdown:  0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
   --shadow-sidebar:   4px 0 24px rgba(30,27,75,0.18);
+  --overlay-bg:       rgba(15,23,42,0.6);
 }
 
 /* ============================================================
@@ -136,6 +147,15 @@
   --topbar-bg:        #1E293B;
   --topbar-border:    #334155;
   --topbar-shadow:    0 1px 3px rgba(0,0,0,0.3);
+
+  /* Badge text — bright tones for contrast on dark -light backgrounds */
+  /* Contrast ratios: success 7.3:1, warning 13:1, danger 5.8:1, info 7.6:1, accent 9.8:1, primary 7.9:1 */
+  --badge-success-text: #34D399;   /* emerald-400 on #064E3B */
+  --badge-warning-text: #FCD34D;   /* amber-300   on #451A03 */
+  --badge-danger-text:  #F87171;   /* red-400     on #450A0A */
+  --badge-info-text:    #38BDF8;   /* sky-400     on #0C4A6E */
+  --badge-accent-text:  #C4B5FD;   /* violet-300  on #2E1065 */
+  --badge-primary-text: #93C5FD;   /* blue-300    on #1E3A5F */
 
   /* Lighten semantic light tints slightly for dark bg readability */
   --success-light:    #064E3B;
