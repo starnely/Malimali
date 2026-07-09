@@ -8,15 +8,21 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 
+// Local self-signed certs for `vite dev` over HTTPS. Not present in CI/
+// deploy environments (Vercel, etc.), which only run `vite build` and
+// never need this — so only load them if they actually exist on disk.
+const keyPath  = path.resolve(__dirname, 'certs/key.pem')
+const certPath = path.resolve(__dirname, 'certs/cert.pem')
+const httpsOptions = (fs.existsSync(keyPath) && fs.existsSync(certPath))
+  ? { key: fs.readFileSync(keyPath), cert: fs.readFileSync(certPath) }
+  : undefined
+
 export default defineConfig({
   plugins: [react()],
   server: {
     host: '0.0.0.0',
     port: 5174,
-    https: {
-      key:  fs.readFileSync(path.resolve(__dirname, 'certs/key.pem')),
-      cert: fs.readFileSync(path.resolve(__dirname, 'certs/cert.pem')),
-    },
+    https: httpsOptions,
   },
   resolve: {
     alias: {
