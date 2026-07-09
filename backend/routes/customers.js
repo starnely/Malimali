@@ -208,6 +208,15 @@ router.post("/:id/repayments", verifyToken, async (req, res) => {
       customer.overdue = false
       await customer.save()
     }
+
+    const io = req.app.get("io")
+    if (io) {
+      io.to("owner").to(`manager-${customer.store}`).to(`store-${customer.store}`).emit("repaymentRecorded", {
+        customerId: customer._id, customerName: customer.name,
+        store: customer.store, amount: Number(amount), newBalance,
+      })
+    }
+
     res.json({ repayment, newBalance })
   } catch (err) {
     res.status(500).json({ error: err.message })

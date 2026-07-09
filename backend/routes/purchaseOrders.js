@@ -191,6 +191,15 @@ router.use((req, res, next) => {
   authMiddleware(req, res, next)
 })
 
+// PO management is manager/owner territory, not cashier-facing — no store-{} room.
+function broadcastPOEvent(io, eventName, po) {
+  if (!io) return
+  io.to("owner").to(`manager-${po.store}`).emit(eventName, {
+    _id: po._id, poNumber: po.poNumber, supplierName: po.supplierName,
+    store: po.store, status: po.status, totalOrderedCost: po.totalOrderedCost,
+  })
+}
+
 // ── 1. LIST PURCHASE ORDERS ───────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
@@ -336,6 +345,9 @@ router.post("/", managerOrOwner, async (req, res) => {
       createdBy: req.user?.name || req.user?.username || "",
       createdById: req.user?._id || null, status: "draft",
     }).save()
+
+    broadcastPOEvent(req.app.get("io"), "poCreated", po)
+
     res.status(201).json({ success: true, purchaseOrder: po })
   } catch (err) {
     console.error("PO create error:", err.message)
@@ -392,6 +404,9 @@ router.patch("/:id/send", managerOrOwner, async (req, res) => {
     po.status = "sent"; po.sentAt = new Date()
     po.sentBy = req.user?.name || req.user?.username || ""
     await po.save()
+
+    broadcastPOEvent(req.app.get("io"), "poSent", po)
+
     res.json({ success: true, purchaseOrder: po, message: `PO ${po.poNumber} marked as sent.` })
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to mark PO as sent." })
@@ -624,6 +639,9 @@ router.patch("/:id/cancel", ownerOnly, async (req, res) => {
     po.cancelledBy = req.user?.name || req.user?.username || ""
     po.cancelReason = req.body.reason || ""
     await po.save()
+
+    broadcastPOEvent(req.app.get("io"), "poCancelled", po)
+
     res.json({ success: true, purchaseOrder: po, message: `PO ${po.poNumber} cancelled.` })
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to cancel purchase order." })

@@ -5,6 +5,16 @@ const jwt = require("jsonwebtoken");
 const User = require("../models/User");
 const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware");
 
+// Staff management is owner/manager visibility — never broadcast to the
+// affected cashier's peers, and never include password/hash in the payload.
+function broadcastStaffEvent(io, eventName, user) {
+  if (!io) return
+  io.to("owner").to(`manager-${user.store}`).emit(eventName, {
+    _id: user._id, fullname: user.fullname, username: user.username,
+    role: user.role, store: user.store, active: user.active,
+  })
+}
+
 // ── 1. LOGIN ─────────────────────────────────────────────────────────
 router.post("/login", async (req, res) => {
   try {
@@ -155,6 +165,8 @@ router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
 
     await newUser.save();
 
+    broadcastStaffEvent(req.app.get("io"), "staffCreated", newUser);
+
     return res.status(201).json({
       success: true,
       message: "Staff account created successfully.",
@@ -240,6 +252,14 @@ router.patch("/:id/toggle", authMiddleware, ownerOnly, async (req, res) => {
     user.active   = !user.active;
     user.isActive = user.active;
     await user.save();
+
+    const io = req.app.get("io");
+    broadcastStaffEvent(io, "staffToggled", user);
+    // Deactivation needs to reach the affected user's own live session immediately —
+    // their next API call would fail anyway, but this lets the client force a clean logout.
+    if (io && !user.active) {
+      io.to(String(user._id)).emit("accountDeactivated", { message: "Your account has been deactivated." });
+    }
 
     return res.json({
       success: true,
@@ -334,6 +354,8 @@ router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
 
     await user.save();
 
+    broadcastStaffEvent(req.app.get("io"), "staffUpdated", user);
+
     return res.json({
       success: true,
       message: "Staff profile updated successfully.",
@@ -399,6 +421,8 @@ router.delete("/:id", authMiddleware, ownerOnly, async (req, res) => {
     }
 
     await User.findByIdAndDelete(id);
+
+    broadcastStaffEvent(req.app.get("io"), "staffDeleted", user);
 
     return res.json({ success: true, message: "Staff account permanently removed.", id });
 

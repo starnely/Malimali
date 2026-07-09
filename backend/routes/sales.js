@@ -142,6 +142,11 @@ router.post("/", async (req, res) => {
     if (io) {
       io.emit("productsUpdated")
       io.emit("sync_system_data")
+      io.to("owner").to(`manager-${sale.store}`).emit("newSale", {
+        store: sale.store,
+        cashierName: sale.cashier,
+        total: sale.total,
+      })
     }
 
     if (lowStockProducts.length > 0) {

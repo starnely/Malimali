@@ -124,6 +124,11 @@ io.on("connection", (socket) => {
     if (socket.user.store) socket.join(`manager-${socket.user.store}`);
     console.log(`👔 Socket ${socket.id} joined manager room (store: ${socket.user.store || "none"})`);
   });
+  socket.on("join-store-room", () => {
+    if (!socket.user?.store) return;
+    socket.join(`store-${socket.user.store}`);
+    console.log(`🏪 Socket ${socket.id} joined store room: store-${socket.user.store}`);
+  });
   socket.on("join", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
   socket.on("shift-closed", (data) => {
     // Use the server-verified identity; never trust the client-supplied name.
@@ -136,6 +141,8 @@ io.on("connection", (socket) => {
       revenue: typeof data.revenue === "number" ? data.revenue : 0,
       store: shiftStore,
     });
+    // Confirm back to the closer themselves — adminShiftNotification only reaches others.
+    socket.emit("shiftClosedConfirmation");
   });
   socket.on("disconnect", () => { console.log(`🔌 Socket disconnected: ${socket.id}`); });
 });

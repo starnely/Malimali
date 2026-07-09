@@ -1121,6 +1121,24 @@ export function AppProvider({ children }) {
       addNotification(`⚠️ Auto-check moved ${data.moved} expired product(s) to expired stock.`, 'info', 'owner');
     };
 
+    const onExpiredStockMoved = (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner' && role !== 'manager') return;
+      addNotification(
+        `⚠️ ${data.productName} expired — ${data.quantity} moved to expired stock (loss: KSh ${(data.totalLoss || 0).toLocaleString()})`,
+        'warning', 'owner'
+      );
+    };
+
+    const onAutoPOSuggested = (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner' && role !== 'manager') return;
+      addNotification(
+        `📝 A purchase order was auto-drafted for ${data.store} — review it in Purchase Orders.`,
+        'info', 'owner'
+      );
+    };
+
     const onOverdueCustomers = (data) => {
       const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
       if (role !== 'owner') return;
@@ -1138,6 +1156,49 @@ export function AppProvider({ children }) {
         `⚠️ Low stock: ${data.productName} — only ${data.stock} ${data.unit || 'pcs'} left (reorder at ${data.reorderLevel})`,
         'warning', 'owner'
       );
+    };
+
+    const onCategoryChanged = () => {
+      fetchCategories();
+    };
+
+    const onProductChanged = () => {
+      fetchProducts();
+    };
+
+    const onStoreChanged = (data) => {
+      fetchStores();
+      // A rename invalidates any cached manager-{oldName} room membership —
+      // force a full socket reconnect so the client rejoins under the new name.
+      if (data?.renamed) refreshSocketRef.current?.();
+    };
+
+    const onSupplierChanged = () => {
+      fetchSuppliers();
+    };
+
+    const onStaffChanged = () => {
+      fetchUsers();
+    };
+
+    const onAccountDeactivated = () => {
+      logout();
+    };
+
+    const onRepaymentRecorded = (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner' && role !== 'manager') return;
+      addNotification(
+        `💰 ${data.customerName} repaid KSh ${(data.amount || 0).toLocaleString()} — balance now KSh ${(data.newBalance || 0).toLocaleString()}`,
+        'success', 'owner'
+      );
+    };
+
+    const onPOChanged = (data) => {
+      const role = JSON.parse(localStorage.getItem('pos_system_user') || '{}')?.role;
+      if (role !== 'owner' && role !== 'manager') return;
+      const verb = data.status === 'sent' ? 'sent to supplier' : data.status === 'cancelled' ? 'cancelled' : 'created';
+      addNotification(`📋 PO ${data.poNumber} for ${data.supplierName} was ${verb} (${data.store})`, 'info', 'owner');
     };
 
     const onStockReceived = (data) => {
@@ -1196,12 +1257,36 @@ export function AppProvider({ children }) {
     socket.on('voidApproved', onVoidApproved);
     socket.on('voidRejected', onVoidRejected);
     socket.on('autoExpiredCheck', onAutoExpiredCheck);
+    socket.on('expiredStockMoved', onExpiredStockMoved);
+    socket.on('autoPOSuggested', onAutoPOSuggested);
     socket.on('overdueCustomers', onOverdueCustomers);
     socket.on('lowStockAlert', onLowStockAlert);
     socket.on('stockReceived', onStockReceived);
     socket.on('pettyCashAutoClosed', onPettyCashAutoClosed);
     socket.on('expenseLogged', onExpenseLogged);
     socket.on('new_message', onNewMessage);
+    socket.on('categoryCreated', onCategoryChanged);
+    socket.on('categoryUpdated', onCategoryChanged);
+    socket.on('categoryDeleted', onCategoryChanged);
+    socket.on('productCreated', onProductChanged);
+    socket.on('productUpdated', onProductChanged);
+    socket.on('productDeleted', onProductChanged);
+    socket.on('storeCreated', onStoreChanged);
+    socket.on('storeUpdated', onStoreChanged);
+    socket.on('storeDeleted', onStoreChanged);
+    socket.on('supplierCreated', onSupplierChanged);
+    socket.on('supplierUpdated', onSupplierChanged);
+    socket.on('supplierDeleted', onSupplierChanged);
+    socket.on('supplierArchived', onSupplierChanged);
+    socket.on('poCreated', onPOChanged);
+    socket.on('poSent', onPOChanged);
+    socket.on('poCancelled', onPOChanged);
+    socket.on('repaymentRecorded', onRepaymentRecorded);
+    socket.on('staffCreated', onStaffChanged);
+    socket.on('staffUpdated', onStaffChanged);
+    socket.on('staffToggled', onStaffChanged);
+    socket.on('staffDeleted', onStaffChanged);
+    socket.on('accountDeactivated', onAccountDeactivated);
 
     return () => {
       socket.off('adminShiftNotification', onAdminShiftNotification);
@@ -1215,15 +1300,40 @@ export function AppProvider({ children }) {
       socket.off('voidApproved', onVoidApproved);
       socket.off('voidRejected', onVoidRejected);
       socket.off('autoExpiredCheck', onAutoExpiredCheck);
+      socket.off('expiredStockMoved', onExpiredStockMoved);
+      socket.off('autoPOSuggested', onAutoPOSuggested);
       socket.off('overdueCustomers', onOverdueCustomers);
       socket.off('lowStockAlert', onLowStockAlert);
       socket.off('stockReceived', onStockReceived);
       socket.off('pettyCashAutoClosed', onPettyCashAutoClosed);
       socket.off('expenseLogged', onExpenseLogged);
       socket.off('new_message', onNewMessage);
+      socket.off('categoryCreated', onCategoryChanged);
+      socket.off('categoryUpdated', onCategoryChanged);
+      socket.off('categoryDeleted', onCategoryChanged);
+      socket.off('productCreated', onProductChanged);
+      socket.off('productUpdated', onProductChanged);
+      socket.off('productDeleted', onProductChanged);
+      socket.off('storeCreated', onStoreChanged);
+      socket.off('storeUpdated', onStoreChanged);
+      socket.off('storeDeleted', onStoreChanged);
+      socket.off('supplierCreated', onSupplierChanged);
+      socket.off('supplierUpdated', onSupplierChanged);
+      socket.off('supplierDeleted', onSupplierChanged);
+      socket.off('supplierArchived', onSupplierChanged);
+      socket.off('poCreated', onPOChanged);
+      socket.off('poSent', onPOChanged);
+      socket.off('poCancelled', onPOChanged);
+      socket.off('repaymentRecorded', onRepaymentRecorded);
+      socket.off('staffCreated', onStaffChanged);
+      socket.off('staffUpdated', onStaffChanged);
+      socket.off('staffToggled', onStaffChanged);
+      socket.off('staffDeleted', onStaffChanged);
+      socket.off('accountDeactivated', onAccountDeactivated);
     };
   }, [socket, addNotification, fetchArchives, fetchSales, fetchReturns,
-    fetchProducts, addShiftCloseNotif, fetchConversations, fetchVoidRequests]);
+    fetchProducts, addShiftCloseNotif, fetchConversations, fetchVoidRequests, fetchCategories, fetchStores,
+    fetchSuppliers, fetchUsers, logout]);
 
   // ── VOID SALE ──────────────────────────────────────────────────────────
   const voidSale = async (saleId, approverPin, reason, voidType = 'whole', items = []) => {

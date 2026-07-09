@@ -18,6 +18,14 @@ const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware");
 
 router.use(authMiddleware);
 
+// Store management is owner/manager visibility, not cashier-facing — no store-{} room.
+function broadcastStoreEvent(io, eventName, store) {
+  if (!io) return
+  io.to("owner").to(`manager-${store.name}`).emit(eventName, {
+    _id: store._id, name: store.name, location: store.location, phone: store.phone,
+  })
+}
+
 // ── 1. GET ALL STORES ────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
@@ -50,6 +58,9 @@ router.post("/", ownerOnly, async (req, res) => {
     });
 
     const saved = await newStore.save();
+
+    broadcastStoreEvent(req.app.get("io"), "storeCreated", saved);
+
     res.status(201).json({ success: true, store: saved });
 
   } catch (err) {
@@ -132,6 +143,17 @@ router.put("/:id", ownerOnly, async (req, res) => {
       }
     }
 
+    // Rename means any client's cached `manager-${oldName}` room is now stale —
+    // target both rooms so currently-connected managers get this immediately,
+    // and tell clients whether a rename happened so they can rejoin under the new name.
+    const io = req.app.get("io");
+    if (io) {
+      io.to("owner").to(`manager-${oldName}`).to(`manager-${newName}`).emit("storeUpdated", {
+        _id: updated._id, name: updated.name, location: updated.location, phone: updated.phone,
+        oldName, newName, renamed: oldName !== newName,
+      });
+    }
+
     res.json({ success: true, store: updated, cascadeWarning });
 
   } catch (err) {
@@ -151,6 +173,8 @@ router.delete("/:id", ownerOnly, async (req, res) => {
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Store not found." });
     }
+
+    broadcastStoreEvent(req.app.get("io"), "storeDeleted", deleted);
 
     res.json({ success: true, message: "Store deleted successfully." });
 

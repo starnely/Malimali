@@ -8,6 +8,17 @@ const REORDER_EXCL = "-needsReorder -suggestedQty -dailyVelocity -velocityCalcAt
 
 router.use(authMiddleware)
 
+// Products always belong to a single store — no global-scope case (unlike categories).
+function broadcastProductEvent(io, eventName, product) {
+  if (!io) return
+  const payload = {
+    _id: product._id, name: product.name, store: product.store,
+    category: product.category, stock: product.stock,
+    buyPrice: product.buyPrice, sellPrice: product.sellPrice,
+  }
+  io.to("owner").to(`manager-${product.store}`).to(`store-${product.store}`).emit(eventName, payload)
+}
+
 // ══════════════════════════════════════════════════════════════════════
 //  EAN-13 BARCODE GENERATOR
 //  Produces a 13-digit numeric barcode:
@@ -140,6 +151,9 @@ router.post("/", managerOrOwner, async (req, res) => {
     })
 
     const saved = await product.save()
+
+    broadcastProductEvent(req.app.get("io"), "productCreated", saved)
+
     res.status(201).json({ success: true, product: saved })
   } catch (err) {
     if (err.code === 11000) {
@@ -229,6 +243,8 @@ router.put("/:id", managerOrOwner, async (req, res) => {
       }
     }
 
+    broadcastProductEvent(io, "productUpdated", updated)
+
     res.json({ success: true, product: updated })
   } catch (err) {
     if (err.code === 11000) {
@@ -248,6 +264,9 @@ router.delete("/:id", ownerOnly, async (req, res) => {
   try {
     const deleted = await Product.findByIdAndDelete(req.params.id)
     if (!deleted) return res.status(404).json({ success: false, message: "Product not found." })
+
+    broadcastProductEvent(req.app.get("io"), "productDeleted", deleted)
+
     res.json({ success: true, message: "Product deleted." })
   } catch (err) {
     console.error("Product DELETE error:", err.message)

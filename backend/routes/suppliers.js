@@ -5,6 +5,20 @@ const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/aut
 
 router.use(authMiddleware);
 
+// Suppliers have a `stores` array (not a single store) — empty array = global,
+// visible everywhere. A scoped supplier notifies each linked store's room.
+function broadcastSupplierEvent(io, eventName, supplier) {
+  if (!io) return
+  const payload = { _id: supplier._id, name: supplier.name, company: supplier.company, stores: supplier.stores }
+  if (Array.isArray(supplier.stores) && supplier.stores.length > 0) {
+    let target = io.to("owner")
+    supplier.stores.forEach(s => { target = target.to(`manager-${s}`).to(`store-${s}`) })
+    target.emit(eventName, payload)
+  } else {
+    io.emit(eventName, payload)
+  }
+}
+
 // ── 1. GET ALL SUPPLIERS ─────────────────────────────────────────────
 // ?store=StoreName  → returns suppliers who supply that store OR global (empty stores array)
 // ?all=true         → includes archived
@@ -63,6 +77,8 @@ router.post("/", ownerOnly, async (req, res) => {
       stores:  Array.isArray(stores) ? stores.filter(Boolean) : [],
     }).save()
 
+    broadcastSupplierEvent(req.app.get("io"), "supplierCreated", saved)
+
     res.status(201).json({ success: true, supplier: saved })
   } catch (err) {
     if (err.code === 11000) {
@@ -109,6 +125,8 @@ router.put("/:id", ownerOnly, async (req, res) => {
       return res.status(404).json({ success: false, message: "Supplier not found." })
     }
 
+    broadcastSupplierEvent(req.app.get("io"), "supplierUpdated", updated)
+
     res.json({ success: true, supplier: updated })
   } catch (err) {
     if (err.code === 11000) {
@@ -126,6 +144,9 @@ router.patch("/:id/archive", ownerOnly, async (req, res) => {
     if (!supplier) return res.status(404).json({ success: false, message: "Supplier not found." })
     supplier.isActive = !supplier.isActive
     await supplier.save()
+
+    broadcastSupplierEvent(req.app.get("io"), "supplierArchived", supplier)
+
     res.json({ success: true, message: supplier.isActive ? "Supplier restored." : "Supplier archived.", supplier })
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to archive supplier." })
@@ -148,6 +169,9 @@ router.delete("/:id", ownerOnly, async (req, res) => {
     }
     const deleted = await Supplier.findByIdAndDelete(req.params.id)
     if (!deleted) return res.status(404).json({ success: false, message: "Supplier not found." })
+
+    broadcastSupplierEvent(req.app.get("io"), "supplierDeleted", deleted)
+
     res.json({ success: true, message: "Supplier deleted successfully." })
   } catch (err) {
     console.error("Supplier DELETE error:", err.message)

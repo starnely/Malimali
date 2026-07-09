@@ -6,6 +6,18 @@ const { authMiddleware, ownerOnly } = require("../middleware/authMiddleware")
 
 router.use(authMiddleware)
 
+// Store-scoped categories notify that store's owner/manager/cashiers;
+// global categories (store: null) affect everyone, so broadcast broadly.
+function broadcastCategoryEvent(io, eventName, cat) {
+  if (!io) return
+  const payload = { _id: cat._id, name: cat.name, store: cat.store, description: cat.description }
+  if (cat.store) {
+    io.to("owner").to(`manager-${cat.store}`).to(`store-${cat.store}`).emit(eventName, payload)
+  } else {
+    io.emit(eventName, payload)
+  }
+}
+
 // ── 1. GET CATEGORIES ────────────────────────────────────────────────
 // ?store=StoreName  → returns global + that store's categories
 // no store param   → returns all (owner sees everything)
@@ -72,6 +84,8 @@ router.post("/", ownerOnly, async (req, res) => {
       description: description?.trim() || '',
     })
 
+    broadcastCategoryEvent(req.app.get("io"), "categoryCreated", saved)
+
     res.status(201).json({ success: true, category: saved })
   } catch (err) {
     if (err.code === 11000) {
@@ -111,6 +125,8 @@ router.put("/:id", ownerOnly, async (req, res) => {
       return res.status(404).json({ success: false, message: "Category not found." })
     }
 
+    broadcastCategoryEvent(req.app.get("io"), "categoryUpdated", updated)
+
     res.json({ success: true, category: updated })
   } catch (err) {
     if (err.code === 11000) {
@@ -139,6 +155,9 @@ router.delete("/:id", ownerOnly, async (req, res) => {
     }
 
     await Category.findByIdAndDelete(req.params.id)
+
+    broadcastCategoryEvent(req.app.get("io"), "categoryDeleted", cat)
+
     res.json({ success: true, message: "Category deleted successfully." })
   } catch (err) {
     console.error("Category DELETE error:", err.message)
