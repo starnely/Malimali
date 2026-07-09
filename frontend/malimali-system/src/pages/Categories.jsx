@@ -11,7 +11,7 @@ import styles from '@/styles/Categories.module.css'
 const isTouchDevice = () => window.matchMedia('(pointer: coarse)').matches
 
 export default function Categories() {
-  const { currentUser, stores, isOwner } = useApp()
+  const { currentUser, stores, isOwner, fetchCategories } = useApp()
 
   const [categories, setCategories] = useState([])
   const [loading, setLoading] = useState(true)
@@ -90,6 +90,7 @@ export default function Categories() {
       closeModal()
       showToast(editingCat ? 'Category updated' : 'Category created')
       load()
+      fetchCategories()
     } catch { setError('Network error') }
     setSaving(false)
   }
