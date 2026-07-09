@@ -57,6 +57,11 @@ app.use(require("helmet")({ crossOriginResourcePolicy: { policy: "cross-origin" 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
+// ── 3b. HEALTH CHECK — no DB access, for platform uptime pings ────────
+app.get("/health", (req, res) => {
+  res.status(200).json({ status: "ok" });
+});
+
 // ── 4. DATABASE ──────────────────────────────────────────────────────
 mongoose.connect(MONGO_URI, {
   serverSelectionTimeoutMS: 5000,
