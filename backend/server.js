@@ -1,5 +1,6 @@
 const express = require("express");
 const https   = require("https");
+const http    = require("http");
 const cors = require("cors");
 const mongoose = require("mongoose");
 const path = require("path");
@@ -64,14 +65,25 @@ mongoose.connect(MONGO_URI, {
   .then(() => console.log("✅ MongoDB connected successfully"))
   .catch(err => { console.error("❌ MongoDB connection failed:", err.message); process.exit(1); });
 
-// ── 5. HTTPS SERVER + SOCKET.IO ──────────────────────────────────────
+// ── 5. HTTP(S) SERVER + SOCKET.IO ─────────────────────────────────────
+// Render (and most PaaS hosts) terminate TLS at the platform level and hand
+// this process plain HTTP — there's no local cert to bind to. Only use the
+// local self-signed cert for local development.
 const PORT = process.env.PORT || 5000;
-const httpsOptions = {
-  key:  fs.readFileSync(path.resolve(__dirname, '../frontend/malimali-system/certs/key.pem')),
-  cert: fs.readFileSync(path.resolve(__dirname, '../frontend/malimali-system/certs/cert.pem')),
-};
-const server = https.createServer(httpsOptions, app);
-server.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT} (HTTPS)`); });
+const IS_PRODUCTION = process.env.NODE_ENV === "production" || !!process.env.RENDER;
+
+let server;
+if (IS_PRODUCTION) {
+  server = http.createServer(app);
+  server.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT} (HTTP — TLS terminated by platform)`); });
+} else {
+  const httpsOptions = {
+    key:  fs.readFileSync(path.resolve(__dirname, '../frontend/malimali-system/certs/key.pem')),
+    cert: fs.readFileSync(path.resolve(__dirname, '../frontend/malimali-system/certs/cert.pem')),
+  };
+  server = https.createServer(httpsOptions, app);
+  server.listen(PORT, () => { console.log(`🚀 Server running on port ${PORT} (HTTPS)`); });
+}
 
 const io = new Server(server, {
   cors: { origin: ALLOWED_ORIGINS, methods: ["GET", "POST", "PUT", "PATCH", "DELETE"] }
