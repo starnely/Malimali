@@ -328,7 +328,10 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
             style={{ flex: 2, padding: '11px', borderRadius: 'var(--radius-md)', border: 'none', background: loading ? 'var(--border-medium)' : 'var(--danger)', color: '#fff', fontSize: 13, fontWeight: 700, cursor: loading ? 'not-allowed' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
             onMouseEnter={e => { if (!loading && !isTouchDevice()) e.currentTarget.style.background = 'var(--danger-dark)' }}
             onMouseLeave={e => { if (!loading && !isTouchDevice()) e.currentTarget.style.background = loading ? 'var(--border-medium)' : 'var(--danger)' }}>
-            {role === 'manager' && approvalPath === 'remote' ? <MdSend size={16} /> : <MdBlock size={16} />}
+            {/* Manager always routes through onRemoteVoid (see handleVoid) — no other
+                path exists for them here, so the icon only needs to key off role,
+                matching submitLabel()'s own role-only logic just below. */}
+            {role === 'manager' ? <MdSend size={16} /> : <MdBlock size={16} />}
             {submitLabel()}
           </button>
         </div>
