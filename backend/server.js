@@ -9,6 +9,10 @@ const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
 require("dotenv").config();
 
+// Phase 0 of multi-tenant conversion — registers the tenantId field + shadow-mode
+// scoping hooks on every schema. Must run before any model file is required.
+require("./plugins/tenantScope");
+
 const app = express();
 
 // ── 1. ENVIRONMENT GUARD ─────────────────────────────────────────────

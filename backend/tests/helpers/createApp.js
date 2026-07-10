@@ -1,5 +1,10 @@
 const express = require("express");
 
+// Phase 0 of multi-tenant conversion — must run before any model file is required
+// (route requires below pull in models internally), so the plugin registers before
+// any schema compiles.
+require("../../plugins/tenantScope");
+
 // Minimal Express app for tests — no env guards, no mongoose.connect(), no scheduler.
 // Routes are identical to production; only the server bootstrap is omitted.
 function createApp() {
