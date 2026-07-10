@@ -50,11 +50,13 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
 
   // Phase B: manager always creates a VoidRequest (never enters owner PIN directly)
   const needsPin = role !== 'owner' && role !== 'manager'
-  const pinLabel = 'Manager PIN'
+  // Additive: a manager PIN still works exactly as before; an owner PIN is also
+  // accepted at this tier now (e.g. no manager on duty) — see sales.js /void.
+  const pinLabel = 'Manager or Owner PIN'
   const headerSubtitle =
     role === 'owner'   ? 'Owner — self-authorized, no PIN required' :
     role === 'manager' ? 'Request will be sent to owner for approval' :
-    'Requires manager authorization'
+    'Requires manager or owner authorization'
 
   const handleVoid = async () => {
     if (!reason.trim()) { setError('Please enter a void reason.'); return }
@@ -296,7 +298,7 @@ export default function VoidModal({ sale, onClose, onVoid, onRemoteVoid }) {
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-primary)' }}>Authorization Required</span>
                 </div>
                 <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
-                  Ask a manager to type their approval PIN below.
+                  Ask a manager or the owner to type their approval PIN below.
                 </p>
                 <div>
                   <label style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>

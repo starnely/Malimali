@@ -29,8 +29,11 @@ export default function GlobalApprovalPopup() {
   const role = currentUser?.role
 
   const relevantVoids = role === 'owner' ? pendingVoidRequests : []
+  // Additive: owner now also sees stage-1 (pending_manager) returns, since they
+  // can approve those directly too when no manager is on duty — the manager's
+  // own stage-1 view below is unchanged.
   const relevantReturns = role === 'owner'
-    ? pendingReturns.filter(r => r.status === 'pending_owner')
+    ? pendingReturns.filter(r => r.status === 'pending_owner' || r.status === 'pending_manager')
     : role === 'manager'
       ? pendingReturns.filter(r => r.status === 'pending_manager')
       : []
@@ -238,7 +241,7 @@ export default function GlobalApprovalPopup() {
                     {loadingId === ret._id ? 'Processing…' : 'Approve'}
                   </button>
                 </div>
-              ) : role === 'manager' && ret.status === 'pending_manager' ? (
+              ) : (role === 'manager' || role === 'owner') && ret.status === 'pending_manager' ? (
                 pinReturnId === ret._id ? (
                   <div>
                     <div style={{ display: 'flex', gap: 6, marginBottom: 4 }}>

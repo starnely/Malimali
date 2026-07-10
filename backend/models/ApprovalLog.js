@@ -10,7 +10,11 @@ const approvalLogSchema = new mongoose.Schema(
     },
     actionType: {
       type: String,
-      enum: ["void_cashier", "void_manager_onsite", "return_stage1", "return_stage2"],
+      enum: [
+        "void_cashier", "void_cashier_owner_override",
+        "void_manager_onsite", "void_owner_pin",
+        "return_stage1", "return_stage1_owner_override", "return_stage2",
+      ],
       required: true
     },
     targetId: {

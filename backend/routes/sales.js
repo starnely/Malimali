@@ -233,7 +233,8 @@ async function findPinMatch(candidates, pin) {
 // ── 3. VOID ENTIRE SALE ──────────────────────────────────────────────────────
 // Escalation rules:
 //   owner role       → self-approved, no PIN required
-//   cashier/employee → approverPin must match a manager in the same store
+//   cashier/employee → approverPin must match a manager in the same store,
+//                      OR the owner (additive override when no manager is on duty)
 //   manager role     → approverPin must match the owner
 //                      (for remote owner approval use POST /api/void-requests instead)
 router.patch("/:id/void", async (req, res) => {
@@ -262,13 +263,23 @@ router.patch("/:id/void", async (req, res) => {
       }
 
       if (requesterRole === "cashier" || requesterRole === "employee") {
-        actionType = "void_cashier"
         const managers = await User.find({ role: "manager", store: req.user.store }).session(session)
         approver = await findPinMatch(managers, approverPin)
-        if (!approver) {
-          await session.abortTransaction(); session.endSession()
-          // 403, not 401 — see voidRequests.js approve-pin for why.
-          return res.status(403).json({ success: false, message: "PIN did not match any manager for this store." })
+        if (approver) {
+          actionType = "void_cashier"
+        } else {
+          // Additive owner override — the manager check above is unchanged; this
+          // only runs when no manager PIN matched, so an owner can approve
+          // directly at the cashier tier when no manager is on duty.
+          const owners = await User.find({ role: "owner" }).session(session)
+          approver = await findPinMatch(owners, approverPin)
+          if (approver) {
+            actionType = "void_cashier_owner_override"
+          } else {
+            await session.abortTransaction(); session.endSession()
+            // 403, not 401 — see voidRequests.js approve-pin for why.
+            return res.status(403).json({ success: false, message: "PIN did not match any manager or the owner." })
+          }
         }
       } else if (requesterRole === "manager") {
         actionType = "void_manager_onsite"
@@ -412,13 +423,23 @@ router.patch("/:id/void-items", async (req, res) => {
       }
 
       if (requesterRole === "cashier" || requesterRole === "employee") {
-        actionType = "void_cashier"
         const managers = await User.find({ role: "manager", store: req.user.store }).session(session)
         approver = await findPinMatch(managers, approverPin)
-        if (!approver) {
-          await session.abortTransaction(); session.endSession()
-          // 403, not 401 — see voidRequests.js approve-pin for why.
-          return res.status(403).json({ success: false, message: "PIN did not match any manager for this store." })
+        if (approver) {
+          actionType = "void_cashier"
+        } else {
+          // Additive owner override — the manager check above is unchanged; this
+          // only runs when no manager PIN matched, so an owner can approve
+          // directly at the cashier tier when no manager is on duty.
+          const owners = await User.find({ role: "owner" }).session(session)
+          approver = await findPinMatch(owners, approverPin)
+          if (approver) {
+            actionType = "void_cashier_owner_override"
+          } else {
+            await session.abortTransaction(); session.endSession()
+            // 403, not 401 — see voidRequests.js approve-pin for why.
+            return res.status(403).json({ success: false, message: "PIN did not match any manager or the owner." })
+          }
         }
       } else if (requesterRole === "manager") {
         actionType = "void_manager_onsite"

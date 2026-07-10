@@ -276,8 +276,10 @@ router.post("/", async (req, res) => {
   }
 });
 
-// ── 3. STAGE-1 APPROVE (cashier-submitted return → manager PIN) ──────────────
+// ── 3. STAGE-1 APPROVE (cashier-submitted return → manager or owner PIN) ─────
 // Any authenticated user may call this; the PIN itself enforces who the approver is.
+// Manager PIN is the normal path; owner PIN is an additive override for when
+// no manager is on duty (checked only if no manager PIN matched).
 router.patch("/:id/approve-stage1", async (req, res) => {
   try {
     const { approverPin } = req.body;
@@ -299,15 +301,28 @@ router.patch("/:id/approve-stage1", async (req, res) => {
     // Scan managers in that store for a PIN match
     const managers = await User.find({ role: "manager", store: sale.store });
     let approver = null;
+    let actionType = "return_stage1";
     for (const mgr of managers) {
       if (mgr.approvalPin && await bcrypt.compare(approverPin, mgr.approvalPin)) {
         approver = mgr; break;
       }
     }
     if (!approver) {
+      // Additive owner override — the manager check above is unchanged; this
+      // only runs when no manager PIN matched, so an owner can approve
+      // directly at stage 1 when no manager is on duty.
+      const owners = await User.find({ role: "owner" });
+      for (const own of owners) {
+        if (own.approvalPin && await bcrypt.compare(approverPin, own.approvalPin)) {
+          approver = own; break;
+        }
+      }
+      if (approver) actionType = "return_stage1_owner_override";
+    }
+    if (!approver) {
       // 403, not 401 — see voidRequests.js approve-pin for why (avoids authFetch's
       // blanket 401-means-expired-session logout firing on a mere wrong PIN).
-      return res.status(403).json({ success: false, message: "PIN did not match any manager for this store." });
+      return res.status(403).json({ success: false, message: "PIN did not match any manager or the owner." });
     }
 
     returnRecord.status          = "pending_owner";
@@ -317,7 +332,7 @@ router.patch("/:id/approve-stage1", async (req, res) => {
 
     await ApprovalLog.create({
       pinOwnerId: approver._id,
-      actionType: "return_stage1",
+      actionType,
       targetId:   returnRecord._id,
       targetType: "return",
       store:      sale.store,
@@ -326,7 +341,7 @@ router.patch("/:id/approve-stage1", async (req, res) => {
     const io = req.app.get("io");
     if (io) {
       io.to(String(approver._id)).emit("pinUsed", {
-        actionType: "return_stage1",
+        actionType,
         usedBy:     req.user.name || "Staff",
         target:     `Return #${returnRecord._id}`,
         store:      sale.store,
@@ -338,7 +353,9 @@ router.patch("/:id/approve-stage1", async (req, res) => {
         refundAmount:      returnRecord.refundAmount,
         reason:            returnRecord.reason,
         stage1ApprovedBy:  approver.fullname || approver.username,
-        message:           "Return approved by manager — awaiting owner final approval",
+        message:           actionType === "return_stage1_owner_override"
+          ? `Stage-1 approved by ${approver.fullname || approver.username} (owner override) — awaiting final approval`
+          : "Return approved by manager — awaiting owner final approval",
       });
       io.emit("sync_system_data");
     }

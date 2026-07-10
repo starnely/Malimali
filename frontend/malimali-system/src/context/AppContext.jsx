@@ -1047,13 +1047,15 @@ export function AppProvider({ children }) {
 
     const onPinUsed = (data) => {
       const actionLabel = {
-        void_cashier:              'void authorization',
-        void_manager_onsite:       'void authorization',
-        void_owner_pin:            'void request PIN approval',
-        void_items_cashier:        'item void authorization',
-        void_items_manager_onsite: 'item void authorization',
-        return_stage1:             'return stage-1 approval',
-        return_stage2:             'return final approval',
+        void_cashier:                  'void authorization',
+        void_cashier_owner_override:   'void authorization (owner override)',
+        void_manager_onsite:           'void authorization',
+        void_owner_pin:                'void request PIN approval',
+        void_items_cashier:            'item void authorization',
+        void_items_manager_onsite:     'item void authorization',
+        return_stage1:                 'return stage-1 approval',
+        return_stage1_owner_override:  'return stage-1 approval (owner override)',
+        return_stage2:                 'return final approval',
       }[data.actionType] || 'approval'
       // A1: use role-appropriate target so managers with/without fullname both receive the notification
       const user = currentUserRef.current

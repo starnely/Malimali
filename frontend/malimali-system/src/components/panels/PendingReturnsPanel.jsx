@@ -100,8 +100,8 @@ export default function PendingReturnsPanel({ pendingReturns }) {
         <MdWarning className="text-xl" style={{ color: 'var(--warning)' }} />
         <span className="text-sm font-bold" style={{ color: 'var(--badge-warning-text)' }}>
           {panelCount} Return Request{panelCount > 1 ? 's' : ''} Pending
-          {stage1Count > 0 && stage2Count > 0 ? ` (${stage1Count} manager · ${stage2Count} owner)` :
-           stage1Count > 0 ? ` — Manager Approval` : ` — Owner Approval`}
+          {stage1Count > 0 && stage2Count > 0 ? ` (${stage1Count} manager/owner · ${stage2Count} owner)` :
+           stage1Count > 0 ? ` — Manager or Owner Approval` : ` — Owner Approval`}
         </span>
       </div>
 
@@ -112,7 +112,9 @@ export default function PendingReturnsPanel({ pendingReturns }) {
         const showingPin = pinId === ret._id
 
         // What actions can this user take?
-        const managerCanApproveStage1 = isStage1 && role === 'manager'
+        // Additive: owner can now also approve stage 1 directly (e.g. no manager
+        // on duty) — the manager's own stage-1 path below is unchanged.
+        const canApproveStage1        = isStage1 && (role === 'manager' || role === 'owner')
         const managerCanEnterOwnerPin = isStage2 && role === 'manager'
         const ownerCanApproveStage2   = isStage2 && role === 'owner'
 
@@ -146,10 +148,10 @@ export default function PendingReturnsPanel({ pendingReturns }) {
                   ))}
                 </div>
 
-                {/* Stage 1 PIN input — manager only */}
-                {managerCanApproveStage1 && showingPin && pinStage === 'stage1' && (
+                {/* Stage 1 PIN input — manager (normal path) or owner (additive override) */}
+                {canApproveStage1 && showingPin && pinStage === 'stage1' && (
                   <PinInput
-                    label="Your Manager PIN"
+                    label={role === 'owner' ? 'Your Owner PIN' : 'Your Manager PIN'}
                     loading={loadingId === ret._id}
                     error={pinError}
                     onSubmit={pin => handlePinSubmit(pin, ret._id, 'stage1')}
@@ -196,8 +198,8 @@ export default function PendingReturnsPanel({ pendingReturns }) {
                   KSh {(ret.refundAmount || 0).toLocaleString()}
                 </div>
 
-                {/* Manager — stage 1: approve with PIN / reject */}
-                {managerCanApproveStage1 && confirmId !== ret._id && (
+                {/* Stage 1: approve with PIN / reject — manager (normal) or owner (additive override) */}
+                {canApproveStage1 && confirmId !== ret._id && (
                   <div className="flex gap-2">
                     <button
                       onClick={() => { setConfirmId(ret._id); setConfirmType('reject') }}
@@ -243,13 +245,6 @@ export default function PendingReturnsPanel({ pendingReturns }) {
                   </button>
                 )}
 
-                {/* Owner — stage 1: read-only label */}
-                {isStage1 && role === 'owner' && (
-                  <span className="text-xs px-3 py-1.5 rounded-lg" style={{ background: 'var(--bg-muted)', color: 'var(--text-muted)', border: '1px solid var(--border-medium)' }}>
-                    Awaiting manager
-                  </span>
-                )}
-
                 {/* Owner — stage 2: approve/reject buttons */}
                 {ownerCanApproveStage2 && confirmId !== ret._id && (
                   <div className="flex gap-2">
@@ -276,8 +271,8 @@ export default function PendingReturnsPanel({ pendingReturns }) {
               </div>
             </div>
 
-            {/* Manager reject confirm (re-used for stage 1) */}
-            {managerCanApproveStage1 && confirmId === ret._id && (
+            {/* Stage 1 reject confirm (manager or owner) */}
+            {canApproveStage1 && confirmId === ret._id && (
               <div className="rounded-lg p-3 mt-2" style={{ background: 'var(--bg-muted)', border: '1px solid var(--border-soft)' }}>
                 <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>
                   Reject this return request?
