@@ -267,7 +267,8 @@ router.patch("/:id/void", async (req, res) => {
         approver = await findPinMatch(managers, approverPin)
         if (!approver) {
           await session.abortTransaction(); session.endSession()
-          return res.status(401).json({ success: false, message: "PIN did not match any manager for this store." })
+          // 403, not 401 — see voidRequests.js approve-pin for why.
+          return res.status(403).json({ success: false, message: "PIN did not match any manager for this store." })
         }
       } else if (requesterRole === "manager") {
         actionType = "void_manager_onsite"
@@ -275,7 +276,8 @@ router.patch("/:id/void", async (req, res) => {
         approver = await findPinMatch(owners, approverPin)
         if (!approver) {
           await session.abortTransaction(); session.endSession()
-          return res.status(401).json({ success: false, message: "PIN did not match the owner." })
+          // 403, not 401 — see voidRequests.js approve-pin for why.
+          return res.status(403).json({ success: false, message: "PIN did not match the owner." })
         }
       } else {
         await session.abortTransaction(); session.endSession()
@@ -415,7 +417,8 @@ router.patch("/:id/void-items", async (req, res) => {
         approver = await findPinMatch(managers, approverPin)
         if (!approver) {
           await session.abortTransaction(); session.endSession()
-          return res.status(401).json({ success: false, message: "PIN did not match any manager for this store." })
+          // 403, not 401 — see voidRequests.js approve-pin for why.
+          return res.status(403).json({ success: false, message: "PIN did not match any manager for this store." })
         }
       } else if (requesterRole === "manager") {
         actionType = "void_manager_onsite"
@@ -423,7 +426,8 @@ router.patch("/:id/void-items", async (req, res) => {
         approver = await findPinMatch(owners, approverPin)
         if (!approver) {
           await session.abortTransaction(); session.endSession()
-          return res.status(401).json({ success: false, message: "PIN did not match the owner." })
+          // 403, not 401 — see voidRequests.js approve-pin for why.
+          return res.status(403).json({ success: false, message: "PIN did not match the owner." })
         }
       } else {
         await session.abortTransaction(); session.endSession()

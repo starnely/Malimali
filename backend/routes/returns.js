@@ -305,7 +305,9 @@ router.patch("/:id/approve-stage1", async (req, res) => {
       }
     }
     if (!approver) {
-      return res.status(401).json({ success: false, message: "PIN did not match any manager for this store." });
+      // 403, not 401 — see voidRequests.js approve-pin for why (avoids authFetch's
+      // blanket 401-means-expired-session logout firing on a mere wrong PIN).
+      return res.status(403).json({ success: false, message: "PIN did not match any manager for this store." });
     }
 
     returnRecord.status          = "pending_owner";
@@ -384,7 +386,8 @@ router.patch("/:id/approve", async (req, res) => {
         }
       }
       if (!approver) {
-        return res.status(401).json({ success: false, message: "PIN did not match the owner." });
+        // 403, not 401 — see voidRequests.js approve-pin for why.
+        return res.status(403).json({ success: false, message: "PIN did not match the owner." });
       }
     } else {
       if (req.user.role !== "owner") {

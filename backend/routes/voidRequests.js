@@ -277,7 +277,10 @@ router.patch("/:id/approve-pin", async (req, res) => {
     }
     if (!approver) {
       await session.abortTransaction(); session.endSession()
-      return res.status(401).json({ success: false, message: "PIN did not match the owner." })
+      // 403, not 401 — the requester's own session is valid; this is a PIN mismatch,
+      // not an auth failure. authFetch() on the frontend treats any 401 as an expired
+      // session and force-logs-out the caller, which must not happen on a wrong PIN.
+      return res.status(403).json({ success: false, message: "PIN did not match the owner." })
     }
 
     const sale = await Sale.findById(voidReq.saleId).session(session)
