@@ -79,16 +79,19 @@ mongoose.plugin(tenantScopePlugin);
 // Express middleware, once authMiddleware actually populates req.tenantId
 // from a real JWT claim. Exported now so it exists, is unit-testable in
 // isolation, and needs no further design work when that phase starts.
-function getScopedModels(tenantId) {
-  const scopedModelNames = [
-    "User", "Store", "Product", "Category", "Sale", "Customer", "Supplier",
-    "PurchaseOrder", "Repayment", "ApprovalLog", "Expense", "ExpiredStock",
-    "PettyCash", "SupplierPayment", "Archive", "VoidRequest", "Return",
-    "Message", "WeighBarcodeLog", "Setting",
-  ];
+// The 20 business-data models scoped by this plugin (deliberately excludes
+// Tenant itself — a tenant doesn't belong to a tenant). Exported so scripts
+// like the Phase 1 migration reuse this exact list instead of duplicating it.
+const SCOPED_MODEL_NAMES = [
+  "User", "Store", "Product", "Category", "Sale", "Customer", "Supplier",
+  "PurchaseOrder", "Repayment", "ApprovalLog", "Expense", "ExpiredStock",
+  "PettyCash", "SupplierPayment", "Archive", "VoidRequest", "Return",
+  "Message", "WeighBarcodeLog", "Setting",
+];
 
+function getScopedModels(tenantId) {
   const wrapped = {};
-  for (const name of scopedModelNames) {
+  for (const name of SCOPED_MODEL_NAMES) {
     const Model = mongoose.models[name];
     if (!Model) continue; // model not yet required/compiled in this process
 
@@ -104,4 +107,4 @@ function getScopedModels(tenantId) {
   return wrapped;
 }
 
-module.exports = { tenantScopePlugin, getScopedModels };
+module.exports = { tenantScopePlugin, getScopedModels, SCOPED_MODEL_NAMES };
