@@ -58,7 +58,10 @@ router.post("/login", async (req, res) => {
       id:    user._id,
       role:  user.role,
       name:  user.fullname || user.username,
-      store: user.store
+      store: user.store,
+      // Phase 2a-1 — additive only. Not consumed by any route yet; the
+      // shadow-mode plugin still only warns, nothing filters by this.
+      tenantId: user.tenantId || null
     };
 
     const token = jwt.sign(tokenPayload, JWT_SECRET, { expiresIn: "24h" });

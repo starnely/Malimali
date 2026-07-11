@@ -106,6 +106,9 @@ io.use((socket, next) => {
   if (!token) return next(new Error("Authentication required."));
   try {
     socket.user = jwt.verify(token, process.env.JWT_SECRET);
+    // Phase 2a-1 — additive only, not read anywhere yet (Socket.IO tenant
+    // room scoping is Phase 2b).
+    socket.tenantId = socket.user.tenantId || null;
     next();
   } catch {
     next(new Error("Invalid or expired token."));

@@ -2,8 +2,10 @@ const request = require("supertest");
 const createApp = require("../helpers/createApp");
 const db = require("../setup/db");
 const { makeToken } = require("../helpers/auth");
+const jwt = require("jsonwebtoken");
 const { createUser, DEFAULT_PASSWORD } = require("../helpers/seed");
 const User = require("../../models/User");
+const Tenant = require("../../models/Tenant");
 
 const app = createApp();
 
@@ -68,6 +70,29 @@ describe("POST /api/auth/login", () => {
       .send({ username: user.username.toUpperCase(), password: DEFAULT_PASSWORD });
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
+  });
+
+  test("200 — token decodes with the user's tenantId (Phase 2a-1)", async () => {
+    const tenant = await Tenant.create({ name: "Acme Corp", slug: "acme-corp-auth-test" });
+    const user = await createUser({ role: "cashier", email: "c2@test.com", store: "Main Store", tenantId: tenant._id });
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ username: user.username, password: DEFAULT_PASSWORD });
+
+    expect(res.status).toBe(200);
+    const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
+    expect(decoded.tenantId).toBe(String(tenant._id));
+  });
+
+  test("200 — token has tenantId: null when the user has none set (pre-migration safety)", async () => {
+    const user = await createUser({ role: "cashier", email: "c3@test.com", store: "Main Store" });
+    const res = await request(app)
+      .post("/api/auth/login")
+      .send({ username: user.username, password: DEFAULT_PASSWORD });
+
+    expect(res.status).toBe(200);
+    const decoded = jwt.verify(res.body.token, process.env.JWT_SECRET);
+    expect(decoded.tenantId).toBeNull();
   });
 });
 
