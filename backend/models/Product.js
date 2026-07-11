@@ -120,9 +120,16 @@ const productSchema = new mongoose.Schema(
 )
 
 // Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse on each field)
-productSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, sparse: true });
-// No default on pluNumber — field must be absent (not null) for sparse unique
-// index to skip non-weighed products. Use $unset when clearing.
-productSchema.index({ tenantId: 1, pluNumber: 1 }, { unique: true, sparse: true });
+// Partial filter (not sparse) — for a COMPOUND index, sparse only skips a
+// document if it's missing ALL indexed fields. Since tenantId is always
+// present, sparse alone would still index every product missing barcode/
+// pluNumber under the same {tenantId, field: null} key and collide. A
+// partial filter precisely excludes documents missing this field
+// specifically, regardless of tenantId. (Found via Phase 2a-2 rehearsal —
+// 7 non-weighed rehearsal products missing pluNumber collided under sparse.)
+productSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, partialFilterExpression: { barcode: { $exists: true } } });
+// No default on pluNumber — field must be absent (not null) for the partial
+// filter to skip non-weighed products. Use $unset when clearing.
+productSchema.index({ tenantId: 1, pluNumber: 1 }, { unique: true, partialFilterExpression: { pluNumber: { $exists: true } } });
 
 module.exports = mongoose.models.Product || mongoose.model("Product", productSchema)

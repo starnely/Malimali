@@ -104,8 +104,9 @@ const saleSchema = new mongoose.Schema(
   { timestamps: true }
 )
 
-// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse)
-saleSchema.index({ tenantId: 1, receiptId: 1 }, { unique: true, sparse: true });
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse). Partial
+// filter, not sparse — see Product.js barcode/pluNumber comment for why.
+saleSchema.index({ tenantId: 1, receiptId: 1 }, { unique: true, partialFilterExpression: { receiptId: { $exists: true } } });
 
 saleSchema.pre("save", async function () {
   if (!this.receiptId) {

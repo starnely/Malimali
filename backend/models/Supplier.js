@@ -42,7 +42,8 @@ const supplierSchema = new mongoose.Schema({
   },
 }, { timestamps: true });
 
-// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse)
-supplierSchema.index({ tenantId: 1, company: 1 }, { unique: true, sparse: true });
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse). Partial
+// filter, not sparse — see Product.js barcode/pluNumber comment for why.
+supplierSchema.index({ tenantId: 1, company: 1 }, { unique: true, partialFilterExpression: { company: { $exists: true } } });
 
 module.exports = mongoose.model("Supplier", supplierSchema);
