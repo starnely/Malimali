@@ -4,8 +4,8 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema(
   {
     fullname: { type: String, required: true }, 
-    username: { type: String, required: true, unique: true },
-    email: { type: String, required: true, unique: true }, 
+    username: { type: String, required: true },
+    email: { type: String, required: true },
     password: { type: String, required: true },
     
     // ✅ Aligned with frontend dashboard filters and register endpoints
@@ -39,6 +39,10 @@ const userSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
+
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique:true on each field)
+userSchema.index({ tenantId: 1, username: 1 }, { unique: true });
+userSchema.index({ tenantId: 1, email: 1 }, { unique: true });
 
 // ── AUTO-SYNC MITIGATION MIDDLEWARE ──────────────────────────────────
 // Ensures that changing either flag updates the other automatically on save

@@ -1,11 +1,10 @@
 const mongoose = require('mongoose');
 
 const storeSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    trim: true 
+  name: {
+    type: String,
+    required: true,
+    trim: true
   },
   location: { 
     type: String, 
@@ -19,5 +18,8 @@ const storeSchema = new mongoose.Schema({
 }, { 
   timestamps: true 
 });
+
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique:true)
+storeSchema.index({ tenantId: 1, name: 1 }, { unique: true });
 
 module.exports = mongoose.model('Store', storeSchema);

@@ -3,8 +3,7 @@ const mongoose = require("mongoose");
 const SettingSchema = new mongoose.Schema({
   settingKey: {
     type:    String,
-    default: "global",
-    unique:  true
+    default: "global"
   },
   companyName: {
     type:     String,
@@ -84,5 +83,9 @@ const SettingSchema = new mongoose.Schema({
   activationCode: { type: String },
   installedAt:    { type: Date, default: Date.now }
 });
+
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique:true; every tenant's
+// Setting doc defaults to the same settingKey, so this must be compound)
+SettingSchema.index({ tenantId: 1, settingKey: 1 }, { unique: true });
 
 module.exports = mongoose.model("Setting", SettingSchema);

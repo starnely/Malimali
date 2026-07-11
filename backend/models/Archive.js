@@ -44,7 +44,8 @@ const ArchiveSchema = new mongoose.Schema({
 { timestamps: true });
 
 // One archive per employee per day
-ArchiveSchema.index({ employeeName: 1, date: 1 }, { unique: true });
+// Phase 2a-2 — tenantId leads the existing compound unique index
+ArchiveSchema.index({ tenantId: 1, employeeName: 1, date: 1 }, { unique: true });
 
 // Owner store filter index
 ArchiveSchema.index({ store: 1, date: -1 });

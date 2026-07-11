@@ -70,9 +70,6 @@ const productSchema = new mongoose.Schema(
     },
     barcode: {
       type: String,
-      unique: true,
-      sparse: true,
-      index: true,
       minlength: [6, "Barcode must be at least 6 characters"]
     },
     batch: {
@@ -110,10 +107,6 @@ const productSchema = new mongoose.Schema(
       type: Number,
       min: 1,
       max: 99999,
-      unique: true,
-      sparse: true,
-      // No default — field must be absent (not null) for sparse unique index
-      // to skip non-weighed products. Use $unset when clearing.
     },
 
     // ── Auto-PO suggestion fields ──────────────────────────────────────
@@ -125,5 +118,11 @@ const productSchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse on each field)
+productSchema.index({ tenantId: 1, barcode: 1 }, { unique: true, sparse: true });
+// No default on pluNumber — field must be absent (not null) for sparse unique
+// index to skip non-weighed products. Use $unset when clearing.
+productSchema.index({ tenantId: 1, pluNumber: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.models.Product || mongoose.model("Product", productSchema)

@@ -23,6 +23,7 @@ const categorySchema = new mongoose.Schema({
 
 // Unique per name+store combination
 // (same name can exist in different stores, but not twice in same store)
-categorySchema.index({ name: 1, store: 1 }, { unique: true })
+// Phase 2a-2 — tenantId leads the existing compound unique index
+categorySchema.index({ tenantId: 1, name: 1, store: 1 }, { unique: true })
 
 module.exports = mongoose.models.Category || mongoose.model('Category', categorySchema)

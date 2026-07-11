@@ -20,8 +20,9 @@ const customerSchema = new mongoose.Schema(
 
 // ── Unique index: phone+store (only when phone is provided) ───────────
 // We use a partial index so that empty phone strings don't conflict
+// Phase 2a-2 — tenantId leads the existing compound unique index
 customerSchema.index(
-  { phone: 1, store: 1 },
+  { tenantId: 1, phone: 1, store: 1 },
   { unique: true, partialFilterExpression: { phone: { $gt: "" } } }
 )
 

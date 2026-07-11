@@ -83,7 +83,7 @@ const saleSchema = new mongoose.Schema(
 
     date: { type: String, required: true, default: dateEAT },
     time: { type: String, required: true, default: timeEAT },
-    receiptId:  { type: String, unique: true, sparse: true },
+    receiptId:  { type: String },
     taxRate:    { type: Number, default: 0 },
     taxAmount:  { type: Number, default: 0 },
     netRevenue: { type: Number, default: 0 },
@@ -103,6 +103,9 @@ const saleSchema = new mongoose.Schema(
   },
   { timestamps: true }
 )
+
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse)
+saleSchema.index({ tenantId: 1, receiptId: 1 }, { unique: true, sparse: true });
 
 saleSchema.pre("save", async function () {
   if (!this.receiptId) {

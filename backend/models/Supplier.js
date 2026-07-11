@@ -8,8 +8,6 @@ const supplierSchema = new mongoose.Schema({
   },
   company: {
     type:   String,
-    unique: true,
-    sparse: true,
     trim:   true,
   },
   email: {
@@ -43,5 +41,8 @@ const supplierSchema = new mongoose.Schema({
     default: true,
   },
 }, { timestamps: true });
+
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique+sparse)
+supplierSchema.index({ tenantId: 1, company: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model("Supplier", supplierSchema);

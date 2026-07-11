@@ -64,7 +64,8 @@ const pettyCashSchema = new mongoose.Schema(
 )
 
 // ── One record per store per day ──────────────────────────────────────
-pettyCashSchema.index({ store: 1, date: 1 }, { unique: true })
+// Phase 2a-2 — tenantId leads the existing compound unique index
+pettyCashSchema.index({ tenantId: 1, store: 1, date: 1 }, { unique: true })
 
 // ── Auto-recalculate derived fields before save ───────────────────────
 pettyCashSchema.pre("save", function () {

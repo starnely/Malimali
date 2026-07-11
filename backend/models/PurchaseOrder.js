@@ -40,7 +40,7 @@ const poItemSchema = new mongoose.Schema(
 
 const purchaseOrderSchema = new mongoose.Schema(
   {
-    poNumber:      { type: String, unique: true, index: true },
+    poNumber:      { type: String },
     supplierId:    { type: mongoose.Schema.Types.ObjectId, ref: "Supplier", default: null },
     supplierName:  { type: String, default: "Manual / Walk-in" },
     supplierPhone: { type: String, default: "" },
@@ -113,6 +113,8 @@ purchaseOrderSchema.pre("save", async function () {
 purchaseOrderSchema.index({ store: 1, status: 1, date: -1 })
 purchaseOrderSchema.index({ supplierId: 1 })
 purchaseOrderSchema.index({ paymentStatus: 1, store: 1 })
+// Phase 2a-2 — tenant-scoped uniqueness (was global unique:true)
+purchaseOrderSchema.index({ tenantId: 1, poNumber: 1 }, { unique: true })
 
 module.exports =
   mongoose.models.PurchaseOrder ||
