@@ -2,7 +2,7 @@ const request = require("supertest");
 const createApp = require("../helpers/createApp");
 const db = require("../setup/db");
 const { makeToken } = require("../helpers/auth");
-const { createUser, createProduct, DEFAULT_PASSWORD } = require("../helpers/seed");
+const { createUser, createProduct, hashPin } = require("../helpers/seed");
 const Sale = require("../../models/Sale");
 const Product = require("../../models/Product");
 
@@ -293,11 +293,28 @@ describe("POST /api/sales", () => {
 // PATCH /api/sales/:id/void
 // ─────────────────────────────────────────────────────────────────────────────
 describe("PATCH /api/sales/:id/void", () => {
-  let owner, ownerToken, cashier, cashierToken, product;
+  // Real contract (routes/sales.js): owner self-approves with no PIN; cashier/
+  // employee need approverPin matching a manager (or, as a fallback, the owner);
+  // manager needs approverPin matching the owner. bcrypt.compare runs against
+  // User.approvalPin, so seeded approvers need a hashed PIN via hashPin().
+  const MANAGER_PIN = "1234";
+  const OWNER_PIN = "5678";
+  let owner, manager, managerToken, cashier, cashierToken, product;
 
   beforeEach(async () => {
-    owner = await createUser({ role: "owner", email: "owner@test.com", store: "Main Store" });
-    ownerToken = makeToken({ id: owner._id, role: "owner", store: owner.store });
+    owner = await createUser({
+      role: "owner",
+      email: "owner@test.com",
+      store: "Main Store",
+      approvalPin: hashPin(OWNER_PIN),
+    });
+    manager = await createUser({
+      role: "manager",
+      email: "manager@test.com",
+      store: "Main Store",
+      approvalPin: hashPin(MANAGER_PIN),
+    });
+    managerToken = makeToken({ id: manager._id, role: "manager", store: manager.store });
     cashier = await createUser({
       role: "cashier",
       email: "cashier@test.com",
@@ -320,14 +337,14 @@ describe("PATCH /api/sales/:id/void", () => {
     return res.body.sale;
   }
 
-  test("400 — missing manager credentials", async () => {
+  test("400 — missing approval PIN", async () => {
     const sale = await recordSale();
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
       .send({ reason: "customer changed mind" });
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/credentials/i);
+    expect(res.body.message).toMatch(/approval PIN/i);
   });
 
   test("400 — missing void reason", async () => {
@@ -335,35 +352,28 @@ describe("PATCH /api/sales/:id/void", () => {
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({ managerUsername: owner.username, managerPassword: DEFAULT_PASSWORD });
+      .send({ approverPin: MANAGER_PIN });
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/reason/i);
   });
 
-  test("401 — wrong manager password", async () => {
+  test("403 — PIN does not match any manager or the owner", async () => {
     const sale = await recordSale();
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: "wrongpass",
-        reason: "test void",
-      });
-    expect(res.status).toBe(401);
+      .send({ approverPin: "0000", reason: "test void" });
+    expect(res.status).toBe(403);
   });
 
-  test("403 — cashier cannot authorize a void", async () => {
+  test("403 — manager cannot self-approve with their own PIN (needs the owner's)", async () => {
     const sale = await recordSale();
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
-      .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: cashier.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "test",
-      });
+      .set("Authorization", `Bearer ${managerToken}`)
+      .send({ approverPin: MANAGER_PIN, reason: "test" });
     expect(res.status).toBe(403);
+    expect(res.body.message).toMatch(/owner/i);
   });
 
   test("400 — cannot void an already-voided sale", async () => {
@@ -373,21 +383,13 @@ describe("PATCH /api/sales/:id/void", () => {
     await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "first void",
-      });
+      .send({ approverPin: MANAGER_PIN, reason: "first void" });
 
     // Second void attempt
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "second void",
-      });
+      .send({ approverPin: MANAGER_PIN, reason: "second void" });
 
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/already been voided/i);
@@ -400,11 +402,7 @@ describe("PATCH /api/sales/:id/void", () => {
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "customer returned items",
-      });
+      .send({ approverPin: MANAGER_PIN, reason: "customer returned items" });
 
     expect(res.status).toBe(200);
     expect(res.body.sale.voided).toBe(true);
@@ -420,10 +418,17 @@ describe("PATCH /api/sales/:id/void", () => {
 // PATCH /api/sales/:id/void-items
 // ─────────────────────────────────────────────────────────────────────────────
 describe("PATCH /api/sales/:id/void-items", () => {
-  let owner, cashier, cashierToken, product;
+  const MANAGER_PIN = "1234";
+  let owner, manager, cashier, cashierToken, product;
 
   beforeEach(async () => {
     owner = await createUser({ role: "owner", email: "owner@test.com", store: "Main Store" });
+    manager = await createUser({
+      role: "manager",
+      email: "manager@test.com",
+      store: "Main Store",
+      approvalPin: hashPin(MANAGER_PIN),
+    });
     cashier = await createUser({ role: "cashier", email: "cashier@test.com", store: "Main Store" });
     cashierToken = makeToken({ id: cashier._id, role: "cashier", store: cashier.store });
     product = await createProduct({ stock: 50 });
@@ -451,28 +456,18 @@ describe("PATCH /api/sales/:id/void-items", () => {
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void-items`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "test",
-        items: [],
-      });
+      .send({ approverPin: MANAGER_PIN, reason: "test", items: [] });
     expect(res.status).toBe(400);
   });
 
-  test("401 — wrong manager credentials", async () => {
+  test("403 — wrong approval PIN", async () => {
     const { sale } = await recordTwoItemSale();
     const itemId = sale.items[0]._id;
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void-items`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: "wrongpass",
-        reason: "test",
-        items: [{ itemId, voidQty: 1 }],
-      });
-    expect(res.status).toBe(401);
+      .send({ approverPin: "0000", reason: "test", items: [{ itemId, voidQty: 1 }] });
+    expect(res.status).toBe(403);
   });
 
   test("200 — partial void: only specified item voided; stock restocked for that qty only", async () => {
@@ -484,8 +479,7 @@ describe("PATCH /api/sales/:id/void-items", () => {
       .patch(`/api/sales/${sale._id}/void-items`)
       .set("Authorization", `Bearer ${cashierToken}`)
       .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
+        approverPin: MANAGER_PIN,
         reason: "item damaged",
         items: [{ itemId: firstItemId, voidQty: 2 }],
       });
@@ -506,8 +500,7 @@ describe("PATCH /api/sales/:id/void-items", () => {
       .patch(`/api/sales/${sale._id}/void-items`)
       .set("Authorization", `Bearer ${cashierToken}`)
       .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
+        approverPin: MANAGER_PIN,
         reason: "full void via items",
         items: [
           { itemId: item1._id, voidQty: item1.qty },
@@ -527,21 +520,12 @@ describe("PATCH /api/sales/:id/void-items", () => {
     await request(app)
       .patch(`/api/sales/${sale._id}/void`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "full void",
-      });
+      .send({ approverPin: MANAGER_PIN, reason: "full void" });
 
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void-items`)
       .set("Authorization", `Bearer ${cashierToken}`)
-      .send({
-        managerUsername: owner.username,
-        managerPassword: DEFAULT_PASSWORD,
-        reason: "try again",
-        items: [{ itemId: sale.items[0]._id, voidQty: 1 }],
-      });
+      .send({ approverPin: MANAGER_PIN, reason: "try again", items: [{ itemId: sale.items[0]._id, voidQty: 1 }] });
 
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/already voided/i);

@@ -11,10 +11,16 @@ function createApp() {
   const app = express();
   app.use(express.json());
 
-  // No-op Socket.IO stub so routes can call io.emit() / io.to().emit() safely.
+  // No-op Socket.IO stub so routes can call io.emit() / io.to(...).to(...).emit()
+  // safely. Real Socket.IO's BroadcastOperator.to() returns another
+  // BroadcastOperator (see node_modules/socket.io/dist/broadcast-operator.d.ts),
+  // so chained .to().to().to() calls are valid production usage — this
+  // self-referencing object mirrors that so the mock supports unlimited chaining
+  // instead of only one level.
+  const chainableEmitter = { to: () => chainableEmitter, emit: () => {} };
   const mockIo = {
     emit: () => {},
-    to: () => ({ emit: () => {} }),
+    to: () => chainableEmitter,
   };
   app.set("io", mockIo);
 

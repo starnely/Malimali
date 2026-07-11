@@ -21,6 +21,13 @@ const DEFAULT_PASSWORD = "password123";
 // Cost factor 4 (minimum valid) keeps bcrypt fast in tests without changing production behavior.
 const DEFAULT_PASSWORD_HASH = bcrypt.hashSync(DEFAULT_PASSWORD, 4);
 
+// Hashes a plaintext approval PIN the same way routes compare it (bcrypt.compare
+// against User.approvalPin) — pass the plaintext PIN as `approverPin` in the
+// request body, and the hash as `approvalPin` when seeding the approving user.
+function hashPin(pin) {
+  return bcrypt.hashSync(pin, 4);
+}
+
 async function createUser(overrides = {}) {
   const count = await User.countDocuments();
   const role = overrides.role || "cashier";
@@ -268,4 +275,5 @@ module.exports = {
   createSetting,
   createSale,
   DEFAULT_PASSWORD,
+  hashPin,
 };

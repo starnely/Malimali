@@ -2,11 +2,18 @@ const request = require("supertest");
 const createApp = require("../helpers/createApp");
 const db = require("../setup/db");
 const { makeToken } = require("../helpers/auth");
-const { createUser, createProduct } = require("../helpers/seed");
+const { createUser, createProduct, hashPin } = require("../helpers/seed");
 const Sale = require("../../models/Sale");
 const Product = require("../../models/Product");
+const Return = require("../../models/Return");
 
 const app = createApp();
+
+// Two-stage flow: cashier/employee submissions land in pending_manager and
+// need /approve-stage1 (manager or owner PIN) before /approve (final owner
+// approval) will accept them — see routes/returns.js.
+const MANAGER_PIN = "1234";
+const OWNER_PIN = "5678";
 
 beforeAll(() => db.connect());
 afterEach(() => db.clear());
@@ -162,7 +169,8 @@ describe("POST /api/returns", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 describe("duplicate line-item return — regression for saleItemId matching", () => {
   test("returning one of two identical-product line items leaves the other untouched", async () => {
-    const owner   = await createUser({ role: "owner", email: "o@test.com" });
+    const owner   = await createUser({ role: "owner", email: "o@test.com", approvalPin: hashPin(OWNER_PIN) });
+    const manager = await createUser({ role: "manager", email: "m@test.com", store: owner.store, approvalPin: hashPin(MANAGER_PIN) });
     const cashier = await createUser({ role: "cashier", email: "c@test.com", store: owner.store });
     const product = await createProduct({ stock: 20, sellPrice: 60, buyPrice: 40 });
     const ownerToken   = makeToken({ id: owner._id,   role: "owner",   store: owner.store });
@@ -212,8 +220,14 @@ describe("duplicate line-item return — regression for saleItemId matching", ()
     expect(savedItemA.returnStatus).toBe("none");   // untouched
     expect(savedItemB.returnStatus).toBe("pending"); // marked pending
 
-    // ── Step 2: owner approves the return ────────────────────────────
+    // ── Step 2: manager stage-1 approval, then owner final approval ──
     const returnId = submitRes.body.return._id;
+    const stage1Res = await request(app)
+      .patch(`/api/returns/${returnId}/approve-stage1`)
+      .set("Authorization", `Bearer ${cashierToken}`)
+      .send({ approverPin: MANAGER_PIN });
+    expect(stage1Res.status).toBe(200);
+
     const approveRes = await request(app)
       .patch(`/api/returns/${returnId}/approve`)
       .set("Authorization", `Bearer ${ownerToken}`);
@@ -243,11 +257,27 @@ describe("duplicate line-item return — regression for saleItemId matching", ()
 // ─────────────────────────────────────────────────────────────────────────────
 describe("PATCH /api/returns/:id/approve", () => {
   test("403 — cashier cannot approve returns", async () => {
-    const cashier = await createUser({ role: "cashier", email: "c@test.com" });
+    // Must be a real pending_owner record — the route checks existence/status
+    // before role, so a nonexistent id would return 404, not 403.
+    const owner   = await createUser({ role: "owner", email: "o@test.com" });
+    const cashier = await createUser({ role: "cashier", email: "c@test.com", store: owner.store });
+    const product = await createProduct({ stock: 10 });
+    const sale    = await createSale(cashier, [{ product, qty: 2, price: 50 }]);
     const token   = makeToken({ id: cashier._id, role: "cashier", store: cashier.store });
 
+    const returnRecord = await Return.create({
+      saleId: sale._id,
+      items: [{ saleItemId: sale.items[0]._id, productId: product._id, qty: 1, sellPrice: 50 }],
+      reason: "test",
+      requestedBy: cashier._id,
+      refundAmount: 50,
+      status: "pending_owner",
+      date: "2024-06-01",
+      time: "10:00:00 EAT",
+    });
+
     const res = await request(app)
-      .patch("/api/returns/000000000000000000000001/approve")
+      .patch(`/api/returns/${returnRecord._id}/approve`)
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(403);
   });
@@ -264,14 +294,16 @@ describe("PATCH /api/returns/:id/approve", () => {
 
   test("400 — already approved", async () => {
     const owner   = await createUser({ role: "owner", email: "o@test.com" });
+    const manager = await createUser({ role: "manager", email: "m@test.com", store: owner.store, approvalPin: hashPin(MANAGER_PIN) });
     const cashier = await createUser({ role: "cashier", email: "c@test.com", store: owner.store });
     const product = await createProduct({ stock: 10 });
     const sale    = await createSale(cashier, [{ product, qty: 2, price: 50 }]);
+    const cashierToken = makeToken({ id: cashier._id, role: "cashier", store: cashier.store });
     const token   = makeToken({ id: owner._id, role: "owner", store: owner.store });
 
     const submitRes = await request(app)
       .post("/api/returns")
-      .set("Authorization", `Bearer ${makeToken({ id: cashier._id, role: "cashier", store: cashier.store })}`)
+      .set("Authorization", `Bearer ${cashierToken}`)
       .send({
         saleId: sale._id,
         items:  [{ saleItemId: sale.items[0]._id, productId: product._id, qty: 1 }],
@@ -279,6 +311,11 @@ describe("PATCH /api/returns/:id/approve", () => {
       });
 
     const returnId = submitRes.body.return._id;
+    await request(app)
+      .patch(`/api/returns/${returnId}/approve-stage1`)
+      .set("Authorization", `Bearer ${cashierToken}`)
+      .send({ approverPin: MANAGER_PIN });
+
     await request(app)
       .patch(`/api/returns/${returnId}/approve`)
       .set("Authorization", `Bearer ${token}`);
@@ -292,24 +329,30 @@ describe("PATCH /api/returns/:id/approve", () => {
 
   test("200 — stock restored and sale finalTotal decremented", async () => {
     const owner   = await createUser({ role: "owner", email: "o@test.com" });
+    const manager = await createUser({ role: "manager", email: "m@test.com", store: owner.store, approvalPin: hashPin(MANAGER_PIN) });
     const cashier = await createUser({ role: "cashier", email: "c@test.com", store: owner.store });
     const product = await createProduct({ stock: 10, sellPrice: 80 });
     const sale    = await createSale(cashier, [{ product, qty: 4, price: 80 }]);
     const ownerToken   = makeToken({ id: owner._id,   role: "owner",   store: owner.store });
     const cashierToken = makeToken({ id: cashier._id, role: "cashier", store: cashier.store });
 
-    await request(app)
+    const submitRes = await request(app)
       .post("/api/returns")
       .set("Authorization", `Bearer ${cashierToken}`)
       .send({
         saleId: sale._id,
         items:  [{ saleItemId: sale.items[0]._id, productId: product._id, qty: 2 }],
         reason: "damaged",
-      })
-      .then(r => request(app)
-        .patch(`/api/returns/${r.body.return._id}/approve`)
-        .set("Authorization", `Bearer ${ownerToken}`)
-      );
+      });
+
+    await request(app)
+      .patch(`/api/returns/${submitRes.body.return._id}/approve-stage1`)
+      .set("Authorization", `Bearer ${cashierToken}`)
+      .send({ approverPin: MANAGER_PIN });
+
+    await request(app)
+      .patch(`/api/returns/${submitRes.body.return._id}/approve`)
+      .set("Authorization", `Bearer ${ownerToken}`);
 
     const updatedProduct = await Product.findById(product._id);
     // createSale inserts directly (no stock deduction), so approve only adds back 2

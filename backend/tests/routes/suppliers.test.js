@@ -71,7 +71,7 @@ describe("GET /api/suppliers", () => {
 // POST /api/suppliers
 // ─────────────────────────────────────────────────────────────────────────────
 describe("POST /api/suppliers", () => {
-  test("403 — cashier blocked (managerOrOwner)", async () => {
+  test("403 — cashier blocked (ownerOnly)", async () => {
     const cashier = await createUser({ role: "cashier", email: "c@test.com", store: "Main Store" });
     const token = makeToken({ id: cashier._id, role: "cashier", store: "Main Store" });
     const res = await request(app)
@@ -103,8 +103,10 @@ describe("POST /api/suppliers", () => {
   });
 
   test("201 — creates supplier; email stored lowercase; stores saved", async () => {
-    const manager = await createUser({ role: "manager", email: "m@test.com", store: "Main Store" });
-    const token = makeToken({ id: manager._id, role: "manager", store: "Main Store" });
+    // Supplier creation is ownerOnly (routes/suppliers.js) — confirmed intentional,
+    // not a stale restriction, so this test uses an owner, not a manager.
+    const owner = await createUser({ role: "owner", email: "o2@test.com", store: "Main Store" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "Main Store" });
     const res = await request(app)
       .post("/api/suppliers")
       .set("Authorization", `Bearer ${token}`)

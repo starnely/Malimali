@@ -44,24 +44,40 @@ describe("GET /api/setup/status", () => {
 // GET /api/setup/details
 // ─────────────────────────────────────────────────────────────────────────────
 describe("GET /api/setup/details", () => {
+  // The real route requires authMiddleware (routes/setup.js:108) — the frontend
+  // only ever calls this post-login with a Bearer token (AppContext.jsx fetches
+  // it right after login, unlike /status and /branding which are pre-login and
+  // correctly unauthenticated). These tests were missing that header.
   test("404 — no settings document in the database", async () => {
-    const res = await request(app).get("/api/setup/details");
+    const owner = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
+    const res = await request(app)
+      .get("/api/setup/details")
+      .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(404);
   });
 
   test("200 — returns settings when they exist", async () => {
+    const owner = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
     await createSetting({ companyName: "Acme Corp" });
 
-    const res = await request(app).get("/api/setup/details");
+    const res = await request(app)
+      .get("/api/setup/details")
+      .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
     expect(res.body.settings.companyName).toBe("Acme Corp");
   });
 
   test("200 — smtp.password is stripped (returned as empty string)", async () => {
+    const owner = await createUser({ role: "owner", email: "o@test.com", store: "HQ" });
+    const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
     await createSetting({ smtp: { host: "smtp.test.com", user: "no-reply@test.com", password: "super-secret-encrypted" } });
 
-    const res = await request(app).get("/api/setup/details");
+    const res = await request(app)
+      .get("/api/setup/details")
+      .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.settings.smtp.password).toBe("");
   });
