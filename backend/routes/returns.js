@@ -12,12 +12,12 @@ const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/aut
 router.use(authMiddleware);
 
 // Shared archive recalculation — called after any return approval
-async function recalcArchive(sale, refundAmount) {
+async function recalcArchive(sale, refundAmount, tenantId) {
   const saleDate    = sale?.date;
   const cashierName = sale?.cashier;
   if (!saleDate || !cashierName) return;
 
-  const daySales = await Sale.find({ date: saleDate, cashier: cashierName, returned: false });
+  const daySales = await Sale.find({ tenantId, date: saleDate, cashier: cashierName, returned: false });
 
   const revenue      = daySales.reduce((sum, s) => sum + (s.paymentInfo?.finalTotal ?? s.total ?? 0), 0);
   const transactions = daySales.length;
@@ -49,7 +49,7 @@ async function recalcArchive(sale, refundAmount) {
   }
 
   await Archive.findOneAndUpdate(
-    { employeeName: cashierName, date: saleDate },
+    { tenantId, employeeName: cashierName, date: saleDate },
     { revenue, transactions, itemsSold,
       paymentBreakdown: { cash: adjustedCash, mpesa: adjustedMpesa, splitCash, splitMpesa, credit } },
     { upsert: true, new: true }
@@ -59,19 +59,20 @@ async function recalcArchive(sale, refundAmount) {
 // ── 1. GET RETURNS ───────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    let query = {};
+    let query = { tenantId: req.tenantId };
 
     if (req.query.status) query.status = req.query.status;
 
     if (req.user.role === "cashier" || req.user.role === "employee") {
       query.requestedBy = req.user.id;
     } else if (req.user.role === "manager") {
-      const storeSales = await Sale.find({ store: req.user.store }).select("_id");
+      const storeSales = await Sale.find({ tenantId: req.tenantId, store: req.user.store }).select("_id");
       const saleIds = storeSales.map(s => s._id);
       query.saleId = { $in: saleIds };
     }
     // Owner sees everything — no additional filter
 
+    // populate sites 1/4 and 2/4 — match:{tenantId} deferred to 2a-4
     const returns = await Return.find(query)
       .populate("items.productId", "name category")
       .populate("requestedBy", "fullname username")
@@ -97,7 +98,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const sale = await Sale.findById(saleId);
+    const sale = await Sale.findOne({ _id: saleId, tenantId: req.tenantId });
     if (!sale) {
       return res.status(404).json({ success: false, message: "Sale record not found." });
     }
@@ -112,7 +113,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const existingPending = await Return.findOne({ saleId, status: { $in: ["pending_manager", "pending_owner"] } });
+    const existingPending = await Return.findOne({ tenantId: req.tenantId, saleId, status: { $in: ["pending_manager", "pending_owner"] } });
     if (existingPending) {
       return res.status(400).json({
         success: false,
@@ -171,11 +172,15 @@ router.post("/", async (req, res) => {
         approvedAt:   now.toISOString(),
         date:         now.toISOString().split("T")[0],
         time:         now.toISOString().slice(11, 19) + " EAT",
+        tenantId:     req.tenantId,
       });
       await returnRecord.save();
 
+      // tenantId here prevents a crafted saleItem.productId (data corruption
+      // elsewhere or a malicious client) from restocking another tenant's
+      // product — same reasoning as sales.js's stock-decrement scoping.
       for (const returnItem of resolvedItems) {
-        await Product.findByIdAndUpdate(returnItem.productId, { $inc: { stock: returnItem.qty } });
+        await Product.findOneAndUpdate({ _id: returnItem.productId, tenantId: req.tenantId }, { $inc: { stock: returnItem.qty } });
       }
 
       for (const returnItem of resolvedItems) {
@@ -197,7 +202,7 @@ router.post("/", async (req, res) => {
       sale.returnId     = returnRecord._id;
       await sale.save();
 
-      await recalcArchive(sale, refundAmount).catch(err => console.error("recalcArchive error:", err));
+      await recalcArchive(sale, refundAmount, req.tenantId).catch(err => console.error("recalcArchive error:", err));
 
       const io = req.app.get("io");
       if (io) io.emit("sync_system_data");
@@ -220,7 +225,8 @@ router.post("/", async (req, res) => {
       refundAmount,
       status: initialStatus,
       date:   now.toISOString().split("T")[0],
-      time:   now.toISOString().slice(11, 19) + " EAT"
+      time:   now.toISOString().slice(11, 19) + " EAT",
+      tenantId: req.tenantId,
     });
 
     await returnRecord.save();
@@ -234,7 +240,7 @@ router.post("/", async (req, res) => {
     sale.returnId     = returnRecord._id;
     await sale.save();
 
-    const requester = await User.findById(req.user.id).select("fullname username");
+    const requester = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).select("fullname username");
     const io = req.app.get("io");
     if (io) {
       if (initialStatus === "pending_manager") {
@@ -287,7 +293,7 @@ router.patch("/:id/approve-stage1", async (req, res) => {
       return res.status(400).json({ success: false, message: "Manager PIN is required for stage-1 approval." });
     }
 
-    const returnRecord = await Return.findById(req.params.id);
+    const returnRecord = await Return.findOne({ _id: req.params.id, tenantId: req.tenantId });
     if (!returnRecord) return res.status(404).json({ success: false, message: "Return record not found." });
 
     if (returnRecord.status !== "pending_manager") {
@@ -295,11 +301,12 @@ router.patch("/:id/approve-stage1", async (req, res) => {
     }
 
     // Find the sale to determine store
-    const sale = await Sale.findById(returnRecord.saleId).select("store").lean();
+    const sale = await Sale.findOne({ _id: returnRecord.saleId, tenantId: req.tenantId }).select("store").lean();
     if (!sale) return res.status(404).json({ success: false, message: "Sale not found." });
 
-    // Scan managers in that store for a PIN match
-    const managers = await User.find({ role: "manager", store: sale.store });
+    // Scan managers in that store for a PIN match. tenantId required — store
+    // names aren't unique across tenants (same reasoning as sales.js).
+    const managers = await User.find({ tenantId: req.tenantId, role: "manager", store: sale.store });
     let approver = null;
     let actionType = "return_stage1";
     for (const mgr of managers) {
@@ -311,7 +318,7 @@ router.patch("/:id/approve-stage1", async (req, res) => {
       // Additive owner override — the manager check above is unchanged; this
       // only runs when no manager PIN matched, so an owner can approve
       // directly at stage 1 when no manager is on duty.
-      const owners = await User.find({ role: "owner" });
+      const owners = await User.find({ tenantId: req.tenantId, role: "owner" });
       for (const own of owners) {
         if (own.approvalPin && await bcrypt.compare(approverPin, own.approvalPin)) {
           approver = own; break;
@@ -336,6 +343,7 @@ router.patch("/:id/approve-stage1", async (req, res) => {
       targetId:   returnRecord._id,
       targetType: "return",
       store:      sale.store,
+      tenantId:   req.tenantId,
     });
 
     const io = req.app.get("io");
@@ -375,7 +383,8 @@ router.patch("/:id/approve-stage1", async (req, res) => {
 router.patch("/:id/approve", async (req, res) => {
   try {
     const { approverPin } = req.body || {};
-    const returnRecord = await Return.findById(req.params.id).populate("items.productId");
+    // populate site 3/4 — match:{tenantId} deferred to 2a-4
+    const returnRecord = await Return.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate("items.productId");
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: "Return record not found." });
     }
@@ -396,7 +405,7 @@ router.patch("/:id/approve", async (req, res) => {
 
     if (approverPin) {
       usedPin = true;
-      const owners = await User.find({ role: "owner" });
+      const owners = await User.find({ tenantId: req.tenantId, role: "owner" });
       for (const own of owners) {
         if (own.approvalPin && await bcrypt.compare(approverPin, own.approvalPin)) {
           approver = own; break;
@@ -410,19 +419,22 @@ router.patch("/:id/approve", async (req, res) => {
       if (req.user.role !== "owner") {
         return res.status(403).json({ success: false, message: "Only the owner can approve without a PIN." });
       }
-      approver = await User.findById(req.user.id);
+      approver = await User.findOne({ _id: req.user.id, tenantId: req.tenantId });
     }
 
     // ── 1. Restore stock ───────────────────────────────────────────────
+    // tenantId here prevents a stale/crafted item.productId from restocking
+    // another tenant's product — same reasoning as sales.js.
     for (const item of returnRecord.items) {
-      await Product.findByIdAndUpdate(
-        item.productId._id || item.productId,
+      await Product.findOneAndUpdate(
+        { _id: item.productId._id || item.productId, tenantId: req.tenantId },
         { $inc: { stock: item.qty } }
       );
     }
 
     // ── 2. Update sale items and totals ───────────────────────────────
-    const sale = await Sale.findById(returnRecord.saleId).populate("items.productId");
+    // populate site 4/4 — match:{tenantId} deferred to 2a-4
+    const sale = await Sale.findOne({ _id: returnRecord.saleId, tenantId: req.tenantId }).populate("items.productId");
     if (sale) {
       for (const returnItem of returnRecord.items) {
         const saleItem = sale.items.id(returnItem.saleItemId);
@@ -462,11 +474,12 @@ router.patch("/:id/approve", async (req, res) => {
         targetId:   returnRecord._id,
         targetType: "return",
         store:      sale?.store,
+        tenantId:   req.tenantId,
       });
     }
 
     // ── 5. Recalculate archive ────────────────────────────────────────
-    await recalcArchive(sale, returnRecord.refundAmount).catch(err => console.error("recalcArchive error:", err));
+    await recalcArchive(sale, returnRecord.refundAmount, req.tenantId).catch(err => console.error("recalcArchive error:", err));
 
     // ── 6. Notify ─────────────────────────────────────────────────────
     const io = req.app.get("io");
@@ -500,7 +513,7 @@ router.patch("/:id/approve", async (req, res) => {
 // Stage pending_owner   → owner only.
 router.patch("/:id/reject", managerOrOwner, async (req, res) => {
   try {
-    const returnRecord = await Return.findById(req.params.id);
+    const returnRecord = await Return.findOne({ _id: req.params.id, tenantId: req.tenantId });
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: "Return record not found." });
     }
@@ -519,7 +532,7 @@ router.patch("/:id/reject", managerOrOwner, async (req, res) => {
 
     // Store scoping for managers
     if (req.user.role === "manager") {
-      const saleCheck = await Sale.findById(returnRecord.saleId).select("store").lean();
+      const saleCheck = await Sale.findOne({ _id: returnRecord.saleId, tenantId: req.tenantId }).select("store").lean();
       if (!saleCheck || saleCheck.store !== req.user.store) {
         return res.status(403).json({ success: false, message: "Access denied: This return belongs to a different store." });
       }
@@ -532,7 +545,7 @@ router.patch("/:id/reject", managerOrOwner, async (req, res) => {
     await returnRecord.save();
 
     // Reset sale items returnStatus
-    const sale = await Sale.findById(returnRecord.saleId);
+    const sale = await Sale.findOne({ _id: returnRecord.saleId, tenantId: req.tenantId });
     if (sale) {
       for (const returnItem of returnRecord.items) {
         const saleItem = sale.items.id(returnItem.saleItemId);
