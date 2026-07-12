@@ -24,17 +24,17 @@ function broadcastCategoryEvent(io, eventName, cat) {
 router.get("/", async (req, res) => {
   try {
     const { store } = req.query
-    let query = {}
+    let query = { tenantId: req.tenantId }
 
     if (store && store.trim() && store !== 'All') {
       // Return global (null store) + this store's categories
-      query = { $or: [{ store: null }, { store: store.trim() }] }
+      query = { tenantId: req.tenantId, $or: [{ store: null }, { store: store.trim() }] }
     } else if (req.user.role !== 'owner') {
       // Non-owner with no store filter: show global + their store
       const userStore = req.user.store
-      query = { $or: [{ store: null }, { store: userStore }] }
+      query = { tenantId: req.tenantId, $or: [{ store: null }, { store: userStore }] }
     }
-    // Owner with no filter: show everything (empty query)
+    // Owner with no filter: show everything for their tenant
 
     const categories = await Category.find(query).sort({ store: 1, name: 1 })
 
@@ -42,6 +42,7 @@ router.get("/", async (req, res) => {
     const withCounts = await Promise.all(
       categories.map(async (cat) => {
         const count = await Product.countDocuments({
+          tenantId: req.tenantId,
           category: cat.name,
           ...(cat.store ? { store: cat.store } : {}),
         })
@@ -68,7 +69,7 @@ router.post("/", ownerOnly, async (req, res) => {
     const normalized   = name.trim().toLowerCase()
     const storeVal     = store?.trim() || null
 
-    const existing = await Category.findOne({ name: normalized, store: storeVal })
+    const existing = await Category.findOne({ tenantId: req.tenantId, name: normalized, store: storeVal })
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -82,6 +83,7 @@ router.post("/", ownerOnly, async (req, res) => {
       name:        normalized,
       store:       storeVal,
       description: description?.trim() || '',
+      tenantId:    req.tenantId,
     })
 
     broadcastCategoryEvent(req.app.get("io"), "categoryCreated", saved)
@@ -108,6 +110,7 @@ router.put("/:id", ownerOnly, async (req, res) => {
     const storeVal   = store?.trim() || null
 
     const duplicate = await Category.findOne({
+      tenantId: req.tenantId,
       name:  normalized,
       store: storeVal,
       _id:   { $ne: req.params.id }
@@ -116,8 +119,8 @@ router.put("/:id", ownerOnly, async (req, res) => {
       return res.status(409).json({ success: false, message: "Another category is already using this name." })
     }
 
-    const updated = await Category.findByIdAndUpdate(
-      req.params.id,
+    const updated = await Category.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenantId },
       { name: normalized, store: storeVal, description: description?.trim() || '' },
       { new: true, runValidators: true }
     )
@@ -140,13 +143,13 @@ router.put("/:id", ownerOnly, async (req, res) => {
 // ── 4. DELETE CATEGORY ───────────────────────────────────────────────
 router.delete("/:id", ownerOnly, async (req, res) => {
   try {
-    const cat = await Category.findById(req.params.id)
+    const cat = await Category.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!cat) {
       return res.status(404).json({ success: false, message: "Category not found." })
     }
 
     // Check if any products use this category
-    const productCount = await Product.countDocuments({ category: cat.name })
+    const productCount = await Product.countDocuments({ tenantId: req.tenantId, category: cat.name })
     if (productCount > 0) {
       return res.status(400).json({
         success: false,
@@ -154,7 +157,7 @@ router.delete("/:id", ownerOnly, async (req, res) => {
       })
     }
 
-    await Category.findByIdAndDelete(req.params.id)
+    await Category.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId })
 
     broadcastCategoryEvent(req.app.get("io"), "categoryDeleted", cat)
 
