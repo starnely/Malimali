@@ -25,7 +25,7 @@ function broadcastSupplierEvent(io, eventName, supplier) {
 router.get("/", async (req, res) => {
   try {
     const { store, all } = req.query
-    const filter = all === "true" ? {} : { isActive: true }
+    const filter = all === "true" ? { tenantId: req.tenantId } : { tenantId: req.tenantId, isActive: true }
 
     if (req.user.role === "manager") {
       // Managers see global suppliers (no stores restriction) OR ones linked to their store
@@ -61,7 +61,7 @@ router.post("/", ownerOnly, async (req, res) => {
     }
 
     if (company?.trim()) {
-      const existing = await Supplier.findOne({ company: company.trim() })
+      const existing = await Supplier.findOne({ tenantId: req.tenantId, company: company.trim() })
       if (existing) {
         return res.status(409).json({ success: false, message: "A supplier with this company name already exists." })
       }
@@ -75,6 +75,7 @@ router.post("/", ownerOnly, async (req, res) => {
       address: address?.trim() || "",
       notes:   notes?.trim() || "",
       stores:  Array.isArray(stores) ? stores.filter(Boolean) : [],
+      tenantId: req.tenantId,
     }).save()
 
     broadcastSupplierEvent(req.app.get("io"), "supplierCreated", saved)
@@ -99,14 +100,14 @@ router.put("/:id", ownerOnly, async (req, res) => {
     }
 
     if (company?.trim()) {
-      const duplicate = await Supplier.findOne({ company: company.trim(), _id: { $ne: req.params.id } })
+      const duplicate = await Supplier.findOne({ tenantId: req.tenantId, company: company.trim(), _id: { $ne: req.params.id } })
       if (duplicate) {
         return res.status(409).json({ success: false, message: "Another supplier is already using this company name." })
       }
     }
 
-    const updated = await Supplier.findByIdAndUpdate(
-      req.params.id,
+    const updated = await Supplier.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenantId },
       {
         $set: {
           name:    name.trim(),
@@ -140,7 +141,7 @@ router.put("/:id", ownerOnly, async (req, res) => {
 // ── 4. ARCHIVE TOGGLE ────────────────────────────────────────────────
 router.patch("/:id/archive", ownerOnly, async (req, res) => {
   try {
-    const supplier = await Supplier.findById(req.params.id)
+    const supplier = await Supplier.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!supplier) return res.status(404).json({ success: false, message: "Supplier not found." })
     supplier.isActive = !supplier.isActive
     await supplier.save()
@@ -158,6 +159,7 @@ router.delete("/:id", ownerOnly, async (req, res) => {
   try {
     const PurchaseOrder = require("../models/PurchaseOrder")
     const openPO = await PurchaseOrder.findOne({
+      tenantId:   req.tenantId,
       supplierId: req.params.id,
       status:     { $in: ["draft", "sent", "partial"] }
     })
@@ -167,7 +169,7 @@ router.delete("/:id", ownerOnly, async (req, res) => {
         message: `Cannot delete — supplier has an open purchase order (${openPO.poNumber}). Archive instead.`
       })
     }
-    const deleted = await Supplier.findByIdAndDelete(req.params.id)
+    const deleted = await Supplier.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId })
     if (!deleted) return res.status(404).json({ success: false, message: "Supplier not found." })
 
     broadcastSupplierEvent(req.app.get("io"), "supplierDeleted", deleted)

@@ -6,24 +6,26 @@ const Sale       = require("../models/Sale")
 const { authMiddleware: verifyToken, ownerOnly, managerOrOwner } = require("../middleware/authMiddleware");
 
 // ── Helper: calculate total owed by a customer ────────────────────────
-async function calcBalance(customerId) {
+async function calcBalance(customerId, tenantId) {
   const sales = await Sale.find({
+    tenantId,
     "paymentInfo.customerId": customerId,
     "paymentInfo.paymentMethod": "credit",
     voided: { $ne: true },
     returned: { $ne: true },
   })
   const totalCredit = sales.reduce((sum, s) => sum + (s.paymentInfo.finalTotal || s.total), 0)
-  const repayments  = await Repayment.find({ customerId })
+  const repayments  = await Repayment.find({ tenantId, customerId })
   const totalPaid   = repayments.reduce((sum, r) => sum + r.amount, 0)
   return Math.max(0, totalCredit - totalPaid)
 }
 
 // ── Helper: check + update overdue flag ──────────────────────────────
-async function refreshOverdue(customer) {
+async function refreshOverdue(customer, tenantId) {
   const today   = new Date().toISOString().split("T")[0]
-  const balance = await calcBalance(customer._id)
+  const balance = await calcBalance(customer._id, tenantId)
   const sales   = await Sale.find({
+    tenantId,
     "paymentInfo.customerId": customer._id,
     "paymentInfo.paymentMethod": "credit",
     voided: { $ne: true },
@@ -50,10 +52,11 @@ router.post("/from-sale", verifyToken, async (req, res) => {
     }
     let customer = null
     if (phone && phone.trim()) {
-      customer = await Customer.findOne({ phone: phone.trim(), store })
+      customer = await Customer.findOne({ tenantId: req.tenantId, phone: phone.trim(), store })
     }
     if (!customer) {
       customer = await Customer.findOne({
+        tenantId: req.tenantId,
         name:  { $regex: `^${customerName.trim()}$`, $options: "i" },
         store,
       })
@@ -63,6 +66,7 @@ router.post("/from-sale", verifyToken, async (req, res) => {
         name:  customerName.trim(),
         phone: phone?.trim() || "",
         store,
+        tenantId: req.tenantId,
       })
     } else {
       if (phone?.trim() && !customer.phone) {
@@ -70,7 +74,7 @@ router.post("/from-sale", verifyToken, async (req, res) => {
         await customer.save()
       }
     }
-    await Sale.findByIdAndUpdate(saleId, {
+    await Sale.findOneAndUpdate({ _id: saleId, tenantId: req.tenantId }, {
       "paymentInfo.customerId": customer._id,
     })
     res.json({ customer })
@@ -87,7 +91,7 @@ router.post("/from-sale", verifyToken, async (req, res) => {
 router.get("/", verifyToken, async (req, res) => {
   try {
     const { store, search, overdue, blacklisted } = req.query
-    const query = {}
+    const query = { tenantId: req.tenantId }
 
     if (store) query.store = store
     else if (req.user.role !== "owner") query.store = req.user.store
@@ -106,10 +110,11 @@ router.get("/", verifyToken, async (req, res) => {
 
     const withBalances = await Promise.all(
       customers.map(async (c) => {
-        const balance = await calcBalance(c._id)
+        const balance = await calcBalance(c._id, req.tenantId)
 
         // Get all credit sales for this customer
         const creditSales = await Sale.find({
+          tenantId: req.tenantId,
           "paymentInfo.customerId": c._id,
           "paymentInfo.paymentMethod": "credit",
           voided:   { $ne: true },
@@ -153,20 +158,21 @@ router.get("/", verifyToken, async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════
 router.get("/:id", verifyToken, async (req, res) => {
   try {
-    const customer = await Customer.findById(req.params.id)
+    const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!customer) return res.status(404).json({ error: "Customer not found" })
 
     const sales = await Sale.find({
+      tenantId: req.tenantId,
       "paymentInfo.customerId": customer._id,
       "paymentInfo.paymentMethod": "credit",
       voided: { $ne: true },
     }).sort({ createdAt: -1 })
 
-    const repayments = await Repayment.find({ customerId: customer._id })
+    const repayments = await Repayment.find({ tenantId: req.tenantId, customerId: customer._id })
       .sort({ createdAt: -1 })
 
-    const balance = await calcBalance(customer._id)
-    await refreshOverdue(customer)
+    const balance = await calcBalance(customer._id, req.tenantId)
+    await refreshOverdue(customer, req.tenantId)
 
     res.json({
       customer: { ...customer.toObject(), balance },
@@ -184,12 +190,12 @@ router.get("/:id", verifyToken, async (req, res) => {
 router.post("/:id/repayments", verifyToken, async (req, res) => {
   try {
     const { amount, notes } = req.body
-    const customer = await Customer.findById(req.params.id)
+    const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!customer) return res.status(404).json({ error: "Customer not found" })
     if (!amount || amount <= 0) {
       return res.status(400).json({ error: "Amount must be greater than 0" })
     }
-    const balance = await calcBalance(customer._id)
+    const balance = await calcBalance(customer._id, req.tenantId)
     if (amount > balance) {
       return res.status(400).json({ error: `Amount exceeds balance. Customer owes KSh ${balance}` })
     }
@@ -201,9 +207,10 @@ router.post("/:id/repayments", verifyToken, async (req, res) => {
       recordedBy:   req.user.name || req.user.username,
       recordedById: req.user.id,
       notes:        notes?.trim() || "",
+      tenantId:     req.tenantId,
     })
-    await refreshOverdue(customer)
-    const newBalance = await calcBalance(customer._id)
+    await refreshOverdue(customer, req.tenantId)
+    const newBalance = await calcBalance(customer._id, req.tenantId)
     if (newBalance === 0 && customer.overdue) {
       customer.overdue = false
       await customer.save()
@@ -229,7 +236,7 @@ router.post("/:id/repayments", verifyToken, async (req, res) => {
 router.patch("/:id/blacklist", verifyToken, ownerOnly, async (req, res) => {
   try {
     const { blacklisted, reason } = req.body
-    const customer = await Customer.findById(req.params.id)
+    const customer = await Customer.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!customer) return res.status(404).json({ error: "Customer not found" })
     customer.blacklisted = blacklisted
     if (blacklisted) {
@@ -253,11 +260,11 @@ router.patch("/:id/blacklist", verifyToken, ownerOnly, async (req, res) => {
 // ════════════════════════════════════════════════════════════════════════
 router.post("/check-overdue", verifyToken, managerOrOwner, async (req, res) => {
   try {
-    const customers = await Customer.find({ blacklisted: false })
+    const customers = await Customer.find({ tenantId: req.tenantId, blacklisted: false })
     let flagged = 0
     for (const customer of customers) {
       const wasOverdue = customer.overdue
-      await refreshOverdue(customer)
+      await refreshOverdue(customer, req.tenantId)
       if (!wasOverdue && customer.overdue) flagged++
     }
     res.json({ message: `Checked ${customers.length} customers. ${flagged} newly flagged as overdue.` })
@@ -275,6 +282,7 @@ router.get("/cashier/:cashierId", verifyToken, async (req, res) => {
       return res.status(403).json({ error: "Access denied" })
     }
     const sales = await Sale.find({
+      tenantId: req.tenantId,
       cashierId: req.params.cashierId,
       "paymentInfo.paymentMethod": "credit",
       voided: { $ne: true },
@@ -282,9 +290,9 @@ router.get("/cashier/:cashierId", verifyToken, async (req, res) => {
     const withCustomer = await Promise.all(
       sales.map(async (sale) => {
         const customer = sale.paymentInfo.customerId
-          ? await Customer.findById(sale.paymentInfo.customerId)
+          ? await Customer.findOne({ _id: sale.paymentInfo.customerId, tenantId: req.tenantId })
           : null
-        const balance = customer ? await calcBalance(customer._id) : null
+        const balance = customer ? await calcBalance(customer._id, req.tenantId) : null
         return { ...sale.toObject(), customer, balance }
       })
     )
@@ -305,7 +313,7 @@ router.get("/repayments/month", verifyToken, async (req, res) => {
     const m = parseInt(month) - 1
     const startDate = `${y}-${String(m + 1).padStart(2, "0")}-01`
     const endDate   = `${y}-${String(m + 1).padStart(2, "0")}-${new Date(y, m + 1, 0).getDate()}`
-    const query = { date: { $gte: startDate, $lte: endDate } }
+    const query = { tenantId: req.tenantId, date: { $gte: startDate, $lte: endDate } }
     if (store && store.trim() && store !== "All") {
       query.store = store.trim()
     } else if (req.user.role !== "owner") {

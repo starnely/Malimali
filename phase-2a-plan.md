@@ -109,18 +109,18 @@ You referred to this as the "Business Code/slug approach" from the original desi
 
 ## 9. Route migration completeness checklist (2a-3)
 
-All 19 route files, to be filled in as each is converted (add to `req.models`-style tenant-scoped queries, or explicit `{tenantId: req.tenantId}` filters, matching whichever pattern 2a-3's first route sets as the convention):
+All 19 route files, to be filled in as each is converted. **Canonical pattern established and approved on `categories.js`**: explicit `{ tenantId: req.tenantId }` filters (not the `req.models` wrapper — it doesn't cover `findById`/`findByIdAndUpdate`/`findByIdAndDelete`/`.populate()`/`aggregate`, all used constantly). `findById(id)` → `findOne({ _id: id, tenantId: req.tenantId })`; `findByIdAndUpdate`/`findByIdAndDelete` → `findOneAndUpdate`/`findOneAndDelete` with the same `{_id, tenantId}` filter; `create({...})` gets `tenantId` on the document; cross-model calls into other tenant-scoped collections get the same treatment; helper functions that take an id/document get `tenantId` threaded through as an explicit parameter.
 
 | Route file | Status | Notes |
 |---|---|---|
 | auth.js | Not started | Login itself can't filter by `req.tenantId` (that's what it's establishing) — see §7 |
 | setup.js | Not started | `/status`, `/branding` are pre-login/public — see §7; `/details`, `/update` are post-login, straightforward |
 | products.js | Not started | 5 of the 17 `.populate()` sites live here |
-| categories.js | Not started | |
-| stores.js | Not started | |
-| suppliers.js | Not started | |
+| categories.js | **Done** (`225653c`) | 6 query sites converted (find/findOne/create/findById→findOne/findByIdAndUpdate→findOneAndUpdate/findByIdAndDelete→findOneAndDelete + cross-model `Product.countDocuments` ×2). Canonical pattern reference. |
+| stores.js | **Done** | 20 sites converted, including the 13-collection store-rename cascade (`Product`, `Category`, `Customer`, `Sale`, `Expense`, `ExpiredStock`, `PettyCash`, `PurchaseOrder`, `SupplierPayment`, `Repayment`, `Archive`, `User`, `Supplier` — all `updateMany` calls gained `tenantId`). |
+| suppliers.js | **Done** | 8 sites converted, including a cross-model `PurchaseOrder.findOne` open-PO check before delete. |
 | purchaseOrders.js | Not started | 8 of the 17 `.populate()` sites live here |
-| customers.js | Not started | |
+| customers.js | **Done** | ~19 query sites converted across `Customer`/`Sale`/`Repayment`, plus the `calcBalance`/`refreshOverdue` helpers changed to accept `tenantId` as an explicit parameter (threaded through every call site). |
 | sales.js | Not started | 2 `.populate()` sites |
 | returns.js | Not started | 4 `.populate()` sites |
 | voidRequests.js | Not started | 2 `.populate()` sites |

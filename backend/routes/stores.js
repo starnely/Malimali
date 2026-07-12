@@ -29,7 +29,7 @@ function broadcastStoreEvent(io, eventName, store) {
 // ── 1. GET ALL STORES ────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const stores = await Store.find().sort({ name: 1 });
+    const stores = await Store.find({ tenantId: req.tenantId }).sort({ name: 1 });
     res.json({ success: true, stores });
   } catch (err) {
     console.error("Stores GET error:", err.message);
@@ -46,7 +46,7 @@ router.post("/", ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "Store name is required." });
     }
 
-    const existing = await Store.findOne({ name: name.trim() });
+    const existing = await Store.findOne({ tenantId: req.tenantId, name: name.trim() });
     if (existing) {
       return res.status(409).json({ success: false, message: "A store with this name already exists." });
     }
@@ -54,7 +54,8 @@ router.post("/", ownerOnly, async (req, res) => {
     const newStore = new Store({
       name:     name.trim(),
       location: location ? location.trim() : "",
-      phone:    phone    ? phone.trim()    : ""
+      phone:    phone    ? phone.trim()    : "",
+      tenantId: req.tenantId,
     });
 
     const saved = await newStore.save();
@@ -83,6 +84,7 @@ router.put("/:id", ownerOnly, async (req, res) => {
 
     // Prevent renaming to an existing store name
     const duplicate = await Store.findOne({
+      tenantId: req.tenantId,
       name: name.trim(),
       _id:  { $ne: req.params.id }
     });
@@ -91,15 +93,15 @@ router.put("/:id", ownerOnly, async (req, res) => {
     }
 
     // Capture old name before update so we can cascade the rename
-    const existing = await Store.findById(req.params.id).lean();
+    const existing = await Store.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean();
     if (!existing) {
       return res.status(404).json({ success: false, message: "Store not found." });
     }
     const oldName = existing.name;
     const newName = name.trim();
 
-    const updated = await Store.findByIdAndUpdate(
-      req.params.id,
+    const updated = await Store.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenantId },
       { $set: { name: newName, location: location ? location.trim() : "", phone: phone ? phone.trim() : "" } },
       { new: true, runValidators: true }
     );
@@ -115,21 +117,22 @@ router.put("/:id", ownerOnly, async (req, res) => {
     let cascadeWarning = false;
     if (oldName !== newName) {
       try {
+        const t = req.tenantId;
         await Promise.all([
-          Product.updateMany        ({ store:  oldName }, { $set: { store:  newName } }),
-          Category.updateMany       ({ store:  oldName }, { $set: { store:  newName } }),
-          Customer.updateMany       ({ store:  oldName }, { $set: { store:  newName } }),
-          Sale.updateMany           ({ store:  oldName }, { $set: { store:  newName } }),
-          Expense.updateMany        ({ store:  oldName }, { $set: { store:  newName } }),
-          ExpiredStock.updateMany   ({ store:  oldName }, { $set: { store:  newName } }),
-          PettyCash.updateMany      ({ store:  oldName }, { $set: { store:  newName } }),
-          PurchaseOrder.updateMany  ({ store:  oldName }, { $set: { store:  newName } }),
-          SupplierPayment.updateMany({ store:  oldName }, { $set: { store:  newName } }),
-          Repayment.updateMany      ({ store:  oldName }, { $set: { store:  newName } }),
-          Archive.updateMany        ({ store:  oldName }, { $set: { store:  newName } }),
-          User.updateMany           ({ store:  oldName }, { $set: { store:  newName } }),
+          Product.updateMany        ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          Category.updateMany       ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          Customer.updateMany       ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          Sale.updateMany           ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          Expense.updateMany        ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          ExpiredStock.updateMany   ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          PettyCash.updateMany      ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          PurchaseOrder.updateMany  ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          SupplierPayment.updateMany({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          Repayment.updateMany      ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          Archive.updateMany        ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
+          User.updateMany           ({ tenantId: t, store:  oldName }, { $set: { store:  newName } }),
           Supplier.updateMany(
-            { stores: oldName },
+            { tenantId: t, stores: oldName },
             { $set: { "stores.$[elem]": newName } },
             { arrayFilters: [{ elem: oldName }] }
           ),
@@ -168,7 +171,7 @@ router.put("/:id", ownerOnly, async (req, res) => {
 // ── 4. DELETE STORE (owner only) ─────────────────────────────────────
 router.delete("/:id", ownerOnly, async (req, res) => {
   try {
-    const deleted = await Store.findByIdAndDelete(req.params.id);
+    const deleted = await Store.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId });
 
     if (!deleted) {
       return res.status(404).json({ success: false, message: "Store not found." });
