@@ -15,7 +15,7 @@ router.use(authMiddleware)
 // Owner sees all pending; manager sees their own submissions.
 router.get("/", async (req, res) => {
   try {
-    let query = {}
+    let query = { tenantId: req.tenantId }
     if (req.user.role === "owner") {
       query.status = "pending_owner"
     } else if (req.user.role === "manager") {
@@ -24,6 +24,7 @@ router.get("/", async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied." })
     }
 
+    // populate sites 1/2 and 2/2 — match:{tenantId} deferred to 2a-4
     const requests = await VoidRequest.find(query)
       .populate("requestedBy", "fullname username")
       .populate("saleId", "receiptId cashier total store")
@@ -50,7 +51,7 @@ router.post("/", async (req, res) => {
       return res.status(400).json({ success: false, message: "Sale ID and reason are required." })
     }
 
-    const sale = await Sale.findById(saleId)
+    const sale = await Sale.findOne({ _id: saleId, tenantId: req.tenantId })
     if (!sale) return res.status(404).json({ success: false, message: "Sale not found." })
     if (sale.voided)   return res.status(400).json({ success: false, message: "This sale is already voided." })
     if (sale.returned) return res.status(400).json({ success: false, message: "Cannot void a returned sale." })
@@ -59,7 +60,7 @@ router.post("/", async (req, res) => {
       return res.status(403).json({ success: false, message: "This sale belongs to a different store." })
     }
 
-    const existing = await VoidRequest.findOne({ saleId, status: "pending_owner" })
+    const existing = await VoidRequest.findOne({ tenantId: req.tenantId, saleId, status: "pending_owner" })
     if (existing) {
       return res.status(400).json({ success: false, message: "A void request for this sale is already pending owner approval." })
     }
@@ -71,9 +72,10 @@ router.post("/", async (req, res) => {
       reason:      reason.trim(),
       voidType:    voidType || "whole",
       items:       voidType === "items" ? (items || []) : [],
+      tenantId:    req.tenantId,
     })
 
-    const requester = await User.findById(req.user.id).select("fullname username")
+    const requester = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).select("fullname username")
     const io = req.app.get("io")
     if (io) {
       io.to("owner").emit("newVoidRequest", {
@@ -102,7 +104,7 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
   session.startTransaction()
 
   try {
-    const voidReq = await VoidRequest.findById(req.params.id).session(session)
+    const voidReq = await VoidRequest.findOne({ _id: req.params.id, tenantId: req.tenantId }).session(session)
     if (!voidReq) {
       await session.abortTransaction(); session.endSession()
       return res.status(404).json({ success: false, message: "Void request not found." })
@@ -112,7 +114,7 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "This void request is no longer pending." })
     }
 
-    const sale = await Sale.findById(voidReq.saleId).session(session)
+    const sale = await Sale.findOne({ _id: voidReq.saleId, tenantId: req.tenantId }).session(session)
     if (!sale) {
       await session.abortTransaction(); session.endSession()
       return res.status(404).json({ success: false, message: "Sale not found." })
@@ -122,15 +124,18 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "This sale has already been voided." })
     }
 
-    const approver = await User.findById(req.user.id).session(session)
+    const approver = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).session(session)
     const approverName = approver?.fullname || approver?.username || "Owner"
 
+    // tenantId on both restock updates below prevents a stale/crafted
+    // productId from restocking another tenant's product — same reasoning
+    // as sales.js/returns.js.
     if (voidReq.voidType === "whole") {
       for (const item of sale.items) {
         const alreadyVoided = item.voidedQty || 0
         const restockQty = item.qty - alreadyVoided
         if (restockQty > 0) {
-          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: restockQty } }, { session })
+          await Product.findOneAndUpdate({ _id: item.productId, tenantId: req.tenantId }, { $inc: { stock: restockQty } }, { session })
         }
         item.voidStatus = "voided"
         item.voidedQty  = item.qty
@@ -153,7 +158,7 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
         const actualQty     = Math.min(Number(voidItem.voidQty), remainingQty)
         if (actualQty <= 0) continue
 
-        await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: actualQty } }, { session })
+        await Product.findOneAndUpdate({ _id: saleItem.productId, tenantId: req.tenantId }, { $inc: { stock: actualQty } }, { session })
 
         saleItem.voidedQty  = alreadyVoided + actualQty
         saleItem.voidedAt   = new Date()
@@ -214,7 +219,7 @@ router.patch("/:id/approve", ownerOnly, async (req, res) => {
 // ── 4. REJECT VOID REQUEST (owner only) ──────────────────────────────────────
 router.patch("/:id/reject", ownerOnly, async (req, res) => {
   try {
-    const voidReq = await VoidRequest.findById(req.params.id)
+    const voidReq = await VoidRequest.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!voidReq) return res.status(404).json({ success: false, message: "Void request not found." })
     if (voidReq.status !== "pending_owner") {
       return res.status(400).json({ success: false, message: "This void request is no longer pending." })
@@ -258,7 +263,7 @@ router.patch("/:id/approve-pin", async (req, res) => {
   try {
     // Atomically claim the request — abortTransaction on PIN failure rolls this back
     const voidReq = await VoidRequest.findOneAndUpdate(
-      { _id: req.params.id, status: "pending_owner" },
+      { _id: req.params.id, tenantId: req.tenantId, status: "pending_owner" },
       { $set: { status: "processing" } },
       { new: true, session }
     )
@@ -268,7 +273,7 @@ router.patch("/:id/approve-pin", async (req, res) => {
     }
 
     // Verify owner PIN
-    const owners = await User.find({ role: "owner" })
+    const owners = await User.find({ tenantId: req.tenantId, role: "owner" })
     let approver = null
     for (const own of owners) {
       if (own.approvalPin && await bcrypt.compare(approverPin, own.approvalPin)) {
@@ -283,7 +288,7 @@ router.patch("/:id/approve-pin", async (req, res) => {
       return res.status(403).json({ success: false, message: "PIN did not match the owner." })
     }
 
-    const sale = await Sale.findById(voidReq.saleId).session(session)
+    const sale = await Sale.findOne({ _id: voidReq.saleId, tenantId: req.tenantId }).session(session)
     if (!sale || sale.voided) {
       await session.abortTransaction(); session.endSession()
       return res.status(400).json({ success: false, message: sale ? "This sale has already been voided." : "Sale not found." })
@@ -291,12 +296,14 @@ router.patch("/:id/approve-pin", async (req, res) => {
 
     const approverName = approver.fullname || approver.username || "Owner"
 
+    // tenantId on both restock updates below — same reasoning as the
+    // approve route above.
     if (voidReq.voidType === "whole") {
       for (const item of sale.items) {
         const alreadyVoided = item.voidedQty || 0
         const restockQty    = item.qty - alreadyVoided
         if (restockQty > 0) {
-          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: restockQty } }, { session })
+          await Product.findOneAndUpdate({ _id: item.productId, tenantId: req.tenantId }, { $inc: { stock: restockQty } }, { session })
         }
         item.voidStatus = "voided"
         item.voidedQty  = item.qty
@@ -316,7 +323,7 @@ router.patch("/:id/approve-pin", async (req, res) => {
         const remainingQty  = saleItem.qty - alreadyVoided
         const actualQty     = Math.min(Number(voidItem.voidQty), remainingQty)
         if (actualQty <= 0) continue
-        await Product.findByIdAndUpdate(saleItem.productId, { $inc: { stock: actualQty } }, { session })
+        await Product.findOneAndUpdate({ _id: saleItem.productId, tenantId: req.tenantId }, { $inc: { stock: actualQty } }, { session })
         saleItem.voidedQty  = alreadyVoided + actualQty
         saleItem.voidedAt   = new Date()
         saleItem.voidedBy   = approverName
@@ -345,6 +352,7 @@ router.patch("/:id/approve-pin", async (req, res) => {
       targetId:   sale._id,
       targetType: "sale",
       store:      voidReq.store,
+      tenantId:   req.tenantId,
     }], { session })
 
     await session.commitTransaction()

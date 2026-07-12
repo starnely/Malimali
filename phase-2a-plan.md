@@ -136,7 +136,7 @@ All 19 route files, to be filled in as each is converted. **Canonical pattern es
 | customers.js | **Done** | ~19 query sites converted across `Customer`/`Sale`/`Repayment`, plus the `calcBalance`/`refreshOverdue` helpers changed to accept `tenantId` as an explicit parameter (threaded through every call site). |
 | sales.js | **Done** (queries only — `.populate()` deferred to 2a-4) | 26 sites converted across `POST /`, `GET /`, `PATCH /:id/void`, `PATCH /:id/void-items`. Both `.populate()` sites (on `GET /`'s query) marked in-code, deferred to 2a-4. Must-flag: the stock-decrement `Product.findOneAndUpdate` on sale creation — `tenantId` here means a client-sent `productId` belonging to a different tenant matches nothing and falls to the existing error path, instead of silently decrementing another tenant's stock (same reasoning applied to both void routes' restock updates). Also flagged: the manager/owner PIN-lookup queries in both void routes scope by store *name* only — since store names aren't unique across tenants, `tenantId` was required there too. |
 | returns.js | **Done** (queries only — `.populate()` deferred to 2a-4) | 27 sites converted, plus `recalcArchive()` now takes `tenantId` as a third parameter, threaded through both call sites (grep-confirmed no third call site exists). All 4 of the 17 `.populate()` sites live here (`GET /` ×2, `PATCH /:id/approve` ×2), marked in-code, deferred to 2a-4. Must-flag: two restock loops (owner auto-approve path, and stage-2 approval's stock restoration) get the same cross-tenant-stock-corruption-prevention scoping as `sales.js`; the `approve-stage1` manager PIN-lookup has the same store-name-collision issue as `sales.js`, fixed the same way. |
-| voidRequests.js | Not started | 2 `.populate()` sites |
+| voidRequests.js | **Done** (queries only — `.populate()` deferred to 2a-4) | 17 sites converted across `GET /`, `POST /`, `PATCH /:id/approve`, `PATCH /:id/reject`, `PATCH /:id/approve-pin` (4 restock loops total, the atomic `processing`-status claim, and the owner PIN scan — same patterns as `sales.js`/`returns.js`). Both `.populate()` sites (`GET /`) marked in-code, deferred to 2a-4. **⚠️ No dedicated test file exists for this route** (`voidRequests.test.js` was never written — 17 other route files have one, this doesn't) — verified by diff-review only, not an automated regression run. See the test-coverage-gaps list below. |
 | expenses.js | **Done** | 7 sites converted. Cross-model flag: DELETE `/:id`'s petty-cash reversal (`PettyCash.findOne`) now scoped — without it, a shared store name could reverse another tenant's petty cash. |
 | pettyCash.js | **Done** | 10 sites converted. Two cross-model flags: the auto-created `Expense` on a Cash Out transaction now carries the same `tenantId` as its originating `PettyCash` record; the transaction-delete route's matching `Expense.findOneAndUpdate` (soft-delete) now scoped too, same leak risk as expenses.js. |
 | expiredStock.js | **Done** | 10 sites converted, including `POST /auto-check`'s global expiry scan — noted in-code that if this ever becomes a scheduled cross-tenant job it needs a per-tenant loop (same shape as the §8 reorder-job gap), but as an owner-triggered per-request route today, plain `tenantId` scoping is correct. |
@@ -149,6 +149,12 @@ All 19 route files, to be filled in as each is converted. **Canonical pattern es
 
 Each row flips to "Done" only after: (1) code changes, (2) relevant Jest tests pass, (3) manual spot-check confirms identical behavior pre/post (expected, since single-tenant today makes this a no-op change).
 
+## 9b. Test coverage gaps (tracked for pre-go-live)
+
+Routes discovered during 2a-3 to have no dedicated test file, so their tenant-scoping changes were verified by diff-review only, not an automated regression run. Not blocking for 2a-3 itself (the full suite still passes, and the changes are the same mechanical pattern proven correct elsewhere), but each of these needs a real test file before real client data is at stake, and is a natural candidate for extra manual scrutiny during the Phase 5 two-tenant isolation test (§10):
+
+- **`voidRequests.js`** — no `voidRequests.test.js` exists at all. Especially worth prioritizing given this route handles PIN-authorized void approval and stock restoration (money + inventory), the same class of flow that's well-tested in `sales.js`/`returns.js`.
+
 ## 10. Go-live gate — before onboarding a real second tenant
 
 All of the following must be true, not just 2a "mostly done":
@@ -160,6 +166,7 @@ All of the following must be true, not just 2a "mostly done":
 - Login resolves a real tenant identifier (§7) — not just "there's only one, so it doesn't matter."
 - 2b (Socket.IO tenant rooms) is complete, given the data-carrying emits identified in §6.
 - A dedicated two-tenant isolation test exists and passes (per the original design's "dedicated isolation-test phase") — create a second real Tenant document, seed parallel data, and assert zero cross-tenant leakage across every route and every socket event.
+- Every item in §9b's test-coverage-gaps list has a real test file (`voidRequests.js` at minimum), and is given extra manual scrutiny during the two-tenant isolation test above.
 
 ## 11. Explicitly out of scope for this document
 
