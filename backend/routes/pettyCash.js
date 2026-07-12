@@ -33,7 +33,7 @@ router.get("/today", async (req, res) => {
   try {
     const store = req.query.store || req.user?.store || "Main Store"
     const today = todayEAT()
-    const record = await PettyCash.findOne({ store, date: today })
+    const record = await PettyCash.findOne({ tenantId: req.tenantId, store, date: today })
     res.json({ success: true, record: record || null, date: today, store })
   } catch (err) {
     res.status(500).json({ success: false, message: "Failed to fetch today's petty cash." })
@@ -43,7 +43,7 @@ router.get("/today", async (req, res) => {
 // ── 2. GET HISTORY (manager+) ─────────────────────────────────────────
 router.get("/history", managerOrOwner, async (req, res) => {
   try {
-    const filter = {}
+    const filter = { tenantId: req.tenantId }
     if (req.user.role === "manager") filter.store = req.user.store
     else if (req.query.store) filter.store = req.query.store
     if (req.query.from || req.query.to) {
@@ -62,7 +62,7 @@ router.get("/history", managerOrOwner, async (req, res) => {
 router.get("/:date", managerOrOwner, async (req, res) => {
   try {
     const store = req.query.store || req.user?.store || "Main Store"
-    const record = await PettyCash.findOne({ date: req.params.date, store })
+    const record = await PettyCash.findOne({ tenantId: req.tenantId, date: req.params.date, store })
     if (!record) return res.status(404).json({ success: false, message: "No petty cash record for this date." })
     res.json({ success: true, record })
   } catch (err) {
@@ -76,7 +76,7 @@ router.post("/open", managerOrOwner, async (req, res) => {
     const store = req.user.role === "manager" ? req.user.store : (req.body.store || req.user?.store || "Main Store")
     const today = todayEAT()
 
-    const existing = await PettyCash.findOne({ store, date: today })
+    const existing = await PettyCash.findOne({ tenantId: req.tenantId, store, date: today })
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -91,6 +91,7 @@ router.post("/open", managerOrOwner, async (req, res) => {
       openingFloat: Number(req.body.openingFloat) || 0,
       openedBy:     req.user?.name || req.user?.username || "",
       notes:        req.body.notes || "",
+      tenantId:     req.tenantId,
     }).save()
 
     res.status(201).json({ success: true, record })
@@ -110,7 +111,7 @@ router.post("/transaction", managerOrOwner, async (req, res) => {
     const store = req.user.role === "manager" ? req.user.store : (req.body.store || req.user?.store || "Main Store")
     const today = todayEAT()
 
-    let record = await PettyCash.findOne({ store, date: today })
+    let record = await PettyCash.findOne({ tenantId: req.tenantId, store, date: today })
     if (!record) {
       return res.status(404).json({
         success: false,
@@ -156,6 +157,9 @@ router.post("/transaction", managerOrOwner, async (req, res) => {
     await record.save()  // pre-save hook recalculates totals
 
     // ── AUTO-CREATE EXPENSE for Cash Out ─────────────────────────────
+    // Cross-model: this Expense must carry the same tenantId as the
+    // PettyCash record it originated from, or it'd be invisible to
+    // expenses.js's tenant-scoped queries despite being real spend.
     if (type === "out") {
       try {
         const category = PETTY_CASH_CATEGORIES.includes(expenseCategory)
@@ -174,6 +178,7 @@ router.post("/transaction", managerOrOwner, async (req, res) => {
           date:         today,
           time:         timeEAT(),
           fromPettyCash: true,  // flag so UI can show the source
+          tenantId:     req.tenantId,
         }).save()
 
         // Notify owner via socket
@@ -208,7 +213,7 @@ router.post("/close", managerOrOwner, async (req, res) => {
     const store = req.user.role === "manager" ? req.user.store : (req.body.store || req.user?.store || "Main Store")
     const today = todayEAT()
 
-    const record = await PettyCash.findOne({ store, date: today })
+    const record = await PettyCash.findOne({ tenantId: req.tenantId, store, date: today })
     if (!record) return res.status(404).json({ success: false, message: "No open petty cash for today." })
     if (record.isClosed) return res.status(400).json({ success: false, message: "Already closed." })
 
@@ -228,18 +233,21 @@ router.post("/close", managerOrOwner, async (req, res) => {
 // ── 7. DELETE TRANSACTION (manager+) ─────────────────────────────────
 router.delete("/:recordId/transaction/:txId", managerOrOwner, async (req, res) => {
   try {
-    const record = await PettyCash.findById(req.params.recordId)
+    const record = await PettyCash.findOne({ _id: req.params.recordId, tenantId: req.tenantId })
     if (!record) return res.status(404).json({ success: false, message: "Record not found." })
     if (record.isClosed) return res.status(400).json({ success: false, message: "Cannot edit a closed petty cash record." })
 
     const tx = record.transactions.id(req.params.txId)
     if (!tx) return res.status(404).json({ success: false, message: "Transaction not found." })
 
-    // Also soft-delete the matching auto-generated expense
+    // Also soft-delete the matching auto-generated expense.
+    // Cross-model: without tenantId here, this could match and soft-delete
+    // another tenant's expense that happens to share store/date/amount.
     if (tx.type === "out") {
       try {
         await Expense.findOneAndUpdate(
           {
+            tenantId:      req.tenantId,
             store:         record.store,
             date:          record.date,
             amount:        tx.amount,

@@ -10,7 +10,7 @@ router.use(authMiddleware);
 // ── 1. GET ARCHIVES ──────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    let query = {};
+    let query = { tenantId: req.tenantId };
 
     if (req.user.role === "owner") {
       if (req.query.store && req.query.store !== "All") {
@@ -59,7 +59,7 @@ router.post("/", async (req, res) => {
     const date = req.body.date || todayEAT;
 
     // ── Prevent double close on same day ──
-    const alreadyClosed = await Archive.findOne({ employeeName, date });
+    const alreadyClosed = await Archive.findOne({ tenantId: req.tenantId, employeeName, date });
     if (alreadyClosed) {
       return res.status(400).json({
         success: false,
@@ -69,6 +69,7 @@ router.post("/", async (req, res) => {
 
     // ── Fetch today's sales for this employee ──
     const daySales = await Sale.find({
+      tenantId: req.tenantId,
       date,
       cashier: employeeName,
       returned: false,
@@ -143,6 +144,7 @@ router.post("/", async (req, res) => {
     const expStart = new Date(date + "T00:00:00+03:00")
     const expEnd   = new Date(date + "T23:59:59.999+03:00")
     const expiredRecords = await ExpiredStock.find({
+      tenantId: req.tenantId,
       store,
       movedAt: { $gte: expStart, $lte: expEnd }
     })
@@ -161,6 +163,7 @@ router.post("/", async (req, res) => {
 
     // ── Save archive ──
     const archiveData = {
+      tenantId: req.tenantId,
       employeeName,
       date,
       store,
@@ -185,7 +188,7 @@ router.post("/", async (req, res) => {
     };
 
     const archive = await Archive.findOneAndUpdate(
-      { employeeName, date },
+      { tenantId: req.tenantId, employeeName, date },
       archiveData,
       { upsert: true, new: true }
     );

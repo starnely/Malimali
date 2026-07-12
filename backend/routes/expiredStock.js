@@ -10,7 +10,7 @@ router.use(authMiddleware)
 // ── GET all expired stock ─────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    let query = {}
+    let query = { tenantId: req.tenantId }
 
     if (req.user.role === "manager") {
       query.store = req.user.store
@@ -49,7 +49,7 @@ router.get("/", async (req, res) => {
 // ── GET expired stock summary (loss totals by store/category) ─────────
 router.get("/summary", async (req, res) => {
   try {
-    const summaryFilter = {}
+    const summaryFilter = { tenantId: req.tenantId }
     if (req.user.role === "manager" || req.user.role === "cashier" || req.user.role === "employee") {
       summaryFilter.store = req.user.store
     } else if (req.query.store) {
@@ -88,7 +88,7 @@ router.post("/move/:productId", async (req, res) => {
       return res.status(403).json({ success: false, message: "Owner or manager access required" })
     }
 
-    const product = await Product.findById(req.params.productId)
+    const product = await Product.findOne({ _id: req.params.productId, tenantId: req.tenantId })
     if (!product) {
       return res.status(404).json({ success: false, message: "Product not found" })
     }
@@ -117,7 +117,8 @@ router.post("/move/:productId", async (req, res) => {
       totalLoss,
       expiryDate: product.expiryDate || new Date(),
       processedBy: req.user.name || req.user.username,
-      notes: req.body.notes || ""
+      notes: req.body.notes || "",
+      tenantId: req.tenantId,
     })
 
     await expiredRecord.save()
@@ -126,11 +127,11 @@ router.post("/move/:productId", async (req, res) => {
     const newStock = product.stock - quantity
     if (newStock === 0) {
       // Mark product as expired if all stock is gone
-      await Product.findByIdAndUpdate(product._id, {
+      await Product.findOneAndUpdate({ _id: product._id, tenantId: req.tenantId }, {
         $set: { stock: 0, isExpired: true }
       })
     } else {
-      await Product.findByIdAndUpdate(product._id, {
+      await Product.findOneAndUpdate({ _id: product._id, tenantId: req.tenantId }, {
         $set: { stock: newStock }
       })
     }
@@ -164,8 +165,13 @@ router.post("/auto-check", async (req, res) => {
     const today = new Date()
     today.setHours(0, 0, 0, 0)
 
-    // Find all non-expired products whose expiryDate has passed
+    // Find all non-expired products whose expiryDate has passed.
+    // This route is owner-triggered per-request today so scoping to
+    // req.tenantId is correct; if this ever becomes a scheduled background
+    // job spanning all tenants, it will need to loop per-tenant instead
+    // (same shape as the server.js reorder-suggestion job in §8).
     const expiredProducts = await Product.find({
+      tenantId: req.tenantId,
       expiryDate: { $lte: today },
       isExpired: { $ne: true },
       stock: { $gt: 0 }
@@ -189,12 +195,13 @@ router.post("/auto-check", async (req, res) => {
         totalLoss,
         expiryDate: product.expiryDate,
         processedBy: "System (Auto)",
-        notes: "Automatically moved on expiry date check"
+        notes: "Automatically moved on expiry date check",
+        tenantId: req.tenantId,
       })
 
       await expiredRecord.save()
 
-      await Product.findByIdAndUpdate(product._id, {
+      await Product.findOneAndUpdate({ _id: product._id, tenantId: req.tenantId }, {
         $set: { stock: 0, isExpired: true }
       })
 
@@ -220,7 +227,7 @@ router.delete("/:id", async (req, res) => {
     if (req.user.role !== "owner") {
       return res.status(403).json({ success: false, message: "Owner access required" })
     }
-    const deleted = await ExpiredStock.findByIdAndDelete(req.params.id)
+    const deleted = await ExpiredStock.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId })
     if (!deleted) return res.status(404).json({ success: false, message: "Record not found" })
     res.json({ success: true })
   } catch (err) {

@@ -9,7 +9,7 @@ router.use(authMiddleware)
 // ── 1. LIST EXPENSES ──────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const filter = { isDeleted: false }
+    const filter = { tenantId: req.tenantId, isDeleted: false }
     if (req.user.role === "manager") filter.store = req.user.store
     else if (req.query.store) filter.store = req.query.store
     if (req.query.category) filter.category = req.query.category
@@ -37,7 +37,7 @@ router.get("/", async (req, res) => {
 // ── 2. GET SUMMARY ────────────────────────────────────────────────────
 router.get("/summary", async (req, res) => {
   try {
-    const matchFilter = { isDeleted: false }
+    const matchFilter = { tenantId: req.tenantId, isDeleted: false }
     if (req.user.role === "manager") matchFilter.store = req.user.store
     else if (req.query.store) matchFilter.store = req.query.store
     if (req.query.date)  matchFilter.date  = req.query.date
@@ -72,7 +72,7 @@ router.get("/monthly", async (req, res) => {
     const lastDay = new Date(year, month, 0).getDate()
     const to      = `${year}-${mm}-${lastDay}`
 
-    const filter = { isDeleted: false, date: { $gte: from, $lte: to } }
+    const filter = { tenantId: req.tenantId, isDeleted: false, date: { $gte: from, $lte: to } }
     if (req.user.role === "manager") filter.store = req.user.store
     else if (req.query.store) filter.store = req.query.store
 
@@ -106,6 +106,7 @@ router.post("/", async (req, res) => {
       store:        store       || req.user?.store || "Main Store",
       recordedBy:   req.user?.name || req.user?.username || "",
       recordedById: req.user?._id  || null,
+      tenantId:     req.tenantId,
     }).save()
 
     const io = req.app.get("io")
@@ -130,7 +131,7 @@ router.post("/", async (req, res) => {
 // ── 5. UPDATE EXPENSE (manager+) ─────────────────────────────────────
 router.put("/:id", managerOrOwner, async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id)
+    const expense = await Expense.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!expense)         return res.status(404).json({ success: false, message: "Expense not found." })
     if (expense.isDeleted) return res.status(400).json({ success: false, message: "Expense has been deleted." })
 
@@ -149,15 +150,19 @@ router.put("/:id", managerOrOwner, async (req, res) => {
 // ── 6. SOFT DELETE EXPENSE (manager+) ────────────────────────────────
 router.delete("/:id", managerOrOwner, async (req, res) => {
   try {
-    const expense = await Expense.findById(req.params.id)
+    const expense = await Expense.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!expense) return res.status(404).json({ success: false, message: "Expense not found." })
 
     // ── If this expense came from a petty cash Cash Out,
     //    remove the matching petty cash transaction so the
     //    balance is restored automatically via the pre-save hook
+    // Cross-model: scoping this lookup matters — without tenantId here, a
+    // store name shared by two different tenants could reverse the wrong
+    // tenant's petty cash record.
     if (expense.fromPettyCash) {
       try {
         const pettyCashRecord = await PettyCash.findOne({
+          tenantId:  req.tenantId,
           store:     expense.store,
           date:      expense.date,
           isClosed:  false,   // can only reverse if the day isn't closed yet

@@ -124,10 +124,10 @@ All 19 route files, to be filled in as each is converted. **Canonical pattern es
 | sales.js | Not started | 2 `.populate()` sites |
 | returns.js | Not started | 4 `.populate()` sites |
 | voidRequests.js | Not started | 2 `.populate()` sites |
-| expenses.js | Not started | |
-| pettyCash.js | Not started | |
-| expiredStock.js | Not started | |
-| archives.js | Not started | |
+| expenses.js | **Done** | 7 sites converted. Cross-model flag: DELETE `/:id`'s petty-cash reversal (`PettyCash.findOne`) now scoped — without it, a shared store name could reverse another tenant's petty cash. |
+| pettyCash.js | **Done** | 10 sites converted. Two cross-model flags: the auto-created `Expense` on a Cash Out transaction now carries the same `tenantId` as its originating `PettyCash` record; the transaction-delete route's matching `Expense.findOneAndUpdate` (soft-delete) now scoped too, same leak risk as expenses.js. |
+| expiredStock.js | **Done** | 10 sites converted, including `POST /auto-check`'s global expiry scan — noted in-code that if this ever becomes a scheduled cross-tenant job it needs a per-tenant loop (same shape as the §8 reorder-job gap), but as an owner-triggered per-request route today, plain `tenantId` scoping is correct. |
+| archives.js | **Done** | 6 sites converted. Verified (empirically, via a throwaway mongodb-memory-server test) that Mongoose's `findOneAndUpdate` with a plain non-`$set` object does a partial update in this Mongoose version, not a full replace — so the upsert-based archive-close `findOneAndUpdate` was safe to scope via the filter alone; added `tenantId` to both the filter and the replacement data anyway for explicitness on the insert path. |
 | messages.js | Not started | (no bulkWrite here — see §2 correction) |
 | weighStation.js | Not started | 4 endpoints, none reviewed in depth yet for auth/tenant implications |
 | print.js | Not started | 1 endpoint (`/receipt`), reads Settings/Sale data for formatting — low DB-write risk but unreviewed |
