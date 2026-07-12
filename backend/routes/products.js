@@ -35,10 +35,10 @@ function generateEAN13() {
   return prefix + body + checkDigit
 }
 
-async function uniqueEAN13() {
+async function uniqueEAN13(tenantId) {
   for (let i = 0; i < 5; i++) {
     const code = generateEAN13()
-    const exists = await Product.findOne({ barcode: code }).lean()
+    const exists = await Product.findOne({ tenantId, barcode: code }).lean()
     if (!exists) return code
   }
   return "600" + Date.now().toString().slice(-9) + "0"
@@ -47,12 +47,13 @@ async function uniqueEAN13() {
 // ── GET ALL PRODUCTS ──────────────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const filter = {}
+    const filter = { tenantId: req.tenantId }
     if (req.query.store) {
       filter.store = req.query.store
     } else if (req.user.role !== "owner") {
       filter.store = req.user.store
     }
+    // populate site 1/5 — match:{tenantId} deferred to 2a-4
     let q = Product.find(filter).populate("supplierId", "name company phone")
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const products = await q.sort({ name: 1 })
@@ -66,13 +67,14 @@ router.get("/", async (req, res) => {
 // ── GET LOW-STOCK PRODUCTS ────────────────────────────────────────────
 router.get("/low-stock", async (req, res) => {
   try {
-    const filter = { isExpired: { $ne: true } }
+    const filter = { tenantId: req.tenantId, isExpired: { $ne: true } }
     if (req.user.role === "manager") filter.store = req.user.store
     else if (req.query.store) filter.store = req.query.store
     const rawThreshold = req.query.threshold !== undefined ? parseInt(req.query.threshold, 10) : null
     const stockExpr = rawThreshold !== null && !isNaN(rawThreshold)
       ? { $lte: ["$stock", rawThreshold] }
       : { $lte: ["$stock", { $ifNull: ["$reorderLevel", 5] }] }
+    // populate site 2/5 — match:{tenantId} deferred to 2a-4
     let q = Product.find({ ...filter, $expr: stockExpr })
       .populate("supplierId", "name company phone")
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
@@ -91,7 +93,11 @@ router.get("/low-stock", async (req, res) => {
 // the frontend can decide between auto-fill-for-edit vs. blocking error.
 router.get("/lookup/:barcode", async (req, res) => {
   try {
-    let q = Product.findOne({ barcode: req.params.barcode })
+    // barcode uniqueness is per-tenant (2a-2's compound index) — without
+    // tenantId here this would search across ALL tenants and could report
+    // a false "already exists" collision against another tenant's product.
+    // populate site 3/5 — match:{tenantId} deferred to 2a-4
+    let q = Product.findOne({ tenantId: req.tenantId, barcode: req.params.barcode })
       .populate("supplierId", "name company phone")
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const product = await q.lean()
@@ -106,7 +112,8 @@ router.get("/lookup/:barcode", async (req, res) => {
 // ── GET SINGLE PRODUCT ────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
-    let q = Product.findById(req.params.id).populate("supplierId", "name company phone")
+    // populate site 4/5 — match:{tenantId} deferred to 2a-4
+    let q = Product.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate("supplierId", "name company phone")
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const product = await q
     if (!product) return res.status(404).json({ success: false, message: "Product not found." })
@@ -128,7 +135,7 @@ router.post("/", managerOrOwner, async (req, res) => {
 
     const finalBarcode = barcode && barcode.trim()
       ? barcode.trim()
-      : await uniqueEAN13()
+      : await uniqueEAN13(req.tenantId)
 
     const product = new Product({
       name, description, category,
@@ -148,6 +155,7 @@ router.post("/", managerOrOwner, async (req, res) => {
       pricePerKg: Number(pricePerKg) || 0,
       // undefined keeps the field absent so the sparse unique index skips it
       pluNumber: pluNumber ? Number(pluNumber) : undefined,
+      tenantId: req.tenantId,
     })
 
     const saved = await product.save()
@@ -178,7 +186,7 @@ router.put("/:id", managerOrOwner, async (req, res) => {
       isWeighed, pricePerKg, pluNumber,
     } = req.body
 
-    const existing = await Product.findById(req.params.id).lean()
+    const existing = await Product.findOne({ _id: req.params.id, tenantId: req.tenantId }).lean()
     if (!existing) return res.status(404).json({ success: false, message: "Product not found." })
     if (req.user.role === "manager" && existing.store !== req.user.store)
       return res.status(403).json({ success: false, message: "Access denied: This product belongs to a different store." })
@@ -219,8 +227,9 @@ router.put("/:id", managerOrOwner, async (req, res) => {
       ? { $set: { ...setData, pluNumber: Number(pluNumber) } }
       : { $set: setData, $unset: { pluNumber: "" } }
 
-    const updated = await Product.findByIdAndUpdate(
-      req.params.id,
+    // populate site 5/5 — match:{tenantId} deferred to 2a-4
+    const updated = await Product.findOneAndUpdate(
+      { _id: req.params.id, tenantId: req.tenantId },
       updateOp,
       { new: true, runValidators: true }
     ).populate("supplierId", "name company phone")
@@ -229,9 +238,9 @@ router.put("/:id", managerOrOwner, async (req, res) => {
 
     const io = req.app.get("io")
     if (updated.stock > (updated.reorderLevel ?? 5)) {
-      Product.findByIdAndUpdate(updated._id, { $set: { needsReorder: false } }).catch(() => {})
+      Product.findOneAndUpdate({ _id: updated._id, tenantId: req.tenantId }, { $set: { needsReorder: false } }).catch(() => {})
     } else {
-      Product.findByIdAndUpdate(updated._id, { $set: { needsReorder: true } }).catch(() => {})
+      Product.findOneAndUpdate({ _id: updated._id, tenantId: req.tenantId }, { $set: { needsReorder: true } }).catch(() => {})
       if (io) {
         io.to("owner").to(`manager-${updated.store}`).emit("lowStockAlert", {
           productId: updated._id,
@@ -262,7 +271,7 @@ router.put("/:id", managerOrOwner, async (req, res) => {
 // ── DELETE PRODUCT ────────────────────────────────────────────────────
 router.delete("/:id", ownerOnly, async (req, res) => {
   try {
-    const deleted = await Product.findByIdAndDelete(req.params.id)
+    const deleted = await Product.findOneAndDelete({ _id: req.params.id, tenantId: req.tenantId })
     if (!deleted) return res.status(404).json({ success: false, message: "Product not found." })
 
     broadcastProductEvent(req.app.get("io"), "productDeleted", deleted)
