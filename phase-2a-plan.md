@@ -121,7 +121,7 @@ All 19 route files, to be filled in as each is converted. **Canonical pattern es
 | suppliers.js | **Done** | 8 sites converted, including a cross-model `PurchaseOrder.findOne` open-PO check before delete. |
 | purchaseOrders.js | Not started | 8 of the 17 `.populate()` sites live here |
 | customers.js | **Done** | ~19 query sites converted across `Customer`/`Sale`/`Repayment`, plus the `calcBalance`/`refreshOverdue` helpers changed to accept `tenantId` as an explicit parameter (threaded through every call site). |
-| sales.js | Not started | 2 `.populate()` sites |
+| sales.js | **Done** (queries only — `.populate()` deferred to 2a-4) | 26 sites converted across `POST /`, `GET /`, `PATCH /:id/void`, `PATCH /:id/void-items`. Both `.populate()` sites (on `GET /`'s query) marked in-code, deferred to 2a-4. Must-flag: the stock-decrement `Product.findOneAndUpdate` on sale creation — `tenantId` here means a client-sent `productId` belonging to a different tenant matches nothing and falls to the existing error path, instead of silently decrementing another tenant's stock (same reasoning applied to both void routes' restock updates). Also flagged: the manager/owner PIN-lookup queries in both void routes scope by store *name* only — since store names aren't unique across tenants, `tenantId` was required there too. |
 | returns.js | Not started | 4 `.populate()` sites |
 | voidRequests.js | Not started | 2 `.populate()` sites |
 | expenses.js | **Done** | 7 sites converted. Cross-model flag: DELETE `/:id`'s petty-cash reversal (`PettyCash.findOne`) now scoped — without it, a shared store name could reverse another tenant's petty cash. |

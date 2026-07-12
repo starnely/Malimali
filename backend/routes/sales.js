@@ -47,7 +47,7 @@ router.post("/", async (req, res) => {
       }
     }
 
-    const user = await User.findById(req.user.id).session(session)
+    const user = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).session(session)
     if (!user) {
       await session.abortTransaction(); session.endSession()
       return res.status(401).json({ success: false, message: "Authenticated user not found." })
@@ -63,8 +63,12 @@ router.post("/", async (req, res) => {
         return res.status(400).json({ success: false, message: "Invalid item in cart." })
       }
 
+      // tenantId here isn't just defense-in-depth — it means a client sending
+      // a productId belonging to a different tenant matches nothing (falls
+      // into the !updated 404/400 path below) instead of silently
+      // decrementing another tenant's stock.
       const updated = await Product.findOneAndUpdate(
-        { _id: item.productId, stock: { $gte: parsedQty }, isExpired: { $ne: true } },
+        { _id: item.productId, tenantId: req.tenantId, stock: { $gte: parsedQty }, isExpired: { $ne: true } },
         { $inc: { stock: -parsedQty } },
         { new: true, session }
       )
@@ -72,7 +76,7 @@ router.post("/", async (req, res) => {
       // Epsilon guard: floating-point subtraction on kg values (e.g. 0.432 kg)
       // can leave stock at -1e-15 when it should be exactly 0. Clamp it.
       if (updated && updated.stock < 0) {
-        await Product.findByIdAndUpdate(updated._id, { $set: { stock: 0 } }, { session })
+        await Product.findOneAndUpdate({ _id: updated._id, tenantId: req.tenantId }, { $set: { stock: 0 } }, { session })
         updated.stock = 0
       }
 
@@ -81,7 +85,7 @@ router.post("/", async (req, res) => {
       }
 
       if (!updated) {
-        const product = await Product.findById(item.productId).session(session)
+        const product = await Product.findOne({ _id: item.productId, tenantId: req.tenantId }).session(session)
         await session.abortTransaction(); session.endSession()
 
         if (!product) return res.status(404).json({ success: false, message: "A product in your cart was not found." })
@@ -100,7 +104,7 @@ router.post("/", async (req, res) => {
       })
     }
 
-    const settingsDoc  = await Setting.findOne().select("taxRate").lean()
+    const settingsDoc  = await Setting.findOne({ tenantId: req.tenantId }).select("taxRate").lean()
     const saleTaxRate  = settingsDoc?.taxRate || 0
     const finalAmt     = Number(paymentInfo?.finalTotal) || Number(total) || 0
     const saleTaxAmt   = saleTaxRate > 0 ? finalAmt * (saleTaxRate / (1 + saleTaxRate)) : 0
@@ -132,6 +136,7 @@ router.post("/", async (req, res) => {
       taxRate:  saleTaxRate,
       taxAmount: saleTaxAmt,
       netRevenue: finalAmt - saleTaxAmt,
+      tenantId: req.tenantId,
     })
 
     await sale.save({ session })
@@ -151,7 +156,7 @@ router.post("/", async (req, res) => {
 
     if (lowStockProducts.length > 0) {
       const ids = lowStockProducts.map(p => p._id)
-      Product.updateMany({ _id: { $in: ids } }, { $set: { needsReorder: true } })
+      Product.updateMany({ _id: { $in: ids }, tenantId: req.tenantId }, { $set: { needsReorder: true } })
         .catch(err => console.error("needsReorder flag error:", err.message))
       if (io) {
         for (const p of lowStockProducts) {
@@ -180,10 +185,10 @@ router.post("/", async (req, res) => {
 // â"€â"€ 2. GET SALES â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 router.get("/", async (req, res) => {
   try {
-    const user = await User.findById(req.user.id)
+    const user = await User.findOne({ _id: req.user.id, tenantId: req.tenantId })
     if (!user) return res.status(404).json({ success: false, message: "User not found." })
 
-    let query = {}
+    let query = { tenantId: req.tenantId }
 
     if (user.role === "cashier" || user.role === "employee") {
       query.cashierId = user._id
@@ -198,6 +203,7 @@ router.get("/", async (req, res) => {
       }
     }
 
+    // populate sites 1/2 and 2/2 — match:{tenantId} deferred to 2a-4
     const rawSales = await Sale.find({ ...query, status: "confirmed" })
       .populate("cashierId", "username fullname")
       .populate("items.productId", "name sellPrice category")
@@ -255,7 +261,7 @@ router.patch("/:id/void", async (req, res) => {
     let actionType = null   // null = owner self-approve (no audit log entry needed)
 
     if (requesterRole === "owner") {
-      approver = await User.findById(req.user.id).session(session)
+      approver = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).session(session)
     } else {
       if (!approverPin) {
         await session.abortTransaction(); session.endSession()
@@ -263,7 +269,10 @@ router.patch("/:id/void", async (req, res) => {
       }
 
       if (requesterRole === "cashier" || requesterRole === "employee") {
-        const managers = await User.find({ role: "manager", store: req.user.store }).session(session)
+        // tenantId required — store names aren't unique across tenants, so
+        // without it this could scan a different tenant's manager sharing
+        // a similarly-named store during the PIN-match loop below.
+        const managers = await User.find({ tenantId: req.tenantId, role: "manager", store: req.user.store }).session(session)
         approver = await findPinMatch(managers, approverPin)
         if (approver) {
           actionType = "void_cashier"
@@ -271,7 +280,7 @@ router.patch("/:id/void", async (req, res) => {
           // Additive owner override — the manager check above is unchanged; this
           // only runs when no manager PIN matched, so an owner can approve
           // directly at the cashier tier when no manager is on duty.
-          const owners = await User.find({ role: "owner" }).session(session)
+          const owners = await User.find({ tenantId: req.tenantId, role: "owner" }).session(session)
           approver = await findPinMatch(owners, approverPin)
           if (approver) {
             actionType = "void_cashier_owner_override"
@@ -283,7 +292,7 @@ router.patch("/:id/void", async (req, res) => {
         }
       } else if (requesterRole === "manager") {
         actionType = "void_manager_onsite"
-        const owners = await User.find({ role: "owner" }).session(session)
+        const owners = await User.find({ tenantId: req.tenantId, role: "owner" }).session(session)
         approver = await findPinMatch(owners, approverPin)
         if (!approver) {
           await session.abortTransaction(); session.endSession()
@@ -297,7 +306,7 @@ router.patch("/:id/void", async (req, res) => {
     }
 
     // ── Load and validate sale ───────────────────────────────────────────
-    const sale = await Sale.findById(req.params.id).session(session)
+    const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenantId }).session(session)
     if (!sale) {
       await session.abortTransaction(); session.endSession()
       return res.status(404).json({ success: false, message: "Sale not found." })
@@ -318,7 +327,7 @@ router.patch("/:id/void", async (req, res) => {
       const alreadyVoided = item.voidedQty || 0
       const restockQty = item.qty - alreadyVoided
       if (restockQty > 0) {
-        await Product.findByIdAndUpdate(item.productId, { $inc: { stock: restockQty } }, { session })
+        await Product.findOneAndUpdate({ _id: item.productId, tenantId: req.tenantId }, { $inc: { stock: restockQty } }, { session })
       }
       item.voidStatus = "voided"
       item.voidedQty  = item.qty
@@ -341,6 +350,7 @@ router.patch("/:id/void", async (req, res) => {
         targetId:   sale._id,
         targetType: "sale",
         store:      sale.store,
+        tenantId:   req.tenantId,
       }], { session })
     }
 
@@ -350,7 +360,7 @@ router.patch("/:id/void", async (req, res) => {
     // A2: resolve cashier name from stored field or DB lookup (covers older sales with empty cashier field)
     let cashierName = sale.cashier
     if (!cashierName && sale.cashierId) {
-      const cashierUser = await User.findById(sale.cashierId).select("fullname username").lean()
+      const cashierUser = await User.findOne({ _id: sale.cashierId, tenantId: req.tenantId }).select("fullname username").lean()
       cashierName = cashierUser?.fullname || cashierUser?.username || "Staff"
     }
 
@@ -415,7 +425,7 @@ router.patch("/:id/void-items", async (req, res) => {
     let actionType = null
 
     if (requesterRole === "owner") {
-      approver = await User.findById(req.user.id).session(session)
+      approver = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).session(session)
     } else {
       if (!approverPin) {
         await session.abortTransaction(); session.endSession()
@@ -423,7 +433,9 @@ router.patch("/:id/void-items", async (req, res) => {
       }
 
       if (requesterRole === "cashier" || requesterRole === "employee") {
-        const managers = await User.find({ role: "manager", store: req.user.store }).session(session)
+        // tenantId required — store names aren't unique across tenants, see
+        // the equivalent comment in PATCH /:id/void above.
+        const managers = await User.find({ tenantId: req.tenantId, role: "manager", store: req.user.store }).session(session)
         approver = await findPinMatch(managers, approverPin)
         if (approver) {
           actionType = "void_cashier"
@@ -431,7 +443,7 @@ router.patch("/:id/void-items", async (req, res) => {
           // Additive owner override — the manager check above is unchanged; this
           // only runs when no manager PIN matched, so an owner can approve
           // directly at the cashier tier when no manager is on duty.
-          const owners = await User.find({ role: "owner" }).session(session)
+          const owners = await User.find({ tenantId: req.tenantId, role: "owner" }).session(session)
           approver = await findPinMatch(owners, approverPin)
           if (approver) {
             actionType = "void_cashier_owner_override"
@@ -443,7 +455,7 @@ router.patch("/:id/void-items", async (req, res) => {
         }
       } else if (requesterRole === "manager") {
         actionType = "void_manager_onsite"
-        const owners = await User.find({ role: "owner" }).session(session)
+        const owners = await User.find({ tenantId: req.tenantId, role: "owner" }).session(session)
         approver = await findPinMatch(owners, approverPin)
         if (!approver) {
           await session.abortTransaction(); session.endSession()
@@ -457,7 +469,7 @@ router.patch("/:id/void-items", async (req, res) => {
     }
 
     // ── Load and validate sale ───────────────────────────────────────────
-    const sale = await Sale.findById(req.params.id).session(session)
+    const sale = await Sale.findOne({ _id: req.params.id, tenantId: req.tenantId }).session(session)
     if (!sale) {
       await session.abortTransaction(); session.endSession()
       return res.status(404).json({ success: false, message: "Sale not found." })
@@ -488,7 +500,7 @@ router.patch("/:id/void-items", async (req, res) => {
       const actualVoidQty = Math.min(parsedQty, remainingQty)
       if (actualVoidQty <= 0) continue
 
-      await Product.findByIdAndUpdate(item.productId, { $inc: { stock: actualVoidQty } }, { session })
+      await Product.findOneAndUpdate({ _id: item.productId, tenantId: req.tenantId }, { $inc: { stock: actualVoidQty } }, { session })
 
       item.voidedQty  = alreadyVoided + actualVoidQty
       item.voidedAt   = now
@@ -516,6 +528,7 @@ router.patch("/:id/void-items", async (req, res) => {
         targetId:   sale._id,
         targetType: "sale",
         store:      sale.store,
+        tenantId:   req.tenantId,
       }], { session })
     }
 
@@ -525,7 +538,7 @@ router.patch("/:id/void-items", async (req, res) => {
     // A2: resolve cashier name
     let cashierName = sale.cashier
     if (!cashierName && sale.cashierId) {
-      const cashierUser = await User.findById(sale.cashierId).select("fullname username").lean()
+      const cashierUser = await User.findOne({ _id: sale.cashierId, tenantId: req.tenantId }).select("fullname username").lean()
       cashierName = cashierUser?.fullname || cashierUser?.username || "Staff"
     }
 
