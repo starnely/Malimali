@@ -113,8 +113,8 @@ All 19 route files, to be filled in as each is converted. **Canonical pattern es
 
 | Route file | Status | Notes |
 |---|---|---|
-| auth.js | Not started | Login itself can't filter by `req.tenantId` (that's what it's establishing) — see §7 |
-| setup.js | Not started | `/status`, `/branding` are pre-login/public — see §7; `/details`, `/update` are post-login, straightforward |
+| auth.js | **Done** (all except `/login`) | 13 sites converted across `/employees`, `/register`, `/change-password`, `/:id/toggle`, `/set-my-pin`, `/:id`, `/:id/set-pin`, `/:id`. `/login` deliberately untouched — see §7, it's establishing `tenantId`, not consuming it. |
+| setup.js | **Done** (`/details`, `/update`, `/test-email` only) | 3 sites converted. `/status`, `/branding`, `/initialize` deliberately untouched — same deferred category as `/login`: pre-auth (no `req.tenantId` exists yet) and, for `/initialize`, genuinely bootstraps the very first tenant — real multi-tenant onboarding is separate future work (§7's Business Code flow), not a mechanical scoping fix. |
 | products.js | Not started | 5 of the 17 `.populate()` sites live here |
 | categories.js | **Done** (`225653c`) | 6 query sites converted (find/findOne/create/findById→findOne/findByIdAndUpdate→findOneAndUpdate/findByIdAndDelete→findOneAndDelete + cross-model `Product.countDocuments` ×2). Canonical pattern reference. |
 | stores.js | **Done** | 20 sites converted, including the 13-collection store-rename cascade (`Product`, `Category`, `Customer`, `Sale`, `Expense`, `ExpiredStock`, `PettyCash`, `PurchaseOrder`, `SupplierPayment`, `Repayment`, `Archive`, `User`, `Supplier` — all `updateMany` calls gained `tenantId`). |
@@ -128,9 +128,9 @@ All 19 route files, to be filled in as each is converted. **Canonical pattern es
 | pettyCash.js | **Done** | 10 sites converted. Two cross-model flags: the auto-created `Expense` on a Cash Out transaction now carries the same `tenantId` as its originating `PettyCash` record; the transaction-delete route's matching `Expense.findOneAndUpdate` (soft-delete) now scoped too, same leak risk as expenses.js. |
 | expiredStock.js | **Done** | 10 sites converted, including `POST /auto-check`'s global expiry scan — noted in-code that if this ever becomes a scheduled cross-tenant job it needs a per-tenant loop (same shape as the §8 reorder-job gap), but as an owner-triggered per-request route today, plain `tenantId` scoping is correct. |
 | archives.js | **Done** | 6 sites converted. Verified (empirically, via a throwaway mongodb-memory-server test) that Mongoose's `findOneAndUpdate` with a plain non-`$set` object does a partial update in this Mongoose version, not a full replace — so the upsert-based archive-close `findOneAndUpdate` was safe to scope via the filter alone; added `tenantId` to both the filter and the replacement data anyway for explicitness on the insert path. |
-| messages.js | Not started | (no bulkWrite here — see §2 correction) |
-| weighStation.js | Not started | 4 endpoints, none reviewed in depth yet for auth/tenant implications |
-| print.js | Not started | 1 endpoint (`/receipt`), reads Settings/Sale data for formatting — low DB-write risk but unreviewed |
+| messages.js | **Done** | 11 sites converted. Two must-flag spots: `GET /owner-id` and the staff-can-only-message-owner check in `POST /` both resolve "the owner" via `User.findOne({role:"owner"})` — without `tenantId`, staff could be handed a different tenant's owner and start messaging a stranger. Both now scoped. |
+| weighStation.js | **Done** | 5 sites converted. Must-flag spot: `POST /decode`'s `Product.findOne({pluNumber, ...})` is the checkout-time weight-barcode lookup — `pluNumber` is tenant-scoped (2a-2's compound index), so without `tenantId` here a scanned barcode could resolve to a different tenant's product, charging the wrong price and decrementing the wrong stock. Now scoped. |
+| print.js | **Done** | No Mongoose models, no DB queries at all — pure ESC/POS formatting + printer I/O. Nothing to scope. |
 | mpesa.js | Not started | **Special case** — `/callback` (server.js:170) is an unauthenticated external Safaricom webhook with no JWT/tenant context at all. It resolves the affected `Sale` via a globally-unique `mpesaCheckoutRequestId` lookup *first*, then must derive `tenantId` from the found Sale document for any subsequent writes. This route needs one deliberate unscoped lookup by design — don't "fix" it to require `tenantId` up front or real M-Pesa callbacks will break. |
 | server.js (reorder job) | Not started | The `bulkWrite` gap from §8 |
 

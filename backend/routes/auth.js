@@ -100,7 +100,7 @@ router.get("/employees", authMiddleware, async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied: Management clearance required." });
     }
 
-    let query = { role: { $ne: "owner" } };
+    let query = { tenantId: req.tenantId, role: { $ne: "owner" } };
     if (req.user.role === "manager") {
       query.store = req.user.store;
     }
@@ -139,6 +139,7 @@ router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
 
     const sanitized = username.trim();
     const existingUsername = await User.findOne({
+      tenantId: req.tenantId,
       username: { $regex: new RegExp(`^${sanitized}$`, "i") }
     });
     if (existingUsername) {
@@ -146,7 +147,7 @@ router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
     }
 
     if (email && email.trim()) {
-      const existingEmail = await User.findOne({ email: email.trim().toLowerCase() });
+      const existingEmail = await User.findOne({ tenantId: req.tenantId, email: email.trim().toLowerCase() });
       if (existingEmail) {
         return res.status(409).json({ success: false, message: "This email is already registered to another account." });
       }
@@ -163,7 +164,8 @@ router.post("/register", authMiddleware, ownerOnly, async (req, res) => {
       store:       store || "",
       active:      true,
       isActive:    true,
-      shiftStatus: "closed"
+      shiftStatus: "closed",
+      tenantId:    req.tenantId,
     });
 
     await newUser.save();
@@ -214,7 +216,7 @@ router.put("/change-password", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "New password must be different from current password." });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findOne({ _id: req.user.id, tenantId: req.tenantId });
     if (!user) {
       return res.status(404).json({ success: false, message: "User not found." });
     }
@@ -244,7 +246,7 @@ router.patch("/:id/toggle", authMiddleware, ownerOnly, async (req, res) => {
       return res.status(403).json({ success: false, message: "You cannot deactivate your own account." });
     }
 
-    const user = await User.findById(id);
+    const user = await User.findOne({ _id: id, tenantId: req.tenantId });
     if (!user) {
       return res.status(404).json({ success: false, message: "Staff member not found." });
     }
@@ -295,7 +297,7 @@ router.put("/set-my-pin", authMiddleware, ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "PIN must be 4–6 digits (numbers only)." });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findOne({ _id: req.user.id, tenantId: req.tenantId });
     if (!user) return res.status(404).json({ success: false, message: "User not found." });
 
     const isMatch = await bcrypt.compare(currentPassword, user.password);
@@ -319,7 +321,7 @@ router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
     const { id } = req.params;
     const { fullname, username, email, role, store, password } = req.body;
 
-    const user = await User.findById(id);
+    const user = await User.findOne({ _id: id, tenantId: req.tenantId });
     if (!user) {
       return res.status(404).json({ success: false, message: "Staff member not found." });
     }
@@ -329,7 +331,7 @@ router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
 
     if (username && username.trim().toLowerCase() !== user.username.toLowerCase()) {
       const sanitized    = username.trim();
-      const existingUser = await User.findOne({ username: { $regex: new RegExp(`^${sanitized}$`, "i") } });
+      const existingUser = await User.findOne({ tenantId: req.tenantId, username: { $regex: new RegExp(`^${sanitized}$`, "i") } });
       if (existingUser) {
         return res.status(409).json({ success: false, message: "This username is already taken by another account." });
       }
@@ -337,7 +339,7 @@ router.put("/:id", authMiddleware, ownerOnly, async (req, res) => {
     }
 
     if (email !== undefined && email.trim().toLowerCase() !== user.email) {
-      const existingEmail = await User.findOne({ email: email.trim().toLowerCase(), _id: { $ne: id } });
+      const existingEmail = await User.findOne({ tenantId: req.tenantId, email: email.trim().toLowerCase(), _id: { $ne: id } });
       if (existingEmail) {
         return res.status(409).json({ success: false, message: "This email is already registered to another account." });
       }
@@ -390,7 +392,7 @@ router.put("/:id/set-pin", authMiddleware, ownerOnly, async (req, res) => {
       return res.status(400).json({ success: false, message: "PIN must be 4–6 digits (numbers only)." });
     }
 
-    const user = await User.findById(req.params.id);
+    const user = await User.findOne({ _id: req.params.id, tenantId: req.tenantId });
     if (!user) return res.status(404).json({ success: false, message: "Staff member not found." });
     if (user.role !== "manager") {
       return res.status(400).json({ success: false, message: "Approval PINs can only be set for managers." });
@@ -415,7 +417,7 @@ router.delete("/:id", authMiddleware, ownerOnly, async (req, res) => {
       return res.status(403).json({ success: false, message: "You cannot delete your own account." });
     }
 
-    const user = await User.findById(id);
+    const user = await User.findOne({ _id: id, tenantId: req.tenantId });
     if (!user) {
       return res.status(404).json({ success: false, message: "Staff member not found." });
     }
@@ -423,7 +425,7 @@ router.delete("/:id", authMiddleware, ownerOnly, async (req, res) => {
       return res.status(403).json({ success: false, message: "Owner accounts cannot be deleted." });
     }
 
-    await User.findByIdAndDelete(id);
+    await User.findOneAndDelete({ _id: id, tenantId: req.tenantId });
 
     broadcastStaffEvent(req.app.get("io"), "staffDeleted", user);
 

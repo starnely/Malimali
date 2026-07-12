@@ -17,7 +17,9 @@ function isReadByUser(message, userId) {
 // and User.findById("owner") returns null — message fails silently.
 router.get("/owner-id", async (req, res) => {
   try {
-    const owner = await User.findOne({ role: "owner" }).select("_id fullname username");
+    // Must be scoped — without tenantId, staff could be handed a DIFFERENT
+    // tenant's owner _id and start messaging a stranger's account.
+    const owner = await User.findOne({ role: "owner", tenantId: req.tenantId }).select("_id fullname username");
     if (!owner) {
       return res.status(404).json({ success: false, message: "Owner not found." });
     }
@@ -38,6 +40,7 @@ router.get("/conversations", async (req, res) => {
     const userId = req.user.id;
 
     const messages = await Message.find({
+      tenantId: req.tenantId,
       $or: [
         { senderId:    userId },
         { receiverId:  userId },
@@ -98,9 +101,10 @@ router.get("/thread/:userId", async (req, res) => {
     let messages;
 
     if (otherId === "broadcast") {
-      messages = await Message.find({ isBroadcast: true }).sort({ createdAt: 1 });
+      messages = await Message.find({ tenantId: req.tenantId, isBroadcast: true }).sort({ createdAt: 1 });
     } else {
       messages = await Message.find({
+        tenantId: req.tenantId,
         $or: [
           { senderId: currentId, receiverId: otherId },
           { senderId: otherId,   receiverId: currentId }
@@ -118,7 +122,7 @@ router.get("/thread/:userId", async (req, res) => {
 
     if (unreadIds.length > 0) {
       await Message.updateMany(
-        { _id: { $in: unreadIds } },
+        { _id: { $in: unreadIds }, tenantId: req.tenantId },
         { $push: { readBy: { userId: currentId, readAt: new Date() } } }
       );
 
@@ -129,7 +133,7 @@ router.get("/thread/:userId", async (req, res) => {
           threadId: currentId
         });
 
-        const senderUser = await User.findById(otherId).select("role").catch(() => null);
+        const senderUser = await User.findOne({ _id: otherId, tenantId: req.tenantId }).select("role").catch(() => null);
         if (senderUser?.role === "owner") {
           io.to("owner").emit("messages_read", {
             readBy:   currentId,
@@ -159,14 +163,15 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const receiver = await User.findById(receiverId).select("fullname username role");
+    const receiver = await User.findOne({ _id: receiverId, tenantId: req.tenantId }).select("fullname username role");
     if (!receiver) {
       return res.status(404).json({ success: false, message: "Recipient not found." });
     }
 
-    // Staff can only message the owner
+    // Staff can only message the owner — must be scoped to this tenant's
+    // owner, same reasoning as GET /owner-id above.
     if (req.user.role !== "owner") {
-      const owner = await User.findOne({ role: "owner" }).select("_id");
+      const owner = await User.findOne({ role: "owner", tenantId: req.tenantId }).select("_id");
       if (!owner || String(receiverId) !== String(owner._id)) {
         return res.status(403).json({
           success: false,
@@ -184,7 +189,8 @@ router.post("/", async (req, res) => {
       receiverName: receiver.fullname || receiver.username,
       content:      content.trim(),
       isBroadcast:  false,
-      readBy:       []
+      readBy:       [],
+      tenantId:     req.tenantId,
     });
 
     await message.save();
@@ -231,7 +237,8 @@ router.post("/broadcast", ownerOnly, async (req, res) => {
       receiverName: "",
       content:      content.trim(),
       isBroadcast:  true,
-      readBy:       [{ userId: req.user.id, readAt: new Date() }]
+      readBy:       [{ userId: req.user.id, readAt: new Date() }],
+      tenantId:     req.tenantId,
     });
 
     await message.save();
@@ -259,6 +266,7 @@ router.get("/unread-count", async (req, res) => {
     const userId = req.user.id;
 
     const unreadCount = await Message.countDocuments({
+      tenantId: req.tenantId,
       $or: [
         { receiverId:  userId },
         { isBroadcast: true   }

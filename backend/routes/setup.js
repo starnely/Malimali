@@ -107,7 +107,7 @@ router.get("/branding", async (req, res) => {
 // Never return the encrypted SMTP password to the frontend
 router.get("/details", authMiddleware, async (req, res) => {
   try {
-    const settings = await Setting.findOne();
+    const settings = await Setting.findOne({ tenantId: req.tenantId });
     if (!settings) {
       return res.status(404).json({ success: false, message: "System settings not found." });
     }
@@ -207,7 +207,7 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
       brandColors: brandColorsRaw,
     } = req.body;
 
-    const existing = await Setting.findOne();
+    const existing = await Setting.findOne({ tenantId: req.tenantId });
     if (!existing) {
       return res.status(404).json({ success: false, message: "Settings not found. Run setup first." });
     }
@@ -334,7 +334,7 @@ router.put("/update", authMiddleware, ownerOnly, upload.single("logo"), async (r
 // ── 8. TEST EMAIL ─────────────────────────────────────────────────────
 router.post("/test-email", authMiddleware, ownerOnly, async (req, res) => {
   try {
-    const settings = await Setting.findOne();
+    const settings = await Setting.findOne({ tenantId: req.tenantId });
     if (!settings?.smtp?.host || !settings?.smtp?.user) {
       return res.status(400).json({
         success: false,

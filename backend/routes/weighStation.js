@@ -72,7 +72,7 @@ function decodeWeightBarcode(barcode) {
 // ── GET ALL WEIGHED PRODUCTS ──────────────────────────────────────────
 router.get("/products", async (req, res) => {
   try {
-    const filter = { isWeighed: true, isExpired: { $ne: true } }
+    const filter = { tenantId: req.tenantId, isWeighed: true, isExpired: { $ne: true } }
     if (req.query.store) {
       filter.store = req.query.store
     } else if (req.user.role !== "owner") {
@@ -106,7 +106,7 @@ router.post("/generate", async (req, res) => {
       return res.status(400).json({ success: false, message: "Weight must be between 1g and 9999g." })
     }
 
-    const product = await Product.findById(productId)
+    const product = await Product.findOne({ _id: productId, tenantId: req.tenantId })
     if (!product) return res.status(404).json({ success: false, message: "Product not found." })
     if (!product.isWeighed) return res.status(400).json({ success: false, message: "This product is not a weighed item." })
     if (!product.pluNumber) return res.status(400).json({ success: false, message: "Product has no PLU number assigned. Edit the product to add one." })
@@ -153,7 +153,12 @@ router.post("/decode", async (req, res) => {
       return res.status(400).json({ success: false, message: "Barcode check digit is invalid." })
     }
 
+    // pluNumber is tenant-scoped (compound unique index, Phase 2a-2) — without
+    // tenantId here, a scanned weight barcode could resolve to a DIFFERENT
+    // tenant's product sharing the same PLU number, charging the wrong price
+    // and decrementing the wrong tenant's stock.
     const product = await Product.findOne({
+      tenantId:  req.tenantId,
       pluNumber: decoded.pluNumber,
       isWeighed: true,
       isExpired: { $ne: true },
@@ -203,6 +208,7 @@ router.post("/decode", async (req, res) => {
       cashierId:   req.user._id,
       cashierName: req.user.name,
       decodedAt:   new Date(),
+      tenantId:    req.tenantId,
     }).catch(err => console.error('[WeighBarcodeLog] write error:', err.message))
 
   } catch (err) {
@@ -217,7 +223,7 @@ router.post("/decode", async (req, res) => {
 // Format: PLU_NO,NAME,UNIT_PRICE,TARE,DEPT
 router.get("/plu-export", async (req, res) => {
   try {
-    const filter = { isWeighed: true, isExpired: { $ne: true } }
+    const filter = { tenantId: req.tenantId, isWeighed: true, isExpired: { $ne: true } }
     if (req.query.store && req.query.store !== "All") filter.store = req.query.store
 
     const products = await Product.find(filter).sort({ pluNumber: 1 })
