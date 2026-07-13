@@ -364,13 +364,13 @@ async function runExpiryCheck(processedBy, note) {
 }
 
 // ── 9b. AUTO-PO SUGGESTION JOB ──────────────────────────────────────
-async function runAutoPoSuggestions(io) {
+async function runAutoPoSuggestions(io, tenantId) {
   const Product       = require("./models/Product");
   const Sale          = require("./models/Sale");
   const Supplier      = require("./models/Supplier");
   const PurchaseOrder = require("./models/PurchaseOrder");
 
-  const flagged = await Product.find({ needsReorder: true }).lean();
+  const flagged = await Product.find({ needsReorder: true, tenantId }).lean();
   if (flagged.length === 0) {
     console.log("✅ Auto-PO: no products flagged for reorder.");
     return;
@@ -391,7 +391,7 @@ async function runAutoPoSuggestions(io) {
   for (const [store, storeProducts] of Object.entries(byStore)) {
     // Velocity aggregate for this store over the last 30 days
     const velocities = await Sale.aggregate([
-      { $match: { store, status: "confirmed", voided: { $ne: true }, date: { $gte: thirtyDaysAgoStr } } },
+      { $match: { store, tenantId, status: "confirmed", voided: { $ne: true }, date: { $gte: thirtyDaysAgoStr } } },
       { $unwind: "$items" },
       { $match: { "items.voidStatus": { $ne: "voided" } } },
       { $group: {
@@ -425,7 +425,7 @@ async function runAutoPoSuggestions(io) {
 
       bulkOps.push({
         updateOne: {
-          filter: { _id: p._id },
+          filter: { _id: p._id, tenantId },
           update: { $set: { suggestedQty, dailyVelocity, velocityCalcAt: new Date(), velocityTier: tier } },
         },
       });
@@ -439,7 +439,7 @@ async function runAutoPoSuggestions(io) {
       if (p.supplierId) {
         key = String(p.supplierId);
       } else if (p.supplier) {
-        const sup = await Supplier.findOne({ name: p.supplier, isActive: { $ne: false } }).lean();
+        const sup = await Supplier.findOne({ name: p.supplier, tenantId, isActive: { $ne: false } }).lean();
         key = sup ? String(sup._id) : `__name__${p.supplier}`;
       } else {
         key = "__unlinked__";
@@ -451,7 +451,7 @@ async function runAutoPoSuggestions(io) {
       let supplierId = null, supplierName = "Unlinked Supplier", supplierPhone = "";
 
       if (!key.startsWith("__")) {
-        const sup = await Supplier.findById(key).lean();
+        const sup = await Supplier.findOne({ _id: key, tenantId }).lean();
         if (sup) { supplierId = sup._id; supplierName = sup.name; supplierPhone = sup.phone || ""; }
       } else if (key.startsWith("__name__")) {
         supplierName = key.slice("__name__".length);
@@ -469,6 +469,7 @@ async function runAutoPoSuggestions(io) {
       // Unsent drafts are not yet firm orders — we manage those below.
       const sentOrPartialPOs = await PurchaseOrder.find({
         store,
+        tenantId,
         status: { $in: ["sent", "partial"] },
         ...supplierFilter,
       }).select("items").lean();
@@ -502,6 +503,7 @@ async function runAutoPoSuggestions(io) {
       // Targets only source:"suggested" drafts — never touches manual drafts.
       const existingDraft = await PurchaseOrder.findOne({
         store,
+        tenantId,
         status: "draft",
         source: "suggested",
         ...supplierFilter,
@@ -518,6 +520,7 @@ async function runAutoPoSuggestions(io) {
           supplierId, supplierName, supplierPhone, store, items, notes,
           source: "suggested",
           createdBy: "System (Auto-PO)",
+          tenantId,
         });
         await po.save();
         newPOCount++;
@@ -525,6 +528,9 @@ async function runAutoPoSuggestions(io) {
       }
     }
 
+    // Socket.IO rooms ("owner", `manager-${store}`) are not tenant-scoped yet —
+    // deliberately left as-is here. Room-level tenant isolation is §6 / Phase
+    // 2a-6/2b, a separate piece of work, not part of this function's fix.
     if (io && storeProducts.some(p => p._suggestedQty)) {
       io.to("owner").to(`manager-${store}`).emit("autoPOSuggested", { count: 1, store });
     }
@@ -667,7 +673,15 @@ function scheduleAutoExpiryCheck() {
     // ── d) AUTO-PO SUGGESTIONS ────────────────────────────────────────
     try {
       console.log("⏰ Midnight: running auto-PO suggestion job...");
-      await runAutoPoSuggestions(io);
+      const Tenant = require("./models/Tenant");
+      const activeTenants = await Tenant.find({ status: { $in: ["trial", "active"] } }).select("_id").lean();
+      for (const t of activeTenants) {
+        try {
+          await runAutoPoSuggestions(io, t._id);
+        } catch (err) {
+          console.error(`❌ Auto-PO suggestion job failed for tenant ${t._id}:`, err.message);
+        }
+      }
     } catch (err) {
       console.error("❌ Auto-PO suggestion job failed:", err.message);
     }

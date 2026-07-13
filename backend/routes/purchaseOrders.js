@@ -291,7 +291,7 @@ router.post("/run-auto-suggest", ownerOnly, async (req, res) => {
     const fn = req.app.get("runAutoPoSuggestions")
     if (!fn) return res.status(503).json({ success: false, message: "Job function not registered on app — check server startup." })
     const io = req.app.get("io")
-    await fn(io)
+    await fn(io, req.tenantId)
     res.json({ success: true, message: "Auto-PO suggestion job completed." })
   } catch (err) {
     console.error("Manual auto-suggest trigger failed:", err.message)
