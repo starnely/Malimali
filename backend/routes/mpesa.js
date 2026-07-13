@@ -39,7 +39,7 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "Cart items are required." });
     }
 
-    const user = await User.findById(req.user.id).session(session);
+    const user = await User.findOne({ _id: req.user.id, tenantId: req.tenantId }).session(session);
     if (!user) {
       await session.abortTransaction(); session.endSession();
       return res.status(401).json({ success: false, message: "Authenticated user not found." });
@@ -56,19 +56,19 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
       }
 
       const updated = await Product.findOneAndUpdate(
-        { _id: item.productId, stock: { $gte: parsedQty }, isExpired: { $ne: true } },
+        { _id: item.productId, tenantId: req.tenantId, stock: { $gte: parsedQty }, isExpired: { $ne: true } },
         { $inc: { stock: -parsedQty } },
         { new: true, session }
       );
 
       // Floating-point guard (kg items can leave stock at -1e-15)
       if (updated && updated.stock < 0) {
-        await Product.findByIdAndUpdate(updated._id, { $set: { stock: 0 } }, { session });
+        await Product.findOneAndUpdate({ _id: updated._id, tenantId: req.tenantId }, { $set: { stock: 0 } }, { session });
         updated.stock = 0;
       }
 
       if (!updated) {
-        const product = await Product.findById(item.productId).session(session);
+        const product = await Product.findOne({ _id: item.productId, tenantId: req.tenantId }).session(session);
         await session.abortTransaction(); session.endSession();
         if (!product)          return res.status(404).json({ success: false, message: "A product in your cart was not found." });
         if (product.isExpired) return res.status(400).json({ success: false, message: `${product.name} has expired and cannot be sold.` });
@@ -112,6 +112,7 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
       },
       date:         getEATDate(),
       returnStatus: "none",
+      tenantId:     req.tenantId,
     });
 
     await sale.save({ session });
@@ -184,7 +185,20 @@ router.post("/callback", async (req, res) => {
 
     const io = req.app.get("io");
 
+    // ── SPECIAL CASE — unauthenticated external webhook ─────────────────
+    // No JWT, no req.user, no req.tenantId exists on this request at all —
+    // Safaricom calls this directly. This lookup is DELIBERATELY unscoped:
+    // mpesaCheckoutRequestId is a globally-unique external reference (issued
+    // by Safaricom, not by us), so it's the one correct anchor to find the
+    // Sale without any tenant context. Do NOT add req.tenantId here — it
+    // would be undefined and would just make this query fail to match.
     const sale = await Sale.findOne({ mpesaCheckoutRequestId: CheckoutRequestID });
+
+    // Every operation from here on DOES have a tenant to scope to — it's
+    // just derived from the found Sale instead of from a JWT. Every
+    // subsequent query in this callback must use this, not req.tenantId
+    // (which is undefined on this unauthenticated route).
+    const tenantId = sale?.tenantId;
 
     // No full sale — check if this is a split-payment verification instead
     if (!sale) {
@@ -253,10 +267,14 @@ router.post("/callback", async (req, res) => {
 
     } else {
       // ── Payment failed — restock all items ────────────────────────
+      // Uses the derived tenantId (from the Sale found above), not
+      // req.tenantId — there is no req.tenantId on this unauthenticated
+      // route. Same cross-tenant-stock-corruption-prevention reasoning as
+      // every other restock site in this codebase.
       console.log("[MPesa Callback] Payment FAILED — ResultCode:", ResultCode, "| ResultDesc:", ResultDesc, "| Restocking", sale.items.length, "item(s)");
       for (const item of sale.items) {
-        await Product.findByIdAndUpdate(
-          item.productId,
+        await Product.findOneAndUpdate(
+          { _id: item.productId, tenantId },
           { $inc: { stock: item.qty } }
         );
       }
@@ -288,6 +306,7 @@ router.post("/callback", async (req, res) => {
 router.get("/status/:checkoutRequestId", authMiddleware, async (req, res) => {
   try {
     const sale = await Sale.findOne({
+      tenantId: req.tenantId,
       mpesaCheckoutRequestId: req.params.checkoutRequestId,
     }).lean();
 
@@ -325,7 +344,7 @@ router.post("/stk-verify", authMiddleware, async (req, res) => {
       return res.status(400).json({ success: false, message: "Phone and amount are required." });
     }
 
-    const user = await User.findById(req.user.id);
+    const user = await User.findOne({ _id: req.user.id, tenantId: req.tenantId });
     if (!user) return res.status(401).json({ success: false, message: "User not found." });
 
     let stkResult;
@@ -370,7 +389,7 @@ router.post("/stk-verify", authMiddleware, async (req, res) => {
 router.get("/query/:checkoutRequestId", authMiddleware, async (req, res) => {
   try {
     const { checkoutRequestId } = req.params;
-    const sale = await Sale.findOne({ mpesaCheckoutRequestId: checkoutRequestId });
+    const sale = await Sale.findOne({ tenantId: req.tenantId, mpesaCheckoutRequestId: checkoutRequestId });
     if (!sale) {
       return res.status(404).json({ success: false, message: "Payment not found." });
     }
@@ -385,7 +404,7 @@ router.get("/query/:checkoutRequestId", authMiddleware, async (req, res) => {
 
     if (resultCode === 0) {
       const updated = await Sale.findOneAndUpdate(
-        { _id: sale._id, status: "pending" },
+        { _id: sale._id, tenantId: req.tenantId, status: "pending" },
         { $set: { status: "confirmed" } },
         { new: true }
       );
@@ -399,12 +418,12 @@ router.get("/query/:checkoutRequestId", authMiddleware, async (req, res) => {
     } else if (resultCode !== -1) {
       // Definitive failure — restock and mark failed
       const updated = await Sale.findOneAndUpdate(
-        { _id: sale._id, status: "pending" },
+        { _id: sale._id, tenantId: req.tenantId, status: "pending" },
         { $set: { status: "failed" } }
       );
       if (updated) {
         for (const item of sale.items) {
-          await Product.findByIdAndUpdate(item.productId, { $inc: { stock: item.qty } });
+          await Product.findOneAndUpdate({ _id: item.productId, tenantId: req.tenantId }, { $inc: { stock: item.qty } });
         }
         const io = req.app.get("io");
         if (io) io.emit("productsUpdated");
