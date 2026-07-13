@@ -112,7 +112,7 @@ saleSchema.pre("save", async function () {
   if (!this.receiptId) {
     const timestamp = Date.now().toString().slice(-6)
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, "0")
-    const s = await Setting.findOne().select("receiptPrefix").lean()
+    const s = await Setting.findOne({ tenantId: this.tenantId }).select("receiptPrefix").lean()
     const prefix = s?.receiptPrefix?.trim() || "RCP"
     this.receiptId = `${prefix}-${timestamp}-${random}`
   }
