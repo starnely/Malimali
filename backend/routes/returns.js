@@ -72,10 +72,10 @@ router.get("/", async (req, res) => {
     }
     // Owner sees everything — no additional filter
 
-    // populate sites 1/4 and 2/4 — match:{tenantId} deferred to 2a-4
+    // populate sites 1/4 and 2/4
     const returns = await Return.find(query)
-      .populate("items.productId", "name category")
-      .populate("requestedBy", "fullname username")
+      .populate({ path: "items.productId", select: "name category", match: { tenantId: req.tenantId } })
+      .populate({ path: "requestedBy", select: "fullname username", match: { tenantId: req.tenantId } })
       .sort({ createdAt: -1 });
 
     res.json({ success: true, returns });
@@ -383,8 +383,8 @@ router.patch("/:id/approve-stage1", async (req, res) => {
 router.patch("/:id/approve", async (req, res) => {
   try {
     const { approverPin } = req.body || {};
-    // populate site 3/4 — match:{tenantId} deferred to 2a-4
-    const returnRecord = await Return.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate("items.productId");
+    // populate site 3/4
+    const returnRecord = await Return.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate({ path: "items.productId", match: { tenantId: req.tenantId } });
     if (!returnRecord) {
       return res.status(404).json({ success: false, message: "Return record not found." });
     }
@@ -433,8 +433,8 @@ router.patch("/:id/approve", async (req, res) => {
     }
 
     // ── 2. Update sale items and totals ───────────────────────────────
-    // populate site 4/4 — match:{tenantId} deferred to 2a-4
-    const sale = await Sale.findOne({ _id: returnRecord.saleId, tenantId: req.tenantId }).populate("items.productId");
+    // populate site 4/4
+    const sale = await Sale.findOne({ _id: returnRecord.saleId, tenantId: req.tenantId }).populate({ path: "items.productId", match: { tenantId: req.tenantId } });
     if (sale) {
       for (const returnItem of returnRecord.items) {
         const saleItem = sale.items.id(returnItem.saleItemId);
