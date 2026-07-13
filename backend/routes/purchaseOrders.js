@@ -216,10 +216,10 @@ router.get("/", async (req, res) => {
       if (req.query.from) filter.date.$gte = req.query.from
       if (req.query.to) filter.date.$lte = req.query.to
     }
-    // populate sites 1/10 and 2/10 — match:{tenantId} deferred to 2a-4
+    // populate sites 1/10 and 2/10
     const pos = await PurchaseOrder.find(filter)
-      .populate("supplierId", "name company phone email")
-      .populate("items.productId", "name category stock reorderLevel")
+      .populate({ path: "supplierId", select: "name company phone email", match: { tenantId: req.tenantId } })
+      .populate({ path: "items.productId", select: "name category stock reorderLevel", match: { tenantId: req.tenantId } })
       .sort({ createdAt: -1 })
       .limit(200)
     res.json({ success: true, purchaseOrders: pos, count: pos.length })
@@ -242,9 +242,9 @@ router.get("/outstanding", async (req, res) => {
     else if (req.query.store) filter.store = req.query.store
     if (req.query.supplierId) filter.supplierId = req.query.supplierId
 
-    // populate site 3/10 — match:{tenantId} deferred to 2a-4
+    // populate site 3/10
     const pos = await PurchaseOrder.find(filter)
-      .populate("supplierId", "name company phone email")
+      .populate({ path: "supplierId", select: "name company phone email", match: { tenantId: req.tenantId } })
       .sort({ invoiceDate: 1 })
 
     const pendingInvoiceFilter = {
@@ -304,10 +304,10 @@ router.get("/:id", async (req, res) => {
   try {
     if (["pdf", "send-email", "outstanding"].includes(req.params.id))
       return res.status(404).json({ success: false, message: "Not found." })
-    // populate sites 4/10 and 5/10 — match:{tenantId} deferred to 2a-4
+    // populate sites 4/10 and 5/10
     const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
-      .populate("supplierId", "name company phone address email")
-      .populate("items.productId", "name category stock reorderLevel buyPrice sellPrice")
+      .populate({ path: "supplierId", select: "name company phone address email", match: { tenantId: req.tenantId } })
+      .populate({ path: "items.productId", select: "name category stock reorderLevel buyPrice sellPrice", match: { tenantId: req.tenantId } })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     res.json({ success: true, purchaseOrder: po })
   } catch (err) {
@@ -557,9 +557,9 @@ router.patch("/:id/invoice", managerOrOwner, uploadInvoice.single("invoicePhoto"
 // Logging payments as expenses would double-count the same cost in P&L reports.
 router.post("/:id/payments", managerOrOwner, async (req, res) => {
   try {
-    // populate site 6/10 — match:{tenantId} deferred to 2a-4
+    // populate site 6/10
     const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
-      .populate("supplierId", "name")
+      .populate({ path: "supplierId", select: "name", match: { tenantId: req.tenantId } })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (req.user.role === "manager" && po.store !== req.user.store)
       return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
@@ -697,10 +697,10 @@ router.get("/:id/pdf", async (req, res) => {
     return res.status(403).json({ success: false, message: "Access denied." })
 
   try {
-    // populate sites 7/10 and 8/10 — match:{tenantId} deferred to 2a-4
+    // populate sites 7/10 and 8/10
     const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
-      .populate("supplierId", "name company phone address email")
-      .populate("items.productId", "name")
+      .populate({ path: "supplierId", select: "name company phone address email", match: { tenantId: req.tenantId } })
+      .populate({ path: "items.productId", select: "name", match: { tenantId: req.tenantId } })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
 
     const Setting = require("../models/Setting")
@@ -720,10 +720,10 @@ router.get("/:id/pdf", async (req, res) => {
 // ── 14. SEND EMAIL TO SUPPLIER ────────────────────────────────────────
 router.post("/:id/send-email", managerOrOwner, async (req, res) => {
   try {
-    // populate sites 9/10 and 10/10 — match:{tenantId} deferred to 2a-4
+    // populate sites 9/10 and 10/10
     const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
-      .populate("supplierId", "name company phone address email")
-      .populate("items.productId", "name")
+      .populate({ path: "supplierId", select: "name company phone address email", match: { tenantId: req.tenantId } })
+      .populate({ path: "items.productId", select: "name", match: { tenantId: req.tenantId } })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
 
     const Setting = require("../models/Setting")
