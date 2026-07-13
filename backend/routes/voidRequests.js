@@ -24,10 +24,10 @@ router.get("/", async (req, res) => {
       return res.status(403).json({ success: false, message: "Access denied." })
     }
 
-    // populate sites 1/2 and 2/2 — match:{tenantId} deferred to 2a-4
+    // populate sites 1/2 and 2/2
     const requests = await VoidRequest.find(query)
-      .populate("requestedBy", "fullname username")
-      .populate("saleId", "receiptId cashier total store")
+      .populate({ path: "requestedBy", select: "fullname username", match: { tenantId: req.tenantId } })
+      .populate({ path: "saleId", select: "receiptId cashier total store", match: { tenantId: req.tenantId } })
       .sort({ createdAt: -1 })
 
     res.json({ success: true, requests })
