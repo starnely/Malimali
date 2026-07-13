@@ -203,7 +203,7 @@ function broadcastPOEvent(io, eventName, po) {
 // ── 1. LIST PURCHASE ORDERS ───────────────────────────────────────────
 router.get("/", async (req, res) => {
   try {
-    const filter = {}
+    const filter = { tenantId: req.tenantId }
     // Managers are always scoped to their own store; owners may filter freely
     if (req.user.role === "manager") filter.store = req.user.store
     else if (req.query.store) filter.store = req.query.store
@@ -216,6 +216,7 @@ router.get("/", async (req, res) => {
       if (req.query.from) filter.date.$gte = req.query.from
       if (req.query.to) filter.date.$lte = req.query.to
     }
+    // populate sites 1/10 and 2/10 — match:{tenantId} deferred to 2a-4
     const pos = await PurchaseOrder.find(filter)
       .populate("supplierId", "name company phone email")
       .populate("items.productId", "name category stock reorderLevel")
@@ -232,6 +233,7 @@ router.get("/", async (req, res) => {
 router.get("/outstanding", async (req, res) => {
   try {
     const filter = {
+      tenantId: req.tenantId,
       paymentStatus: { $in: ["unpaid", "partial"] },
       invoiceAmount: { $gt: 0 },
       status: { $in: ["received", "partial"] },
@@ -240,11 +242,13 @@ router.get("/outstanding", async (req, res) => {
     else if (req.query.store) filter.store = req.query.store
     if (req.query.supplierId) filter.supplierId = req.query.supplierId
 
+    // populate site 3/10 — match:{tenantId} deferred to 2a-4
     const pos = await PurchaseOrder.find(filter)
       .populate("supplierId", "name company phone email")
       .sort({ invoiceDate: 1 })
 
     const pendingInvoiceFilter = {
+      tenantId: req.tenantId,
       status: { $in: ["received", "partial"] },
       $or: [{ invoiceAmount: { $exists: false } }, { invoiceAmount: 0 }],
     }
@@ -262,7 +266,7 @@ router.get("/outstanding", async (req, res) => {
 // ── SUPPLIER PAYMENTS LIST — used by financial advisory ──────────────
 router.get("/supplier-payments", async (req, res) => {
   try {
-    const filter = {}
+    const filter = { tenantId: req.tenantId }
     if (req.user.role === "manager") filter.store = req.user.store
     else if (req.query.store) filter.store = req.query.store
     if (req.query.from || req.query.to) {
@@ -300,7 +304,8 @@ router.get("/:id", async (req, res) => {
   try {
     if (["pdf", "send-email", "outstanding"].includes(req.params.id))
       return res.status(404).json({ success: false, message: "Not found." })
-    const po = await PurchaseOrder.findById(req.params.id)
+    // populate sites 4/10 and 5/10 — match:{tenantId} deferred to 2a-4
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate("supplierId", "name company phone address email")
       .populate("items.productId", "name category stock reorderLevel buyPrice sellPrice")
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
@@ -321,7 +326,10 @@ router.post("/", managerOrOwner, async (req, res) => {
     for (const item of items) {
       if (!item.productId || !item.qtyOrdered || !item.unitCost)
         return res.status(400).json({ success: false, message: "Each item needs productId, qtyOrdered, and unitCost." })
-      const product = await Product.findById(item.productId).lean()
+      // tenantId here isn't just defense-in-depth — without it, a productId
+      // belonging to a different tenant would validate successfully and that
+      // tenant's product name/unit would get embedded into THIS tenant's PO.
+      const product = await Product.findOne({ _id: item.productId, tenantId: req.tenantId }).lean()
       if (!product) return res.status(404).json({ success: false, message: `Product ${item.productId} not found.` })
       validatedItems.push({
         productId: item.productId, productName: product.name,
@@ -334,7 +342,9 @@ router.post("/", managerOrOwner, async (req, res) => {
     let sName = supplierName || "Manual / Walk-in"
     let sPhone = supplierPhone || ""
     if (supplierId) {
-      const supplier = await Supplier.findById(supplierId).lean()
+      // Same reasoning as the product lookup above — prevents embedding a
+      // different tenant's supplier name/phone into this tenant's PO.
+      const supplier = await Supplier.findOne({ _id: supplierId, tenantId: req.tenantId }).lean()
       if (supplier) { sName = supplier.name; sPhone = supplier.phone }
     }
 
@@ -344,6 +354,7 @@ router.post("/", managerOrOwner, async (req, res) => {
       expectedDate: expectedDate || "",
       createdBy: req.user?.name || req.user?.username || "",
       createdById: req.user?._id || null, status: "draft",
+      tenantId: req.tenantId,
     }).save()
 
     broadcastPOEvent(req.app.get("io"), "poCreated", po)
@@ -358,7 +369,7 @@ router.post("/", managerOrOwner, async (req, res) => {
 // ── 5. UPDATE DRAFT PO ───────────────────────────────────────────────
 router.put("/:id", managerOrOwner, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (req.user.role === "manager" && po.store !== req.user.store)
       return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
@@ -369,7 +380,8 @@ router.put("/:id", managerOrOwner, async (req, res) => {
     if (items?.length) {
       const validatedItems = []
       for (const item of items) {
-        const product = await Product.findById(item.productId).lean()
+        // Same leak-prevention reasoning as POST / above.
+        const product = await Product.findOne({ _id: item.productId, tenantId: req.tenantId }).lean()
         validatedItems.push({
           productId: item.productId, productName: product?.name || item.productName || "",
           unit: product?.unit || item.unit || "pcs",
@@ -395,7 +407,7 @@ router.put("/:id", managerOrOwner, async (req, res) => {
 // ── 6. MARK AS SENT ───────────────────────────────────────────────────
 router.patch("/:id/send", managerOrOwner, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (req.user.role === "manager" && po.store !== req.user.store)
       return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
@@ -416,7 +428,7 @@ router.patch("/:id/send", managerOrOwner, async (req, res) => {
 // ── 7. RECEIVE STOCK ──────────────────────────────────────────────────
 router.patch("/:id/receive", managerOrOwner, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (req.user.role === "manager" && po.store !== req.user.store)
       return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
@@ -446,7 +458,7 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
       poItem.receivedCost   = poItem.qtyReceived * actualUnitCost
 
       // Read current state before update so we can detect previously-expired products.
-      const existing = qty > 0 ? await Product.findById(poItem.productId).lean() : null
+      const existing = qty > 0 ? await Product.findOne({ _id: poItem.productId, tenantId: req.tenantId }).lean() : null
       const wasExpired = !!existing?.isExpired
 
       const productSet = { buyPrice: actualUnitCost }
@@ -459,8 +471,11 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
         // on the next startup or midnight run before the user sets a new date.
         if (wasExpired) productSet.expiryDate = null
       }
-      const product = await Product.findByIdAndUpdate(
-        poItem.productId,
+      // tenantId here prevents a crafted/stale poItem.productId from adding
+      // received stock to another tenant's product — same reasoning as
+      // sales.js/returns.js/voidRequests.js.
+      const product = await Product.findOneAndUpdate(
+        { _id: poItem.productId, tenantId: req.tenantId },
         { $inc: { stock: qty }, $set: productSet },
         { new: true }
       )
@@ -496,7 +511,7 @@ router.patch("/:id/receive", managerOrOwner, async (req, res) => {
 // ── 8. RECORD INVOICE ─────────────────────────────────────────────────
 router.patch("/:id/invoice", managerOrOwner, uploadInvoice.single("invoicePhoto"), async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (req.user.role === "manager" && po.store !== req.user.store)
       return res.status(403).json({ success: false, message: "Access denied: This purchase order belongs to a different store." })
@@ -542,7 +557,8 @@ router.patch("/:id/invoice", managerOrOwner, uploadInvoice.single("invoicePhoto"
 // Logging payments as expenses would double-count the same cost in P&L reports.
 router.post("/:id/payments", managerOrOwner, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    // populate site 6/10 — match:{tenantId} deferred to 2a-4
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate("supplierId", "name")
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (req.user.role === "manager" && po.store !== req.user.store)
@@ -584,6 +600,7 @@ router.post("/:id/payments", managerOrOwner, async (req, res) => {
       notes: notes?.trim() || "",
       paidBy: req.user?.name || req.user?.username || "",
       paidById: req.user?._id || null,
+      tenantId: req.tenantId,
     }).save()
 
     // ── Update PO payment totals ──────────────────────────────────────
@@ -620,7 +637,7 @@ router.post("/:id/payments", managerOrOwner, async (req, res) => {
 // ── 10. GET PAYMENTS FOR A PO ─────────────────────────────────────────
 router.get("/:id/payments", async (req, res) => {
   try {
-    const payments = await SupplierPayment.find({ poId: req.params.id }).sort({ createdAt: -1 })
+    const payments = await SupplierPayment.find({ poId: req.params.id, tenantId: req.tenantId }).sort({ createdAt: -1 })
     const total = payments.reduce((s, p) => s + p.amount, 0)
     res.json({ success: true, payments, total })
   } catch (err) {
@@ -631,7 +648,7 @@ router.get("/:id/payments", async (req, res) => {
 // ── 11. CANCEL PO ─────────────────────────────────────────────────────
 router.patch("/:id/cancel", ownerOnly, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (po.status === "received")
       return res.status(400).json({ success: false, message: "Cannot cancel a fully received PO." })
@@ -651,7 +668,7 @@ router.patch("/:id/cancel", ownerOnly, async (req, res) => {
 // ── 12. DELETE DRAFT PO ───────────────────────────────────────────────
 router.delete("/:id", ownerOnly, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
     if (po.status !== "draft" && po.status !== "cancelled")
       return res.status(400).json({ success: false, message: "Only draft or cancelled POs can be deleted." })
@@ -670,18 +687,24 @@ router.get("/:id/pdf", async (req, res) => {
   if (!token) return res.status(401).json({ success: false, message: "Authorization required." })
   try { req.user = jwt.verify(token, process.env.JWT_SECRET) }
   catch { return res.status(401).json({ success: false, message: "Invalid or expired token." }) }
+  // This route bypasses the router-level authMiddleware (see router.use()
+  // above, which skips GET .../pdf specifically so a token can arrive via
+  // query param instead of a header) — req.tenantId is never set by
+  // middleware here, so it must be pulled from the manually-verified token.
+  req.tenantId = req.user?.tenantId
   const role = req.user?.role
   if (role !== "owner" && role !== "manager")
     return res.status(403).json({ success: false, message: "Access denied." })
 
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    // populate sites 7/10 and 8/10 — match:{tenantId} deferred to 2a-4
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate("supplierId", "name company phone address email")
       .populate("items.productId", "name")
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
 
     const Setting = require("../models/Setting")
-    const settings = await Setting.findOne()
+    const settings = await Setting.findOne({ tenantId: req.tenantId })
 
     const pdfBuffer = await generatePOPdf(po, settings)
     res.setHeader("Content-Type", "application/pdf")
@@ -697,7 +720,8 @@ router.get("/:id/pdf", async (req, res) => {
 // ── 14. SEND EMAIL TO SUPPLIER ────────────────────────────────────────
 router.post("/:id/send-email", managerOrOwner, async (req, res) => {
   try {
-    const po = await PurchaseOrder.findById(req.params.id)
+    // populate sites 9/10 and 10/10 — match:{tenantId} deferred to 2a-4
+    const po = await PurchaseOrder.findOne({ _id: req.params.id, tenantId: req.tenantId })
       .populate("supplierId", "name company phone address email")
       .populate("items.productId", "name")
     if (!po) return res.status(404).json({ success: false, message: "Purchase order not found." })
@@ -705,7 +729,7 @@ router.post("/:id/send-email", managerOrOwner, async (req, res) => {
     const Setting = require("../models/Setting")
     const { decryptPassword } = require("./setup")
     const nodemailer = require("nodemailer")
-    const settings = await Setting.findOne()
+    const settings = await Setting.findOne({ tenantId: req.tenantId })
 
     if (!settings?.smtp?.host || !settings?.smtp?.user)
       return res.status(400).json({ success: false, message: "SMTP not configured. Go to Settings → Email & Documents to set up email first." })
@@ -810,18 +834,18 @@ router.get("/supplier/:supplierId/statement", async (req, res) => {
     return res.status(403).json({ success: false, message: "Access denied." })
 
   try {
-    const supplier = await Supplier.findById(req.params.supplierId)
+    const supplier = await Supplier.findOne({ _id: req.params.supplierId, tenantId: req.tenantId })
     if (!supplier) return res.status(404).json({ success: false, message: "Supplier not found." })
 
-    const pos = await PurchaseOrder.find({ supplierId: req.params.supplierId })
+    const pos = await PurchaseOrder.find({ supplierId: req.params.supplierId, tenantId: req.tenantId })
       .sort({ date: -1 }).limit(50)
 
-    const payments = await SupplierPayment.find({ supplierId: req.params.supplierId })
+    const payments = await SupplierPayment.find({ supplierId: req.params.supplierId, tenantId: req.tenantId })
       .sort({ date: -1 })
 
     const Setting = require("../models/Setting")
     const PDFDocument = require("pdfkit")
-    const settings = await Setting.findOne()
+    const settings = await Setting.findOne({ tenantId: req.tenantId })
 
     const doc = new PDFDocument({ margin: 50, size: "A4" })
     res.setHeader("Content-Type", "application/pdf")
