@@ -203,10 +203,10 @@ router.get("/", async (req, res) => {
       }
     }
 
-    // populate sites 1/2 and 2/2 — match:{tenantId} deferred to 2a-4
+    // populate sites 1/2 and 2/2
     const rawSales = await Sale.find({ ...query, status: "confirmed" })
-      .populate("cashierId", "username fullname")
-      .populate("items.productId", "name sellPrice category")
+      .populate({ path: "cashierId", select: "username fullname", match: { tenantId: req.tenantId } })
+      .populate({ path: "items.productId", select: "name sellPrice category", match: { tenantId: req.tenantId } })
       .sort({ createdAt: -1 })
 
     const sales = rawSales.map(sale => {
