@@ -7,14 +7,14 @@ function dateEAT() {
   return nowEAT().toISOString().split("T")[0]
 }
 
-async function generatePoNumber() {
+async function generatePoNumber(tenantId) {
   const now    = nowEAT()
   const yy     = String(now.getFullYear()).slice(2)
   const mm     = String(now.getMonth() + 1).padStart(2, "0")
   const dd     = String(now.getDate()).padStart(2, "0")
   const prefix = `PO-${yy}${mm}${dd}-`
   const last   = await mongoose.models.PurchaseOrder
-    .findOne({ poNumber: { $regex: `^${prefix}` } })
+    .findOne({ tenantId, poNumber: { $regex: `^${prefix}` } })
     .sort({ poNumber: -1 }).lean()
   let seq = 1
   if (last?.poNumber) {
@@ -99,7 +99,7 @@ const purchaseOrderSchema = new mongoose.Schema(
 
 purchaseOrderSchema.pre("save", async function () {
   if (!this.poNumber) {
-    this.poNumber = await generatePoNumber()
+    this.poNumber = await generatePoNumber(this.tenantId)
   }
   this.totalOrderedCost = this.items.reduce(
     (sum, item) => sum + item.qtyOrdered * item.unitCost, 0
