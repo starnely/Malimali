@@ -53,8 +53,8 @@ router.get("/", async (req, res) => {
     } else if (req.user.role !== "owner") {
       filter.store = req.user.store
     }
-    // populate site 1/5 — match:{tenantId} deferred to 2a-4
-    let q = Product.find(filter).populate("supplierId", "name company phone")
+    // populate site 1/5
+    let q = Product.find(filter).populate({ path: "supplierId", select: "name company phone", match: { tenantId: req.tenantId } })
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const products = await q.sort({ name: 1 })
     res.json({ success: true, products })
@@ -74,9 +74,9 @@ router.get("/low-stock", async (req, res) => {
     const stockExpr = rawThreshold !== null && !isNaN(rawThreshold)
       ? { $lte: ["$stock", rawThreshold] }
       : { $lte: ["$stock", { $ifNull: ["$reorderLevel", 5] }] }
-    // populate site 2/5 — match:{tenantId} deferred to 2a-4
+    // populate site 2/5
     let q = Product.find({ ...filter, $expr: stockExpr })
-      .populate("supplierId", "name company phone")
+      .populate({ path: "supplierId", select: "name company phone", match: { tenantId: req.tenantId } })
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const products = await q.sort({ stock: 1 })
     res.json({ success: true, products, count: products.length })
@@ -96,9 +96,9 @@ router.get("/lookup/:barcode", async (req, res) => {
     // barcode uniqueness is per-tenant (2a-2's compound index) — without
     // tenantId here this would search across ALL tenants and could report
     // a false "already exists" collision against another tenant's product.
-    // populate site 3/5 — match:{tenantId} deferred to 2a-4
+    // populate site 3/5
     let q = Product.findOne({ tenantId: req.tenantId, barcode: req.params.barcode })
-      .populate("supplierId", "name company phone")
+      .populate({ path: "supplierId", select: "name company phone", match: { tenantId: req.tenantId } })
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const product = await q.lean()
     if (!product) return res.status(404).json({ success: false })
@@ -112,8 +112,8 @@ router.get("/lookup/:barcode", async (req, res) => {
 // ── GET SINGLE PRODUCT ────────────────────────────────────────────────
 router.get("/:id", async (req, res) => {
   try {
-    // populate site 4/5 — match:{tenantId} deferred to 2a-4
-    let q = Product.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate("supplierId", "name company phone")
+    // populate site 4/5
+    let q = Product.findOne({ _id: req.params.id, tenantId: req.tenantId }).populate({ path: "supplierId", select: "name company phone", match: { tenantId: req.tenantId } })
     if (req.user.role === "cashier") q = q.select(REORDER_EXCL)
     const product = await q
     if (!product) return res.status(404).json({ success: false, message: "Product not found." })
@@ -227,12 +227,12 @@ router.put("/:id", managerOrOwner, async (req, res) => {
       ? { $set: { ...setData, pluNumber: Number(pluNumber) } }
       : { $set: setData, $unset: { pluNumber: "" } }
 
-    // populate site 5/5 — match:{tenantId} deferred to 2a-4
+    // populate site 5/5
     const updated = await Product.findOneAndUpdate(
       { _id: req.params.id, tenantId: req.tenantId },
       updateOp,
       { new: true, runValidators: true }
-    ).populate("supplierId", "name company phone")
+    ).populate({ path: "supplierId", select: "name company phone", match: { tenantId: req.tenantId } })
 
     if (!updated) return res.status(404).json({ success: false, message: "Product not found." })
 
