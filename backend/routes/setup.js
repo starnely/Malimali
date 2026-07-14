@@ -68,8 +68,12 @@ function isValidEmail(email) {
 // ── 4. STATUS CHECK ──────────────────────────────────────────────────
 router.get("/status", async (req, res) => {
   try {
-    const settings    = await Setting.findOne();
-    const ownerExists = await User.findOne({ role: "owner" });
+    // EXEMPT — pre-auth: this checks whether ANY tenant/owner has ever been
+    // set up at all, which is a question that structurally precedes tenant
+    // context (there's no req.tenantId before the app knows setup is done).
+    const globalStatusReason = "pre-auth setup status check — runs before any tenant context can exist";
+    const settings    = await Setting.findOne().setOptions({ skipTenantScope: globalStatusReason });
+    const ownerExists = await User.findOne({ role: "owner" }).setOptions({ skipTenantScope: globalStatusReason });
     res.json({
       success:     true,
       isSetup:     !!settings && !!ownerExists,
@@ -149,7 +153,10 @@ router.post("/initialize", upload.single("logo"), async (req, res) => {
       return res.status(401).json({ success: false, message: "Invalid activation license key." });
     }
 
-    const existingSettings = await Setting.findOne();
+    // EXEMPT — genuinely bootstraps the very first tenant; by definition
+    // runs before any tenant (and any tenantId) exists.
+    const existingSettings = await Setting.findOne()
+      .setOptions({ skipTenantScope: "bootstraps the first tenant — runs before any tenant exists" });
     if (existingSettings) {
       if (req.file) fs.unlinkSync(req.file.path);
       return res.status(400).json({ success: false, message: "System is already initialized." });

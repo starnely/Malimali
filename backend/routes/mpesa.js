@@ -192,7 +192,8 @@ router.post("/callback", async (req, res) => {
     // by Safaricom, not by us), so it's the one correct anchor to find the
     // Sale without any tenant context. Do NOT add req.tenantId here — it
     // would be undefined and would just make this query fail to match.
-    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CheckoutRequestID });
+    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CheckoutRequestID })
+      .setOptions({ skipTenantScope: "unauthenticated Safaricom webhook — mpesaCheckoutRequestId is a globally-unique external reference; tenant is derived from this Sale for every subsequent operation" });
 
     // Every operation from here on DOES have a tenant to scope to — it's
     // just derived from the found Sale instead of from a JWT. Every

@@ -28,9 +28,14 @@ router.post("/login", async (req, res) => {
     }
 
     const sanitized = username.trim();
+    // EXEMPT — pre-auth, no tenant context exists yet on this request.
+    // NOT a fully-resolved design: safe ONLY while tenant-zero is the sole
+    // tenant (§10 go-live gate — BLOCKING). Once a second tenant exists,
+    // this can match the wrong tenant's same-named user; must be replaced
+    // by the §7 business-code-scoped lookup before onboarding tenant #2.
     const user = await User.findOne({
       username: { $regex: new RegExp(`^${sanitized}$`, "i") }
-    });
+    }).setOptions({ skipTenantScope: "pre-auth login — see §7/§10, single-tenant-only until business-code lookup ships" });
 
     if (!user) {
       return res.status(401).json({ success: false, message: "Invalid username or password." });
