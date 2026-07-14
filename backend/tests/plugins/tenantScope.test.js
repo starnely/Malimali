@@ -55,7 +55,10 @@ describe("Phase 0 — tenantScope shadow-mode plugin", () => {
       (args) => args[0] && args[0].includes("[tenantScope:SHADOW]")
     );
     expect(shadowWarnings.length).toBeGreaterThan(0);
-    expect(shadowWarnings[0][0]).toContain("Category.find");
+    // Category.create() above also warns now (its own .save() has no
+    // tenantId, covered by 2a-5's new save hook) — assert Category.find's
+    // warning is present anywhere in the list, not specifically first.
+    expect(shadowWarnings.some((args) => args[0].includes("Category.find"))).toBe(true);
   });
 
   test("does not warn when a query already includes a tenantId filter", async () => {
