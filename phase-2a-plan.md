@@ -171,7 +171,7 @@ All of the following must be true, not just 2a "mostly done":
 - The reorder-suggestion job is per-tenant.
 - `required: true` is flipped on all 20 schemas.
 - `tenantScope` plugin is in throw mode.
-- Login resolves a real tenant identifier (§7) — not just "there's only one, so it doesn't matter."
+- **BLOCKING: Business-code login (§7) MUST be built and verified before onboarding tenant #2.** Confirmed during 2a-5's survey: `routes/auth.js`'s `POST /login` resolves `User.findOne({username: <regex>})` with no tenant-disambiguating input at all — safe today only because tenant-zero is the sole tenant in existence. Until the §7 business-code/slug mechanism is built, login can match the wrong tenant's user when two tenants have overlapping usernames (query returns whichever document Mongo's planner finds first, not necessarily the intended one). Not a "nice to have" — a real cross-tenant authentication risk the moment tenant #2 exists.
 - 2b (Socket.IO tenant rooms) is complete, given the data-carrying emits identified in §6.
 - A dedicated two-tenant isolation test exists and passes (per the original design's "dedicated isolation-test phase") — create a second real Tenant document, seed parallel data, and assert zero cross-tenant leakage across every route and every socket event.
 - Every item in §9b's test-coverage-gaps list has a real test file (`voidRequests.js` at minimum), and is given extra manual scrutiny during the two-tenant isolation test above.
