@@ -370,6 +370,15 @@ async function runAutoPoSuggestions(io, tenantId) {
   const Supplier      = require("./models/Supplier");
   const PurchaseOrder = require("./models/PurchaseOrder");
 
+  // Normalize to a real ObjectId — the midnight scheduler passes one
+  // already (Tenant._id via .lean()), but the manual owner-triggered route
+  // passes req.tenantId, a plain string off the decoded JWT. find/findOne
+  // auto-cast strings fine, but the Sale.aggregate() below does NOT (only
+  // Mongoose's query-builder methods cast; aggregate pipelines bypass it
+  // entirely), so without this, the manual-trigger path's velocity
+  // calculation would silently match zero sales.
+  tenantId = new mongoose.Types.ObjectId(tenantId);
+
   const flagged = await Product.find({ needsReorder: true, tenantId }).lean();
   if (flagged.length === 0) {
     console.log("✅ Auto-PO: no products flagged for reorder.");

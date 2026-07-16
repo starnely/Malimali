@@ -1,5 +1,6 @@
 const express   = require("express")
 const router    = express.Router()
+const mongoose  = require("mongoose")
 const Expense   = require("../models/Expense")
 const PettyCash = require("../models/PettyCash")
 const { authMiddleware, ownerOnly, managerOrOwner } = require("../middleware/authMiddleware")
@@ -37,7 +38,11 @@ router.get("/", async (req, res) => {
 // ── 2. GET SUMMARY ────────────────────────────────────────────────────
 router.get("/summary", async (req, res) => {
   try {
-    const matchFilter = { tenantId: req.tenantId, isDeleted: false }
+    // aggregate() bypasses Mongoose's automatic query-value casting (unlike
+    // find/findOne) — req.tenantId is a plain string off the decoded JWT, so
+    // it must be cast to ObjectId explicitly or $match silently matches
+    // nothing against the stored ObjectId-typed tenantId field.
+    const matchFilter = { tenantId: new mongoose.Types.ObjectId(req.tenantId), isDeleted: false }
     if (req.user.role === "manager") matchFilter.store = req.user.store
     else if (req.query.store) matchFilter.store = req.query.store
     if (req.query.date)  matchFilter.date  = req.query.date
