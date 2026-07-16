@@ -85,7 +85,10 @@ describe("POST /api/auth/login", () => {
   });
 
   test("200 — token has tenantId: null when the user has none set (pre-migration safety)", async () => {
-    const user = await createUser({ role: "cashier", email: "c3@test.com", store: "Main Store" });
+    // Deliberately overrides the seed factory's TEST_TENANT_ID default with
+    // null — this test exists specifically to exercise the `user.tenantId ||
+    // null` fallback in routes/auth.js's login handler.
+    const user = await createUser({ role: "cashier", email: "c3@test.com", store: "Main Store", tenantId: null });
     const res = await request(app)
       .post("/api/auth/login")
       .send({ username: user.username, password: DEFAULT_PASSWORD });

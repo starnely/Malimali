@@ -5,6 +5,7 @@ const { makeToken } = require("../helpers/auth");
 const { createUser, createProduct } = require("../helpers/seed");
 const Sale = require("../../models/Sale");
 const Product = require("../../models/Product");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 // Prevent any real calls to Safaricom during tests
 jest.mock("../../utils/mpesaClient", () => ({
@@ -43,6 +44,7 @@ async function seedPendingSale(cashierId) {
       mpesaPart:          300,
       mpesaReceiptNumber: "",
     },
+    tenantId: TEST_TENANT_ID,
   });
   return { sale, product };
 }

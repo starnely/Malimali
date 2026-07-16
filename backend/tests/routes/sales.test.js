@@ -5,6 +5,7 @@ const { makeToken } = require("../helpers/auth");
 const { createUser, createProduct, hashPin } = require("../helpers/seed");
 const Sale = require("../../models/Sale");
 const Product = require("../../models/Product");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -36,6 +37,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 15 },
+      tenantId: TEST_TENANT_ID,
     });
     await Sale.create({
       items: [{ productId: product._id, qty: 1, price: 15, buyPrice: 10 }],
@@ -46,6 +48,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 15 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: cashier1._id, role: "cashier", store: "Main Store" });
@@ -74,6 +77,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 15 },
+      tenantId: TEST_TENANT_ID,
     });
     await Sale.create({
       items: [{ productId: product._id, qty: 1, price: 15, buyPrice: 10 }],
@@ -84,6 +88,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 15 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: manager._id, role: "manager", store: "Store A" });
@@ -109,6 +114,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 15 },
+      tenantId: TEST_TENANT_ID,
     });
     await Sale.create({
       items: [{ productId: product._id, qty: 1, price: 15, buyPrice: 10 }],
@@ -119,6 +125,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 15 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });
@@ -148,6 +155,7 @@ describe("GET /api/sales", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 45 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: owner._id, role: "owner", store: "HQ" });

@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const mongoose = require("mongoose");
+const { TEST_TENANT_ID } = require("./tenant");
 const User = require("../../models/User");
 const Product = require("../../models/Product");
 const Category = require("../../models/Category");
@@ -43,6 +44,7 @@ async function createUser(overrides = {}) {
     active: true,
     isActive: true,
     shiftStatus: "closed",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
     // overrides may set role/store/email, but password must be hashed
     password:
@@ -61,6 +63,7 @@ async function createProduct(overrides = {}) {
     sellPrice: 15,
     stock: 100,
     store: "Main Store",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -81,6 +84,7 @@ async function createPurchaseOrder(product, overrides = {}) {
         unitCost: 8,
       },
     ],
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -94,6 +98,7 @@ async function createSupplierPayment(po, overrides = {}) {
     store: po.store,
     amount: 100,
     method: "cash",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -103,6 +108,7 @@ async function createCustomer(overrides = {}) {
   return Customer.create({
     name: `Test Customer ${count}`,
     store: "Main Store",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -125,6 +131,7 @@ async function createCreditSale(product, customerId, overrides = {}) {
       promiseDate: "",
       ...paymentInfoOverrides,
     },
+    tenantId: TEST_TENANT_ID,
     ...rest,
   });
 }
@@ -136,6 +143,7 @@ async function createRepayment(customer, overrides = {}) {
     store: customer.store,
     amount: 30,
     recordedBy: "Test User",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -150,6 +158,7 @@ async function createExpiredStock(product, overrides = {}) {
     buyPrice: product.buyPrice || 10,
     totalLoss: (overrides.quantity || 5) * (product.buyPrice || 10),
     expiryDate: new Date("2024-01-01"),
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -161,6 +170,7 @@ async function createExpense(overrides = {}) {
     description: "Test expense",
     store: "Main Store",
     recordedBy: "Test User",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -172,6 +182,7 @@ async function createPettyCash(overrides = {}) {
     store: "Main Store",
     openingFloat: 1000,
     transactions: [],
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -181,6 +192,7 @@ async function createCategory(overrides = {}) {
     name: "test category",
     store: null,
     description: "",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -191,6 +203,7 @@ async function createSupplier(overrides = {}) {
     name: `Test Supplier ${count}`,
     stores: [],
     isActive: true,
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -201,6 +214,7 @@ async function createStore(overrides = {}) {
     name: `Test Store ${count}`,
     location: "",
     phone: "",
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -214,6 +228,7 @@ async function createArchive(overrides = {}) {
     profit: 0,
     transactions: 0,
     itemsSold: 0,
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -228,6 +243,7 @@ async function createMessage(overrides = {}) {
     content:      "Test message content",
     isBroadcast:  false,
     readBy:       [],
+    tenantId:     TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -237,6 +253,7 @@ async function createSetting(overrides = {}) {
     companyName: "Test Company",
     currency:    "KSh",
     isActivated: true,
+    tenantId:    TEST_TENANT_ID,
     ...overrides,
   });
 }
@@ -252,6 +269,7 @@ async function createSale(overrides = {}) {
     date: "2024-01-01",
     time: "10:00:00 EAT",
     paymentInfo: { paymentMethod: "cash", finalTotal: 50 },
+    tenantId: TEST_TENANT_ID,
     ...overrides,
   });
 }

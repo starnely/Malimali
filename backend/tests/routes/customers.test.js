@@ -11,6 +11,7 @@ const {
 } = require("../helpers/seed");
 const Customer = require("../../models/Customer");
 const Sale = require("../../models/Sale");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -171,6 +172,7 @@ describe("POST /api/customers/from-sale", () => {
       date: "2024-01-01",
       time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 50 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: cashier._id, role: "cashier", store: "Main Store" });
@@ -195,6 +197,7 @@ describe("POST /api/customers/from-sale", () => {
       total: 50, store: "Main Store", cashier: "Cashier",
       date: "2024-01-01", time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 50 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: cashier._id, role: "cashier", store: "Main Store" });
@@ -216,6 +219,7 @@ describe("POST /api/customers/from-sale", () => {
       total: 50, store: "Main Store", cashier: "Cashier",
       date: "2024-01-01", time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 50 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: cashier._id, role: "cashier", store: "Main Store" });
@@ -237,6 +241,7 @@ describe("POST /api/customers/from-sale", () => {
       total: 50, store: "Main Store", cashier: "Cashier",
       date: "2024-01-01", time: "10:00:00 EAT",
       paymentInfo: { paymentMethod: "cash", finalTotal: 50 },
+      tenantId: TEST_TENANT_ID,
     });
 
     const token = makeToken({ id: cashier._id, role: "cashier", store: "Main Store" });

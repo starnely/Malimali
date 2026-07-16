@@ -6,6 +6,7 @@ const { createUser, createProduct, hashPin } = require("../helpers/seed");
 const Sale = require("../../models/Sale");
 const Product = require("../../models/Product");
 const Return = require("../../models/Return");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -39,6 +40,7 @@ async function createSale(user, items, paymentMethod = "cash") {
     date:      "2024-06-01",
     time:      "10:00:00 EAT",
     paymentInfo: { paymentMethod, finalTotal: total },
+    tenantId:  TEST_TENANT_ID,
   });
 }
 
@@ -274,6 +276,7 @@ describe("PATCH /api/returns/:id/approve", () => {
       status: "pending_owner",
       date: "2024-06-01",
       time: "10:00:00 EAT",
+      tenantId: TEST_TENANT_ID,
     });
 
     const res = await request(app)
