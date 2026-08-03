@@ -15,6 +15,45 @@ require("./plugins/tenantScope");
 
 const app = express();
 
+// ── 0. PROCESS-LEVEL SAFETY NETS ─────────────────────────────────────
+// Registered before anything else so they also cover startup code below.
+//
+// unhandledRejection: log only, don't exit. Node only auto-crashes on an
+// unhandled rejection when NO handler is registered; registering one (even
+// a log-only one) restores old Node behavior — visible, but not a new way
+// to take down a POS terminal mid-shift over a stray background promise.
+//
+// uncaughtException: a synchronous throw outside Express's request cycle
+// (e.g. inside a socket event handler or a setInterval/setTimeout callback)
+// leaves the process in an undefined state — Node's own docs say it is not
+// safe to resume normal operation after this. Log with full context, then
+// exit(1) so the platform's process supervisor (Render) restarts clean,
+// rather than limping on in a possibly-corrupted state.
+process.on("unhandledRejection", (reason) => {
+  console.error("💥 Unhandled Promise Rejection:", reason instanceof Error ? reason.stack : reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("💥 Uncaught Exception — exiting for a clean restart:", err.stack || err);
+  process.exit(1);
+});
+
+// ── 0b. TRUST PROXY ───────────────────────────────────────────────────
+// Render sits behind Cloudflare's edge *and* its own load balancer before
+// traffic reaches this process — best available evidence (Render community/
+// support threads, not a fully authoritative docs page — see conversation
+// history for the sourcing) points to 2 hops. Kept as an env var rather than
+// hardcoded specifically so it can be corrected without a redeploy once
+// verified against real traffic — see the log-then-enforce diagnostic in
+// middleware/mpesaIpAllowlist.js, which is how that verification happens.
+//
+// MUST be a specific hop count, never `true`/`all`. Blanket trust makes
+// Express read the client IP from the LEFTMOST X-Forwarded-For entry, which
+// is exactly the entry a client can inject themselves — that would let
+// anyone spoof their way past the M-Pesa callback IP allowlist entirely.
+const TRUST_PROXY_HOPS = parseInt(process.env.TRUST_PROXY_HOPS, 10);
+app.set("trust proxy", Number.isInteger(TRUST_PROXY_HOPS) && TRUST_PROXY_HOPS > 0 ? TRUST_PROXY_HOPS : 2);
+
 // ── 1. ENVIRONMENT GUARD ─────────────────────────────────────────────
 const MONGO_URI = process.env.MONGO_URI;
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -67,12 +106,40 @@ app.get("/health", (req, res) => {
 });
 
 // ── 4. DATABASE ──────────────────────────────────────────────────────
-mongoose.connect(MONGO_URI, {
-  serverSelectionTimeoutMS: 5000,
-  bufferCommands: false,
-})
-  .then(() => console.log("✅ MongoDB connected successfully"))
-  .catch(err => { console.error("❌ MongoDB connection failed:", err.message); process.exit(1); });
+// Retries a transient connection failure (e.g. a PaaS cold-start race, a
+// brief Atlas failover) instead of exiting on the first hiccup. Fire-and-
+// forget, same as before — nothing downstream awaits this, so the retry
+// window doesn't block the HTTP server (§5) from listening or /health
+// (§3b, above — deliberately DB-independent) from responding 200 the
+// whole time. Every failure is retried the same way regardless of cause;
+// this does not distinguish "transient" from "permanent misconfiguration"
+// (wrong URI, bad credentials) — a permanent failure just exhausts all
+// attempts and still exits with the real error visible in the logs, same
+// contract as before, just up to ~30s later.
+async function connectWithRetry(attempt = 1) {
+  const MAX_ATTEMPTS = 5;
+  const BASE_DELAY_MS = 2000;
+  const MAX_DELAY_MS = 30000;
+
+  try {
+    await mongoose.connect(MONGO_URI, {
+      serverSelectionTimeoutMS: 5000,
+      bufferCommands: false,
+    });
+    console.log("✅ MongoDB connected successfully");
+  } catch (err) {
+    if (attempt >= MAX_ATTEMPTS) {
+      console.error(`❌ CRITICAL: MongoDB connection failed after ${MAX_ATTEMPTS} attempts:`, err.message);
+      process.exit(1);
+    }
+    const delay = Math.min(BASE_DELAY_MS * 2 ** (attempt - 1), MAX_DELAY_MS);
+    console.warn(`⚠️  MongoDB connection attempt ${attempt}/${MAX_ATTEMPTS} failed (${err.message}) — retrying in ${delay / 1000}s...`);
+    await new Promise(resolve => setTimeout(resolve, delay));
+    return connectWithRetry(attempt + 1);
+  }
+}
+
+connectWithRetry();
 
 // ── 5. HTTP(S) SERVER + SOCKET.IO ─────────────────────────────────────
 // Render (and most PaaS hosts) terminate TLS at the platform level and hand
@@ -138,10 +205,22 @@ io.on("connection", (socket) => {
   });
   socket.on("join", (room) => { if (room) { socket.join(room); console.log(`📦 Socket ${socket.id} joined: ${room}`); } });
   socket.on("shift-closed", (data) => {
+    // A client can emit this event with no payload at all — guard before
+    // touching data.* below, or a bare `socket.emit("shift-closed")` throws
+    // synchronously inside this handler and (pre-§0) took the whole process down.
+    data = data || {};
+    const shiftStore = typeof data.store === "string" ? data.store.trim() : "";
+    if (!shiftStore) {
+      // Without a store there's nothing useful to route: the manager room
+      // target is empty and the owner notification would carry no context.
+      // Bail rather than emit a blank-store notification and falsely confirm
+      // success back to the client.
+      console.warn(`⚠️  shift-closed from socket ${socket.id} had no store — ignoring`);
+      return;
+    }
     // Use the server-verified identity; never trust the client-supplied name.
     const employeeName = socket.user.name || socket.user.username || "Unknown";
     console.log(`📢 Shift closed: ${employeeName}`);
-    const shiftStore = typeof data.store === "string" ? data.store : "";
     io.to("owner").to(`manager-${shiftStore}`).emit("adminShiftNotification", {
       employeeName,
       time: data.time || new Date().toLocaleTimeString(),
@@ -231,18 +310,18 @@ mongoose.connection.once("open", async () => {
   scheduleAutoExpiryCheck();
 
   // ── M-PESA ORPHAN CLEANUP JOB ─────────────────────────────────────────
-  // Every 45 s, find pending M-Pesa sales older than 90 s and query Safaricom
-  // directly.  Resolves sales where the callback was silently dropped (e.g.
-  // ngrok expiry).  Uses findOneAndUpdate with status:"pending" as the filter
-  // so the update is a no-op if the real callback arrived in the interim —
-  // prevents any double-processing race between the job and the live callback.
-  const { queryStkStatus, getResultMessage: mpesaMsg } = require("./utils/mpesaClient");
-
+  // Every 45 s, find pending M-Pesa sales older than 90 s and resolve them
+  // through the same authoritative path the callback route and the
+  // on-demand /query route use (utils/resolvePendingSale.js) — one Query
+  // API call, one atomic status:"pending" claim, no reimplementation here.
+  // The atomic claim inside resolvePendingSale is what prevents any
+  // double-processing race between this job and a live callback arriving
+  // at the same moment.
   setInterval(async () => {
     try {
-      const SaleM   = require("./models/Sale");
-      const ProductM = require("./models/Product");
-      const cutoff  = new Date(Date.now() - 90 * 1000);
+      const SaleM = require("./models/Sale");
+      const { resolvePendingSale } = require("./utils/resolvePendingSale");
+      const cutoff = new Date(Date.now() - 90 * 1000);
 
       const pendingSales = await SaleM.find({
         status: "pending",
@@ -255,46 +334,12 @@ mongoose.connection.once("open", async () => {
 
       for (const sale of pendingSales) {
         try {
-          const { resultCode, resultDesc } = await queryStkStatus(sale.mpesaCheckoutRequestId);
-
-          if (resultCode === 0) {
-            // Payment confirmed — atomic claim (no-op if callback beat us here)
-            const updated = await SaleM.findOneAndUpdate(
-              { _id: sale._id, status: "pending" },
-              { $set: { status: "confirmed" } }
-            );
-            if (updated) {
-              console.log(`[MPesa Job] ✅ Confirmed orphaned sale: ${sale.receiptId}`);
-              io.to(String(sale.cashierId)).emit("mpesa_result", {
-                checkoutRequestId:  sale.mpesaCheckoutRequestId,
-                status:             "success",
-                mpesaReceiptNumber: "",
-                sale:               { ...sale, status: "confirmed" },
-              });
-              io.emit("sync_system_data");
-            }
-
-          } else if (resultCode !== -1) {
-            // Definitive failure — atomic claim, then restock
-            const updated = await SaleM.findOneAndUpdate(
-              { _id: sale._id, status: "pending" },
-              { $set: { status: "failed" } }
-            );
-            if (updated) {
-              for (const item of sale.items) {
-                await ProductM.findByIdAndUpdate(item.productId, { $inc: { stock: item.qty } });
-              }
-              console.log(`[MPesa Job] ❌ Failed orphaned sale: ${sale.receiptId} | Code: ${resultCode}`);
-              io.to(String(sale.cashierId)).emit("mpesa_result", {
-                checkoutRequestId: sale.mpesaCheckoutRequestId,
-                status:            "failed",
-                resultCode,
-                message:           mpesaMsg(resultCode, resultDesc),
-              });
-              io.emit("productsUpdated");
-            }
+          const result = await resolvePendingSale({ sale, io });
+          if (result.applied) {
+            console.log(`[MPesa Job] ${result.status === "confirmed" ? "✅ Confirmed" : "❌ Failed"} orphaned sale: ${sale.receiptId} → ${result.status}`);
           }
-          // resultCode === -1: still in progress or query itself failed — leave as pending
+          // result.applied === false: still in progress, query itself
+          // failed, or a concurrent callback already claimed it — leave as pending.
         } catch (queryErr) {
           console.error(`[MPesa Job] Query error for sale ${sale._id}:`, queryErr.message);
         }

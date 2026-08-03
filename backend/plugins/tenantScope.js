@@ -36,7 +36,7 @@ const SCOPED_MODEL_NAMES = [
   "User", "Store", "Product", "Category", "Sale", "Customer", "Supplier",
   "PurchaseOrder", "Repayment", "ApprovalLog", "Expense", "ExpiredStock",
   "PettyCash", "SupplierPayment", "Archive", "VoidRequest", "Return",
-  "Message", "WeighBarcodeLog", "Setting",
+  "Message", "WeighBarcodeLog", "Setting", "PendingVerification",
 ];
 
 // Query-context methods: pre-hook receives the Query as `this`.
@@ -72,8 +72,14 @@ function explicitDocReason(doc) {
   return typeof reason === "string" && reason.trim() ? reason : null;
 }
 
+// TEMP AUDIT INSTRUMENTATION (2a-5 shadow-warning survey) — not committed.
+const fs = require("fs");
+const path = require("path");
+const AUDIT_LOG = path.join(__dirname, "..", "shadow-warnings-audit.log");
 function warnMissingTenant(modelName, method) {
   console.warn(`[tenantScope:SHADOW] ${modelName}.${method} called with no tenantId filter`);
+  const stack = new Error().stack.split("\n").slice(1).join("\n");
+  fs.appendFileSync(AUDIT_LOG, `[tenantScope:SHADOW] ${modelName}.${method}\n${stack}\n---\n`);
 }
 
 function tenantScopePlugin(schema, options = {}) {
@@ -93,22 +99,41 @@ function tenantScopePlugin(schema, options = {}) {
   // insertMany middleware — hooks are plain functions now (sync, or async
   // returning a promise Mongoose awaits). Matches this codebase's existing
   // convention, e.g. `pre("save", function () {...})` in User.js/PettyCash.js.
+  //
+  // deleteOne/updateOne quirk (verified empirically, NOT as documented in
+  // Mongoose's own docs — do not assume the { document, query } options
+  // "select" one call form over the other): calling doc.deleteOne() fires
+  // BOTH the { document: true } hook below AND this { query: true } hook —
+  // Mongoose always executes an underlying Query for deleteOne/updateOne
+  // regardless of which form triggered it. The query this hook sees in that
+  // case is Mongoose's auto-generated { _id: doc._id } filter, which never
+  // carries tenantId even when the document itself genuinely has one — and
+  // there is no handle to that auto-generated query to call .setOptions()
+  // on, so the query-level opt-out mechanism can't reach it either. The
+  // { _id }-only-filter exception below defers to the document-context hook
+  // (which DOES see the document's real tenantId) for that exact shape.
+  // Residual, accepted risk: a hypothetical direct Model.deleteOne({_id: x})
+  // call (no document instance involved) would also be silently allowed —
+  // there are zero such call sites today (grep-confirmed); same "standing
+  // rule, not a hook" category as bulkWrite/raw-driver-access below.
   SCOPED_QUERY_METHODS.forEach((method) => {
-    schema.pre(method, function () {
+    schema.pre(method, { document: false, query: true }, function () {
       const runtimeModelName = this.model?.modelName || modelName;
       if (!SCOPED_MODEL_NAMES.includes(runtimeModelName)) return; // tier 1 — model exempt
       if (hasTenantFilter(this)) return;
       if (explicitQueryReason(this)) return; // tier 2 — explicit opt-out
+      if ((method === "deleteOne" || method === "updateOne")) {
+        const keys = Object.keys(this.getQuery ? this.getQuery() : {});
+        if (keys.length === 1 && keys[0] === "_id") return; // doc.deleteOne()/doc.updateOne() — deferred to the document-context hook
+      }
       warnMissingTenant(runtimeModelName, method);
     });
   });
 
-  // deleteOne also has a document-context form (doc.deleteOne()), which is a
-  // SEPARATE hook registration from the query-context form above — Mongoose
-  // does not fire one for the other. Existing call sites (pettyCash.js,
-  // purchaseOrders.js) operate on documents already fetched via a
-  // tenant-scoped findOne, so this should be a no-op in practice; kept for
-  // defense-in-depth against future call sites that don't hold that invariant.
+  // Document-context form of deleteOne (doc.deleteOne()) — fires ALONGSIDE
+  // the query-context hook above (not instead of it, see comment above).
+  // This one has the real document, so it checks tenantId directly rather
+  // than an auto-generated filter — the authoritative check for that case.
   schema.pre("deleteOne", { document: true, query: false }, function () {
     const runtimeModelName = this.constructor?.modelName || modelName;
     if (!SCOPED_MODEL_NAMES.includes(runtimeModelName)) return;

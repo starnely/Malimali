@@ -10,13 +10,21 @@ const { TEST_TENANT_ID } = require("../helpers/tenant");
 // Prevent any real calls to Safaricom during tests
 jest.mock("../../utils/mpesaClient", () => ({
   initiateSTKPush:  jest.fn(),
+  queryStkStatus:   jest.fn(),
   getResultMessage: jest.fn((code, fallback) => fallback || "Payment failed"),
 }));
-const { initiateSTKPush } = require("../../utils/mpesaClient");
+const { initiateSTKPush, queryStkStatus } = require("../../utils/mpesaClient");
 
 const app = createApp();
 
 beforeAll(() => db.connect());
+beforeEach(() => {
+  // Safe default so any test that reaches the callback-resolution path
+  // without explicitly mocking a result doesn't crash on destructuring
+  // undefined — mirrors resultCode -1 ("still processing / query itself
+  // failed"), i.e. "leave everything as pending" unless a test overrides it.
+  queryStkStatus.mockResolvedValue({ resultCode: -1, resultDesc: "not mocked for this test" });
+});
 afterEach(async () => { await db.clear(); jest.clearAllMocks(); });
 afterAll(() => db.close());
 
@@ -143,7 +151,7 @@ describe("POST /api/mpesa/stk-push", () => {
     expect(res.status).toBe(400);
     expect(res.body.message).toMatch(/insufficient stock/i);
 
-    const unchanged = await Product.findById(product._id);
+    const unchanged = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(unchanged.stock).toBe(1);
   });
 
@@ -173,14 +181,14 @@ describe("POST /api/mpesa/stk-push", () => {
     expect(res.body.saleId).toBeTruthy();
 
     // Sale created as pending with checkoutRequestId stored
-    const sale = await Sale.findById(res.body.saleId);
+    const sale = await Sale.findOne({ _id: res.body.saleId, tenantId: TEST_TENANT_ID });
     expect(sale.status).toBe("pending");
     expect(sale.mpesaCheckoutRequestId).toBe("ws_CO_SUCCESS_001");
     expect(sale.paymentInfo.paymentMethod).toBe("mpesa");
     expect(sale.paymentInfo.finalTotal).toBe(500);
 
     // Stock was decremented
-    const after = await Product.findById(product._id);
+    const after = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(after.stock).toBe(4);
   });
 
@@ -206,7 +214,7 @@ describe("POST /api/mpesa/stk-push", () => {
     // Confirm the route actually tried Safaricom (not short-circuited)
     expect(initiateSTKPush).toHaveBeenCalledTimes(1);
     // No confirmed sale should exist (any orphaned pending is handled via manual void)
-    const confirmed = await Sale.findOne({ status: "confirmed", "paymentInfo.paymentMethod": "mpesa" });
+    const confirmed = await Sale.findOne({ status: "confirmed", "paymentInfo.paymentMethod": "mpesa", tenantId: TEST_TENANT_ID });
     expect(confirmed).toBeNull();
   });
 });
@@ -227,6 +235,10 @@ describe("POST /api/mpesa/callback", () => {
     const cashier = await createUser({ role: "cashier" });
     await seedPendingSale(cashier._id);
 
+    // Daraja itself is what decides the outcome now — this is what
+    // resolvePendingSale actually reads.
+    queryStkStatus.mockResolvedValue({ resultCode: 0, resultDesc: "The service request is processed successfully." });
+
     await request(app)
       .post("/api/mpesa/callback")
       .send(successCallback());
@@ -234,9 +246,10 @@ describe("POST /api/mpesa/callback", () => {
     // Give the async post-response processing time to finish
     await new Promise(r => setTimeout(r, 150));
 
-    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CHECKOUT_ID });
+    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CHECKOUT_ID, tenantId: TEST_TENANT_ID });
     expect(sale.status).toBe("confirmed");
     expect(sale.paymentInfo.mpesaReceiptNumber).toBe("NLJ7RT61SV");
+    expect(queryStkStatus).toHaveBeenCalledWith(CHECKOUT_ID);
   });
 
   test("failure callback: sale marked failed, items restocked", async () => {
@@ -244,18 +257,70 @@ describe("POST /api/mpesa/callback", () => {
     const { product } = await seedPendingSale(cashier._id);
     const stockBefore = product.stock; // 5 (createProduct default)
 
+    queryStkStatus.mockResolvedValue({ resultCode: 1032, resultDesc: "Request cancelled by user" });
+
     await request(app)
       .post("/api/mpesa/callback")
       .send(failureCallback(1032));
 
     await new Promise(r => setTimeout(r, 150));
 
-    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CHECKOUT_ID });
+    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CHECKOUT_ID, tenantId: TEST_TENANT_ID });
     expect(sale.status).toBe("failed");
 
     // The 1 unit that was decremented during stk-push must be returned
-    const after = await Product.findById(product._id);
+    const after = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(after.stock).toBe(stockBefore + 1);
+  });
+
+  test("payload claims SUCCESS but Daraja Query API says failed/cancelled — sale follows Daraja, not the payload", async () => {
+    // Regression guard for the exact bug that was removed: the callback
+    // route must never trust ResultCode/CallbackMetadata off the request
+    // body. Here the body lies (claims success); the mocked Query API is
+    // the only thing that should decide what actually happens.
+    const cashier = await createUser({ role: "cashier" });
+    const { product } = await seedPendingSale(cashier._id);
+    const stockBefore = product.stock;
+
+    queryStkStatus.mockResolvedValue({ resultCode: 1032, resultDesc: "Request cancelled by user" });
+
+    await request(app)
+      .post("/api/mpesa/callback")
+      .send(successCallback()); // body says ResultCode: 0 — must be ignored
+
+    await new Promise(r => setTimeout(r, 150));
+
+    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CHECKOUT_ID, tenantId: TEST_TENANT_ID });
+    expect(sale.status).toBe("failed");
+    // Forged receipt number from the body must never be stored
+    expect(sale.paymentInfo.mpesaReceiptNumber).toBe("");
+
+    // Restocked per Daraja's real (failed) answer, not left decremented
+    // as a "success" payload would otherwise imply.
+    const after = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
+    expect(after.stock).toBe(stockBefore + 1);
+  });
+
+  test("Daraja Query API throws/times out — sale stays pending, never guessed from the payload", async () => {
+    const cashier = await createUser({ role: "cashier" });
+    const { product } = await seedPendingSale(cashier._id);
+    const stockBefore = product.stock;
+
+    queryStkStatus.mockRejectedValue(new Error("Network timeout"));
+
+    await request(app)
+      .post("/api/mpesa/callback")
+      .send(successCallback()); // even a "success" payload must not become a fallback
+
+    await new Promise(r => setTimeout(r, 150));
+
+    const sale = await Sale.findOne({ mpesaCheckoutRequestId: CHECKOUT_ID, tenantId: TEST_TENANT_ID });
+    expect(sale.status).toBe("pending");
+    expect(sale.paymentInfo.mpesaReceiptNumber).toBe("");
+
+    // Neither the confirm path nor the restock-on-failure path ran
+    const after = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
+    expect(after.stock).toBe(stockBefore);
   });
 
   test("unknown CheckoutRequestID is silently ignored (still responds 200)", async () => {
@@ -267,7 +332,7 @@ describe("POST /api/mpesa/callback", () => {
 
     await new Promise(r => setTimeout(r, 100));
     // No sale should have been modified
-    const count = await Sale.countDocuments({ status: "confirmed" });
+    const count = await Sale.countDocuments({ status: "confirmed", tenantId: TEST_TENANT_ID });
     expect(count).toBe(0);
   });
 
@@ -275,19 +340,26 @@ describe("POST /api/mpesa/callback", () => {
     const cashier = await createUser({ role: "cashier" });
     const { sale } = await seedPendingSale(cashier._id);
 
-    // First callback — confirms
+    // First callback — Daraja confirms
+    queryStkStatus.mockResolvedValue({ resultCode: 0, resultDesc: "success" });
     await request(app).post("/api/mpesa/callback").send(successCallback());
     await new Promise(r => setTimeout(r, 150));
 
-    const afterFirst = await Sale.findById(sale._id);
+    const afterFirst = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
     expect(afterFirst.status).toBe("confirmed");
+    expect(queryStkStatus).toHaveBeenCalledTimes(1);
 
-    // Second callback — should be ignored (sale is no longer "pending")
+    // Second callback — even mocked to report a definitive failure here,
+    // it must be ignored: resolvePendingSale's status:"pending" guard
+    // returns before ever calling queryStkStatus a second time, so this
+    // mock value should never even be consulted.
+    queryStkStatus.mockResolvedValue({ resultCode: 1032, resultDesc: "cancelled" });
     await request(app).post("/api/mpesa/callback").send(failureCallback());
     await new Promise(r => setTimeout(r, 150));
 
-    const afterSecond = await Sale.findById(sale._id);
+    const afterSecond = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
     expect(afterSecond.status).toBe("confirmed"); // unchanged
+    expect(queryStkStatus).toHaveBeenCalledTimes(1); // never queried again — guard short-circuited first
   });
 });
 
@@ -329,6 +401,8 @@ describe("GET /api/mpesa/status/:checkoutRequestId", () => {
   test("returns confirmed status and receipt number after successful callback", async () => {
     const cashier = await createUser({ role: "cashier" });
     await seedPendingSale(cashier._id);
+
+    queryStkStatus.mockResolvedValue({ resultCode: 0, resultDesc: "success" });
 
     // Simulate callback
     await request(app).post("/api/mpesa/callback").send(successCallback());

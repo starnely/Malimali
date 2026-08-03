@@ -4,14 +4,11 @@ const mongoose = require("mongoose");
 const Sale     = require("../models/Sale");
 const Product  = require("../models/Product");
 const User     = require("../models/User");
+const PendingVerification = require("../models/PendingVerification");
 const { authMiddleware } = require("../middleware/authMiddleware");
+const { mpesaIpAllowlist } = require("../middleware/mpesaIpAllowlist");
 const { initiateSTKPush, queryStkStatus, getResultMessage } = require("../utils/mpesaClient");
-
-// In-process store for split-payment verifications.
-// Maps checkoutRequestId → { cashierId: String, amount: Number }
-// Entries are auto-deleted after 3 minutes (well past Safaricom's 60s window).
-const pendingVerifications = new Map();
-const { sendSmsReceipt } = require("../utils/smsReceipt");
+const { resolvePendingSale } = require("../utils/resolvePendingSale");
 
 function getEATDate() {
   return new Date(Date.now() + 3 * 60 * 60 * 1000).toISOString().split("T")[0];
@@ -163,12 +160,25 @@ router.post("/stk-push", authMiddleware, async (req, res) => {
 });
 
 
-// ── 2. SAFARICOM CALLBACK — no JWT auth ──────────────────────────────
+// ── 2. SAFARICOM CALLBACK — no JWT auth, IP-allowlisted ──────────────
 //
 // Safaricom calls this after the customer enters their PIN (or cancels).
 // We respond 200 immediately, then process async — Safaricom retries on
 // non-200 responses and we must not keep their connection open.
-router.post("/callback", async (req, res) => {
+//
+// SECURITY: nothing in the request BODY decides whether money changed
+// hands. ResultCode/ResultDesc from the body are never read at all below —
+// only CheckoutRequestID (an anchor to look up our own record) and
+// CallbackMetadata (used purely as a cosmetic receipt-number hint, never to
+// decide success/failure). The actual decision always comes from a fresh
+// call to Safaricom's own Query API, via resolvePendingSale for the main
+// sale case and directly below for the split-payment case.
+//
+// Middleware order: mpesaIpAllowlist runs first, but in its default "log"
+// mode it always calls next() regardless of match (see
+// middleware/mpesaIpAllowlist.js) — this handler still runs and still does
+// its own authoritative check even before the allowlist is confirmed/enforced.
+router.post("/callback", mpesaIpAllowlist, async (req, res) => {
   console.log("[MPesa Callback] Raw body received:", JSON.stringify(req.body));
   res.json({ ResultCode: 0, ResultDesc: "Accepted" });
 
@@ -179,8 +189,8 @@ router.post("/callback", async (req, res) => {
       return;
     }
 
-    const { CheckoutRequestID, ResultCode, ResultDesc, CallbackMetadata } = callback;
-    console.log("[MPesa Callback] CheckoutRequestID:", CheckoutRequestID, "| ResultCode:", ResultCode, "| ResultDesc:", ResultDesc);
+    const { CheckoutRequestID, CallbackMetadata } = callback;
+    console.log("[MPesa Callback] CheckoutRequestID:", CheckoutRequestID);
     if (!CheckoutRequestID) return;
 
     const io = req.app.get("io");
@@ -195,104 +205,67 @@ router.post("/callback", async (req, res) => {
     const sale = await Sale.findOne({ mpesaCheckoutRequestId: CheckoutRequestID })
       .setOptions({ skipTenantScope: "unauthenticated Safaricom webhook — mpesaCheckoutRequestId is a globally-unique external reference; tenant is derived from this Sale for every subsequent operation" });
 
-    // Every operation from here on DOES have a tenant to scope to — it's
-    // just derived from the found Sale instead of from a JWT. Every
-    // subsequent query in this callback must use this, not req.tenantId
-    // (which is undefined on this unauthenticated route).
-    const tenantId = sale?.tenantId;
+    if (sale) {
+      console.log("[MPesa Callback] Matched sale:", String(sale._id), "| receiptId:", sale.receiptId);
+      // Cosmetic only — never used to decide confirmed/failed. That
+      // decision comes entirely from resolvePendingSale's own Query API call.
+      const metaItems   = CallbackMetadata?.Item || [];
+      const receiptHint = String(metaItems.find(i => i.Name === "MpesaReceiptNumber")?.Value || "");
+      const result = await resolvePendingSale({ sale, io, mpesaReceiptNumberHint: receiptHint });
+      console.log(`[MPesa Callback] Resolved sale ${String(sale._id)} → status=${result.status} applied=${result.applied}`);
+      return;
+    }
 
-    // No full sale — check if this is a split-payment verification instead
-    if (!sale) {
-      const verif = pendingVerifications.get(CheckoutRequestID);
-      if (!verif) {
-        console.warn("[MPesa Callback] No sale or verification found for CheckoutRequestID:", CheckoutRequestID);
-        return;
-      }
-      pendingVerifications.delete(CheckoutRequestID);
-      const metaItems  = CallbackMetadata?.Item || [];
-      const receiptNum = ResultCode === 0
-        ? String(metaItems.find(i => i.Name === "MpesaReceiptNumber")?.Value || "")
-        : "";
-      console.log(`[MPesa Callback] Split verify ${ResultCode === 0 ? "SUCCESS" : "FAILED"}: ${CheckoutRequestID} | cashierId: ${verif.cashierId}`);
-      if (io) {
-        io.to(verif.cashierId).emit("mpesa_verify_result", {
-          checkoutRequestId:  CheckoutRequestID,
-          status:             ResultCode === 0 ? "success" : "failed",
-          mpesaReceiptNumber: receiptNum,
-          message:            ResultCode !== 0 ? getResultMessage(ResultCode, ResultDesc) : "",
-        });
+    // ── No full sale — check the split-payment verification record ──────
+    // findOneAndDelete is the atomic claim (mirrors the status:"pending"
+    // claim resolvePendingSale uses for full sales): only the first
+    // delivery of this callback can win it, so a Safaricom retry can't
+    // double-notify the cashier's socket.
+    const verif = await PendingVerification.findOneAndDelete({ checkoutRequestId: CheckoutRequestID })
+      .setOptions({ skipTenantScope: "unauthenticated Safaricom webhook — same reasoning as the Sale lookup above; the atomic findOneAndDelete already scopes to a single record via its unique checkoutRequestId" });
+
+    // Still ask Safaricom what actually happened even with no local record —
+    // a callback landing after the 5-minute TTL already deleted the record
+    // (or one that was never registered) must never be silently dropped
+    // without at least logging Safaricom's authoritative answer. There's
+    // nothing to notify in that case (no cashier to route to), but "a real
+    // payment happened and we have zero trace of it" must never be true.
+    const { resultCode, resultDesc } = await queryStkStatus(CheckoutRequestID);
+
+    if (!verif) {
+      if (resultCode === 0) {
+        console.error(`[MPesa Callback] ⚠️  CONFIRMED payment for CheckoutRequestID ${CheckoutRequestID} has no matching Sale or PendingVerification record — investigate (TTL expiry or unregistered request).`);
+      } else {
+        console.warn(`[MPesa Callback] No sale or verification found for CheckoutRequestID: ${CheckoutRequestID} — Daraja reports resultCode ${resultCode} (${resultDesc || "n/a"})`);
       }
       return;
     }
-    if (sale.status !== "pending") {
-      console.warn("[MPesa Callback] Sale already processed (status:", sale.status, ") — skipping. CheckoutRequestID:", CheckoutRequestID);
-      return;
-    }
-    console.log("[MPesa Callback] Matched sale:", String(sale._id), "| receiptId:", sale.receiptId);
 
-    if (ResultCode === 0) {
-      // ── Payment succeeded ─────────────────────────────────────────
-      const metaItems         = CallbackMetadata?.Item || [];
-      const mpesaReceiptNumber = String(metaItems.find(i => i.Name === "MpesaReceiptNumber")?.Value || "");
-      const paidAmount         = metaItems.find(i => i.Name === "Amount")?.Value || 0;
-
-      console.log("[MPesa Callback] Payment SUCCESS — MpesaReceiptNumber:", mpesaReceiptNumber, "| Amount:", paidAmount);
-
-      sale.status = "confirmed";
-      sale.paymentInfo.mpesaReceiptNumber = mpesaReceiptNumber;
-      await sale.save();
-      console.log("[MPesa Callback] Sale saved as confirmed:", String(sale._id));
-
-      // Fire-and-forget SMS receipt — never blocks callback response
-      sendSmsReceipt(sale.paymentInfo.mpesaPhone, {
-        store:              sale.store,
-        receiptId:          sale.receiptId,
-        itemCount:          sale.items.length,
-        finalTotal:         sale.paymentInfo.finalTotal ?? sale.total,
-        mpesaReceiptNumber,
-        date:               sale.date,
-      }).catch(err => console.error('[SMS] Uncaught error:', err.message))
-
-      if (io) {
-        // Notify the specific cashier who initiated this sale
-        io.to(String(sale.cashierId)).emit("mpesa_result", {
-          checkoutRequestId: CheckoutRequestID,
-          status:            "success",
-          mpesaReceiptNumber,
-          amount:            paidAmount,
-          sale:              sale.toObject(),
-        });
-        io.emit("productsUpdated");
-        io.emit("sync_system_data");
-      }
-
+    let status, mpesaReceiptNumber = "", message = "";
+    if (resultCode === 0) {
+      status = "success";
+      const metaItems = CallbackMetadata?.Item || [];
+      mpesaReceiptNumber = String(metaItems.find(i => i.Name === "MpesaReceiptNumber")?.Value || "");
+    } else if (resultCode === -1) {
+      // Query itself was inconclusive right after a callback fired — rare,
+      // but the record is already consumed (findOneAndDelete above), so
+      // there's no later retry path for this one specifically. Tell the
+      // cashier so they can check manually instead of the UI hanging.
+      status  = "pending";
+      message = "Payment status could not be confirmed automatically — please check manually before retrying.";
     } else {
-      // ── Payment failed — restock all items ────────────────────────
-      // Uses the derived tenantId (from the Sale found above), not
-      // req.tenantId — there is no req.tenantId on this unauthenticated
-      // route. Same cross-tenant-stock-corruption-prevention reasoning as
-      // every other restock site in this codebase.
-      console.log("[MPesa Callback] Payment FAILED — ResultCode:", ResultCode, "| ResultDesc:", ResultDesc, "| Restocking", sale.items.length, "item(s)");
-      for (const item of sale.items) {
-        await Product.findOneAndUpdate(
-          { _id: item.productId, tenantId },
-          { $inc: { stock: item.qty } }
-        );
-      }
+      status  = "failed";
+      message = getResultMessage(resultCode, resultDesc);
+    }
 
-      sale.status = "failed";
-      await sale.save();
-      console.log("[MPesa Callback] Sale saved as failed:", String(sale._id));
-
-      if (io) {
-        io.to(String(sale.cashierId)).emit("mpesa_result", {
-          checkoutRequestId: CheckoutRequestID,
-          status:            "failed",
-          resultCode:        ResultCode,
-          message:           getResultMessage(ResultCode, ResultDesc),
-        });
-        io.emit("productsUpdated");
-      }
+    console.log(`[MPesa Callback] Split verify ${status.toUpperCase()}: ${CheckoutRequestID} | cashierId: ${verif.cashierId}`);
+    if (io) {
+      io.to(String(verif.cashierId)).emit("mpesa_verify_result", {
+        checkoutRequestId: CheckoutRequestID,
+        status,
+        mpesaReceiptNumber,
+        message,
+      });
     }
 
   } catch (err) {
@@ -361,13 +334,17 @@ router.post("/stk-verify", authMiddleware, async (req, res) => {
       return res.status(502).json({ success: false, message: stkErr.message || "Failed to reach M-Pesa." });
     }
 
-    // Register so the callback can route the result to this cashier
-    pendingVerifications.set(stkResult.checkoutRequestId, {
-      cashierId: String(user._id),
-      amount:    Number(amount),
+    // Persisted (not an in-process Map) so a server restart between the STK
+    // push and the callback doesn't silently orphan the verification. The
+    // model's TTL index (5 min, models/PendingVerification.js) handles
+    // cleanup instead of a setTimeout.
+    await PendingVerification.create({
+      checkoutRequestId: stkResult.checkoutRequestId,
+      merchantRequestId: stkResult.merchantRequestId || "",
+      cashierId:         user._id,
+      amount:            Number(amount),
+      tenantId:          req.tenantId,
     });
-    // Auto-expire after 3 min in case the callback never arrives
-    setTimeout(() => pendingVerifications.delete(stkResult.checkoutRequestId), 3 * 60 * 1000);
 
     console.log("[MPesa STK Verify] Initiated | phone:", phone, "| amount:", amount, "| cashier:", user._id);
 
@@ -400,40 +377,11 @@ router.get("/query/:checkoutRequestId", authMiddleware, async (req, res) => {
       return res.json({ success: true, status: sale.status });
     }
 
-    // Query Safaricom for the authoritative result
-    const { resultCode, resultDesc } = await queryStkStatus(checkoutRequestId);
-
-    if (resultCode === 0) {
-      const updated = await Sale.findOneAndUpdate(
-        { _id: sale._id, tenantId: req.tenantId, status: "pending" },
-        { $set: { status: "confirmed" } },
-        { new: true }
-      );
-      const io = req.app.get("io");
-      if (updated && io) {
-        io.emit("productsUpdated");
-        io.emit("sync_system_data");
-      }
-      return res.json({ success: true, status: updated ? "confirmed" : sale.status });
-
-    } else if (resultCode !== -1) {
-      // Definitive failure — restock and mark failed
-      const updated = await Sale.findOneAndUpdate(
-        { _id: sale._id, tenantId: req.tenantId, status: "pending" },
-        { $set: { status: "failed" } }
-      );
-      if (updated) {
-        for (const item of sale.items) {
-          await Product.findOneAndUpdate({ _id: item.productId, tenantId: req.tenantId }, { $inc: { stock: item.qty } });
-        }
-        const io = req.app.get("io");
-        if (io) io.emit("productsUpdated");
-      }
-      return res.json({ success: true, status: "failed", message: getResultMessage(resultCode, resultDesc) });
-    }
-
-    // resultCode === -1: still processing or query itself failed — leave as pending
-    return res.json({ success: true, status: "pending" });
+    // Same atomic, authoritative resolution used by the callback route and
+    // the orphan-cleanup job — one code path, not a third reimplementation.
+    const io = req.app.get("io");
+    const result = await resolvePendingSale({ sale, io });
+    return res.json({ success: true, status: result.status, message: result.message });
 
   } catch (err) {
     console.error("[MPesa On-Demand Query] Error:", err);
