@@ -5,6 +5,7 @@ const { makeToken } = require("../helpers/auth");
 const { createUser, createProduct, createExpiredStock } = require("../helpers/seed");
 const Product = require("../../models/Product");
 const ExpiredStock = require("../../models/ExpiredStock");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -121,7 +122,7 @@ describe("POST /api/expired/move/:productId", () => {
       .send({ quantity: 0 });
     expect(res.status).toBe(400);
     // Stock must be untouched
-    const unchanged = await (require("../../models/Product")).findById(product._id);
+    const unchanged = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(unchanged.stock).toBe(10);
   });
 
@@ -149,7 +150,7 @@ describe("POST /api/expired/move/:productId", () => {
     expect(res.body.newStock).toBe(15);
     expect(res.body.totalLoss).toBe(250); // 5 × 50
 
-    const updated = await Product.findById(product._id);
+    const updated = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(updated.stock).toBe(15);
     expect(updated.isExpired).toBeFalsy();
   });
@@ -166,7 +167,7 @@ describe("POST /api/expired/move/:productId", () => {
     expect(res.status).toBe(200);
     expect(res.body.newStock).toBe(0);
 
-    const updated = await Product.findById(product._id);
+    const updated = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(updated.isExpired).toBe(true);
     expect(updated.stock).toBe(0);
   });
@@ -210,7 +211,7 @@ describe("POST /api/expired/auto-check", () => {
     expect(res.body.moved).toBe(1);
     expect(res.body.results[0].productName).toBe(stale.name);
 
-    const updated = await Product.findById(stale._id);
+    const updated = await Product.findOne({ _id: stale._id, tenantId: TEST_TENANT_ID });
     expect(updated.isExpired).toBe(true);
     expect(updated.stock).toBe(0);
   });
@@ -250,6 +251,6 @@ describe("DELETE /api/expired/:id", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    expect(await ExpiredStock.findById(record._id)).toBeNull();
+    expect(await ExpiredStock.findOne({ _id: record._id, tenantId: TEST_TENANT_ID })).toBeNull();
   });
 });

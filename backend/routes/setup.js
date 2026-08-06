@@ -162,6 +162,10 @@ router.post("/initialize", upload.single("logo"), async (req, res) => {
       return res.status(400).json({ success: false, message: "System is already initialized." });
     }
 
+    // EXEMPT — bootstraps the first tenant; genuinely runs before any
+    // tenant/Tenant document exists, same reasoning as the Setting.findOne
+    // check above.
+    const initReason = "bootstraps the first tenant — runs before any tenant exists";
     const newSettings = new Setting({
       companyName: companyName.trim(),
       phone:       phone    ? phone.trim()               : "",
@@ -172,6 +176,7 @@ router.post("/initialize", upload.single("logo"), async (req, res) => {
       isActivated: true,
       installedAt: new Date()
     });
+    newSettings.$locals.skipTenantScope = initReason;
     await newSettings.save();
 
     const hashedPassword = await bcrypt.hash(ownerPassword, 10);
@@ -186,6 +191,7 @@ router.post("/initialize", upload.single("logo"), async (req, res) => {
       isActive:    true,
       shiftStatus: "closed"
     });
+    newOwner.$locals.skipTenantScope = initReason;
     await newOwner.save();
 
     res.status(201).json({ success: true, message: "System initialized successfully." });

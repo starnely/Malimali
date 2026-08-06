@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const { createUser, DEFAULT_PASSWORD } = require("../helpers/seed");
 const User = require("../../models/User");
 const Tenant = require("../../models/Tenant");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -240,7 +241,7 @@ describe("POST /api/auth/register", () => {
     expect(res.body.user.active).toBe(true);
     expect(res.body.user.shiftStatus).toBe("closed");
 
-    const saved = await User.findOne({ username: "alice_staff" });
+    const saved = await User.findOne({ username: "alice_staff", tenantId: TEST_TENANT_ID });
     expect(saved.password).not.toBe("securepass");
     expect(saved.password).toMatch(/^\$2[ab]\$/);
   });

@@ -184,7 +184,7 @@ describe("POST /api/customers/from-sale", () => {
     expect(res.status).toBe(200);
     expect(res.body.customer.name).toBe("New Customer");
 
-    const updated = await Sale.findById(sale._id);
+    const updated = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
     expect(String(updated.paymentInfo.customerId)).toBe(String(res.body.customer._id));
   });
 
@@ -250,7 +250,7 @@ describe("POST /api/customers/from-sale", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ customerName: "No Phone", phone: "0733333333", store: "Main Store", saleId: sale._id });
 
-    const updated = await Customer.findById(existing._id);
+    const updated = await Customer.findOne({ _id: existing._id, tenantId: TEST_TENANT_ID });
     expect(updated.phone).toBe("0733333333");
   });
 });
@@ -309,7 +309,7 @@ describe("POST /api/customers/:id/repayments", () => {
       .send({ amount: 100 });
     expect(res.status).toBe(200);
     expect(res.body.newBalance).toBe(0);
-    const updated = await Customer.findById(customer._id);
+    const updated = await Customer.findOne({ _id: customer._id, tenantId: TEST_TENANT_ID });
     expect(updated.overdue).toBe(false);
   });
 });
@@ -390,7 +390,7 @@ describe("POST /api/customers/check-overdue", () => {
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
 
-    const updated = await Customer.findById(customer._id);
+    const updated = await Customer.findOne({ _id: customer._id, tenantId: TEST_TENANT_ID });
     expect(updated.overdue).toBe(true);
   });
 });

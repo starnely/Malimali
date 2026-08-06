@@ -215,7 +215,7 @@ describe("duplicate line-item return — regression for saleItemId matching", ()
     expect(submitRes.body.return.refundAmount).toBe(120); // 2 × 60
 
     // Fetch the updated sale and verify only itemB is pending
-    const saleAfterSubmit = await Sale.findById(sale._id);
+    const saleAfterSubmit = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
     const savedItemA = saleAfterSubmit.items.id(itemA._id);
     const savedItemB = saleAfterSubmit.items.id(itemB._id);
 
@@ -237,7 +237,7 @@ describe("duplicate line-item return — regression for saleItemId matching", ()
     expect(approveRes.status).toBe(200);
 
     // ── Step 3: verify only the targeted line item was updated ───────
-    const saleAfterApprove = await Sale.findById(sale._id);
+    const saleAfterApprove = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
     const finalItemA = saleAfterApprove.items.id(itemA._id);
     const finalItemB = saleAfterApprove.items.id(itemB._id);
 
@@ -248,7 +248,7 @@ describe("duplicate line-item return — regression for saleItemId matching", ()
     expect(finalItemB.returnedQty).toBe(2);           // only 2 returned, not all 5
 
     // ── Step 4: stock restored by exactly the returned qty (2), not 3+5 ──
-    const updatedProduct = await Product.findById(product._id);
+    const updatedProduct = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     // product started at stock:20, sale deducted 3+5=8, return adds back 2
     expect(updatedProduct.stock).toBe(14);
   });
@@ -357,11 +357,11 @@ describe("PATCH /api/returns/:id/approve", () => {
       .patch(`/api/returns/${submitRes.body.return._id}/approve`)
       .set("Authorization", `Bearer ${ownerToken}`);
 
-    const updatedProduct = await Product.findById(product._id);
+    const updatedProduct = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     // createSale inserts directly (no stock deduction), so approve only adds back 2
     expect(updatedProduct.stock).toBe(12); // 10 + 2 returned
 
-    const updatedSale = await Sale.findById(sale._id);
+    const updatedSale = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
     // original total 320, refund 160 (2 × 80), finalTotal should now be 160
     expect(updatedSale.paymentInfo.finalTotal).toBe(160);
   });
@@ -397,8 +397,8 @@ describe("PATCH /api/returns/:id/reject", () => {
     expect(rejectRes.body.return.status).toBe("rejected");
 
     // Sale item should be rejected; stock should not have changed
-    const updatedSale    = await Sale.findById(sale._id);
-    const updatedProduct = await Product.findById(product._id);
+    const updatedSale    = await Sale.findOne({ _id: sale._id, tenantId: TEST_TENANT_ID });
+    const updatedProduct = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
 
     expect(updatedSale.items[0].returnStatus).toBe("rejected");
     expect(updatedProduct.stock).toBe(10); // no stock movement on reject

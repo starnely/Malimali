@@ -5,6 +5,7 @@ const { makeToken } = require("../helpers/auth");
 const { createUser, createPettyCash, createExpense } = require("../helpers/seed");
 const PettyCash = require("../../models/PettyCash");
 const Expense = require("../../models/Expense");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -225,7 +226,7 @@ describe("POST /api/petty-cash/transaction", () => {
       .send({ store: "Main Store", type: "in", amount: 200, description: "Float top-up" });
     expect(res.status).toBe(200);
     expect(res.body.record.netBalance).toBe(700);
-    const expenseCount = await Expense.countDocuments({ fromPettyCash: true });
+    const expenseCount = await Expense.countDocuments({ fromPettyCash: true, tenantId: TEST_TENANT_ID });
     expect(expenseCount).toBe(0);
   });
 
@@ -239,7 +240,7 @@ describe("POST /api/petty-cash/transaction", () => {
       .send({ store: "Main Store", type: "out", amount: 150, description: "Water bill", expenseCategory: "utilities" });
     expect(res.status).toBe(200);
     expect(res.body.record.netBalance).toBe(350);
-    const expense = await Expense.findOne({ fromPettyCash: true });
+    const expense = await Expense.findOne({ fromPettyCash: true, tenantId: TEST_TENANT_ID });
     expect(expense).not.toBeNull();
     expect(expense.amount).toBe(150);
     expect(expense.category).toBe("utilities");
@@ -376,7 +377,7 @@ describe("DELETE /api/petty-cash/:recordId/transaction/:txId", () => {
       .delete(`/api/petty-cash/${pc._id}/transaction/${txId}`)
       .set("Authorization", `Bearer ${token}`);
     expect(res.status).toBe(200);
-    const expense = await Expense.findOne({ fromPettyCash: true });
+    const expense = await Expense.findOne({ fromPettyCash: true, tenantId: TEST_TENANT_ID });
     expect(expense.isDeleted).toBe(true);
   });
 });

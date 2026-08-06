@@ -258,7 +258,7 @@ describe("POST /api/sales", () => {
     expect(res.body.sale).toBeDefined();
     expect(res.body.sale.receiptId).toMatch(/^RCP-/);
 
-    const updated = await Product.findById(product._id);
+    const updated = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(updated.stock).toBe(45); // 50 - 5
   });
 
@@ -405,7 +405,7 @@ describe("PATCH /api/sales/:id/void", () => {
 
   test("200 — sale voided; stock restocked; all items marked voided", async () => {
     const sale = await recordSale();
-    const stockBefore = (await Product.findById(product._id)).stock;
+    const stockBefore = (await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID })).stock;
 
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void`)
@@ -417,7 +417,7 @@ describe("PATCH /api/sales/:id/void", () => {
     expect(res.body.sale.voidReason).toBe("customer returned items");
     expect(res.body.sale.items.every((i) => i.voidStatus === "voided")).toBe(true);
 
-    const stockAfter = (await Product.findById(product._id)).stock;
+    const stockAfter = (await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID })).stock;
     expect(stockAfter).toBe(stockBefore + 3); // 3 units restocked
   });
 });
@@ -481,7 +481,7 @@ describe("PATCH /api/sales/:id/void-items", () => {
   test("200 — partial void: only specified item voided; stock restocked for that qty only", async () => {
     const { sale } = await recordTwoItemSale();
     const firstItemId = sale.items[0]._id;
-    const stockBefore = (await Product.findById(product._id)).stock;
+    const stockBefore = (await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID })).stock;
 
     const res = await request(app)
       .patch(`/api/sales/${sale._id}/void-items`)
@@ -496,7 +496,7 @@ describe("PATCH /api/sales/:id/void-items", () => {
     expect(res.body.isPartialVoid).toBe(true);
     expect(res.body.sale.voided).toBe(false);
 
-    const stockAfter = (await Product.findById(product._id)).stock;
+    const stockAfter = (await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID })).stock;
     expect(stockAfter).toBe(stockBefore + 2);
   });
 

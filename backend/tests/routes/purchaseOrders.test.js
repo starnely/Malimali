@@ -5,6 +5,7 @@ const { makeToken } = require("../helpers/auth");
 const { createUser, createProduct, createPurchaseOrder, createSupplierPayment } = require("../helpers/seed");
 const PurchaseOrder = require("../../models/PurchaseOrder");
 const Product = require("../../models/Product");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -335,7 +336,7 @@ describe("PATCH /api/purchase-orders/:id/receive", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.purchaseOrder.status).toBe("partial"); // 5 of 10 received
-    const updated = await Product.findById(product._id);
+    const updated = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(updated.stock).toBe(stockBefore + 5);
   });
 
@@ -354,7 +355,7 @@ describe("PATCH /api/purchase-orders/:id/receive", () => {
 
   test("200 — receiving stock on an expired product clears isExpired + expiryDate; response includes wasExpiredItems", async () => {
     const { product, po, token } = await setup();
-    await Product.findByIdAndUpdate(product._id, {
+    await Product.findOneAndUpdate({ _id: product._id, tenantId: TEST_TENANT_ID }, {
       $set: { stock: 0, isExpired: true, expiryDate: new Date("2020-01-01") },
     });
 
@@ -364,7 +365,7 @@ describe("PATCH /api/purchase-orders/:id/receive", () => {
       .send({ items: [{ itemId: po.items[0]._id.toString(), qtyReceived: 5 }] });
 
     expect(res.status).toBe(200);
-    const updated = await Product.findById(product._id);
+    const updated = await Product.findOne({ _id: product._id, tenantId: TEST_TENANT_ID });
     expect(updated.stock).toBe(5);
     expect(updated.isExpired).toBe(false);
     expect(updated.expiryDate).toBeNull();
@@ -592,7 +593,7 @@ describe("DELETE /api/purchase-orders/:id", () => {
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);
-    const inDb = await PurchaseOrder.findById(po._id);
+    const inDb = await PurchaseOrder.findOne({ _id: po._id, tenantId: TEST_TENANT_ID });
     expect(inDb).toBeNull();
   });
 });

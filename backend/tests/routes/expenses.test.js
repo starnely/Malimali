@@ -5,6 +5,7 @@ const { makeToken } = require("../helpers/auth");
 const { createUser, createExpense, createPettyCash } = require("../helpers/seed");
 const Expense = require("../../models/Expense");
 const PettyCash = require("../../models/PettyCash");
+const { TEST_TENANT_ID } = require("../helpers/tenant");
 
 const app = createApp();
 
@@ -254,7 +255,7 @@ describe("DELETE /api/expenses/:id", () => {
     expect(del.status).toBe(200);
     expect(del.body.success).toBe(true);
 
-    const record = await Expense.findById(expense._id);
+    const record = await Expense.findOne({ _id: expense._id, tenantId: TEST_TENANT_ID });
     expect(record.isDeleted).toBe(true);
 
     const list = await request(app).get("/api/expenses").set("Authorization", `Bearer ${token}`);
@@ -288,7 +289,7 @@ describe("DELETE /api/expenses/:id", () => {
     expect(res.body.success).toBe(true);
     expect(res.body.warning).toBeUndefined(); // no warning — reversal succeeded
 
-    const updatedPc = await PettyCash.findById(pc._id);
+    const updatedPc = await PettyCash.findOne({ _id: pc._id, tenantId: TEST_TENANT_ID });
     expect(updatedPc.transactions.length).toBe(0);
     expect(updatedPc.netBalance).toBe(1000); // openingFloat fully restored
   });
@@ -320,10 +321,10 @@ describe("DELETE /api/expenses/:id", () => {
     expect(res.body.success).toBe(true);
     expect(res.body.warning).toBeDefined();
 
-    const updatedExpense = await Expense.findById(expense._id);
+    const updatedExpense = await Expense.findOne({ _id: expense._id, tenantId: TEST_TENANT_ID });
     expect(updatedExpense.isDeleted).toBe(true);
 
-    const updatedPc = await PettyCash.findById(pc._id);
+    const updatedPc = await PettyCash.findOne({ _id: pc._id, tenantId: TEST_TENANT_ID });
     expect(updatedPc.transactions.length).toBe(1); // tx NOT removed
   });
 });
